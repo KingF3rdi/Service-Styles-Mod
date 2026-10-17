@@ -4,6 +4,14 @@ import dev.hugoservice.Categories.Category;
 import dev.hugoservice.Categories.Group;
 import dev.hugoservice.Categories.KeepGroup;
 import dev.hugoservice.Styles.Style;
+import dev.hugoservice.cosmetics.Cosmetic;
+import dev.hugoservice.cosmetics.CosmeticCatalog;
+import dev.hugoservice.cosmetics.CosmeticCategory;
+import dev.hugoservice.cosmetics.CosmeticIcons;
+import dev.hugoservice.cosmetics.CosmeticSync;
+import dev.hugoservice.cosmetics.Loadout;
+import dev.hugoservice.cosmetics.OverlayTuning;
+import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -88,6 +96,8 @@ public class StyleScreen extends Screen {
     private Category cat = Categories.byId(cfg.lastCategory);
     private boolean extras, favOnly, dirty, busy, skipChar, waitingKey, painted;
     private String groupFilter; // null = all sub-groups
+    private CosmeticCategory cosCat; // non-null = cosmetics view
+    private Cosmetic hoveredCos;
     private Pick hovered, zoomed;
     private double gridScroll, sideScroll, extrasScroll;
     private int gridMax, sideMax, extrasMax;
@@ -172,6 +182,7 @@ public class StyleScreen extends Screen {
 
     void selectCategory(Category c) {
         groupFilter = null;
+        cosCat = null;
         cat = c;
         cfg.lastCategory = c.id();
         gridScroll = 0;
@@ -181,6 +192,7 @@ public class StyleScreen extends Screen {
 
     void showExtras(boolean on) {
         extras = on;
+        if (on) cosCat = null;
         search.visible = !on;
         if (on) search.setFocused(false);
     }
@@ -213,6 +225,7 @@ public class StyleScreen extends Screen {
         hits.clear();
         Thumbs.upload();
         hovered = null;
+        hoveredCos = null;
         fakeField.visible = false; // the name faker block shows it when on screen
         urlField.visible = false;
 
@@ -220,7 +233,7 @@ public class StyleScreen extends Screen {
 
         drawHeader(ctx);
         drawSidebar(ctx);
-        if (extras) drawExtras(ctx); else drawGrid(ctx);
+        if (extras) drawExtras(ctx); else if (cosCat != null) drawCosmetics(ctx); else drawGrid(ctx);
         if (insL < R) drawInspector(ctx);
         drawBottomBar(ctx);
 
@@ -243,7 +256,7 @@ public class StyleScreen extends Screen {
             int ix = x + i * 22;
             boolean custom = false;
             for (Group g : c.groups()) custom |= !cfg.styleOf(g.id()).equals(Styles.VANILLA_ID) || cfg.colorOf(g.id()) != null;
-            boolean on = c == cat && !extras;
+            boolean on = c == cat && !extras && cosCat == null;
             round(ctx, ix, T + 7, 20, 20, 6, on ? ACCENT_SOFT : over(ix, T + 7, 20, 20) ? HOVER : PANEL);
             item(ctx, c, ix + 5, T + 12);
             if (custom) round(ctx, ix + 8, T + 29, 4, 2, 1, on ? ACCENT : GOOD);
@@ -272,7 +285,7 @@ public class StyleScreen extends Screen {
                 text(ctx, section.toUpperCase(Locale.ROOT), x0 + 10, ry + 4, DIM);
                 ry += 15;
             }
-            boolean sel = c == cat && !extras;
+            boolean sel = c == cat && !extras && cosCat == null;
             boolean hov = over(x0 + 4, ry, w - 8, rowH - 1) && mouseY >= listTop && mouseY < bottom;
             if (sel) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
             else if (hov) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, 0x10FFFFFF);
@@ -283,6 +296,24 @@ public class StyleScreen extends Screen {
             text(ctx, cnt, sideR - 10 - width(cnt), ry + 5, sel ? ACCENT : DIM);
             int y0 = Math.max(ry, listTop), y1 = Math.min(ry + rowH, bottom);
             if (y1 > y0) hit(x0 + 4, y0, w - 8, y1 - y0, (a, b, btn) -> selectCategory(c));
+            ry += rowH;
+        }
+        // cosmetics (based on Titus Cosmetics): one entry per category
+        text(ctx, "COSMETICS", x0 + 10, ry + 4, DIM);
+        ry += 15;
+        for (CosmeticCategory cc : CosmeticCategory.values()) {
+            List<Cosmetic> items = CosmeticCatalog.ofCategory(cc);
+            boolean sel = cc == cosCat && !extras;
+            boolean hov = over(x0 + 4, ry, w - 8, rowH - 1) && mouseY >= listTop && mouseY < bottom;
+            if (sel) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
+            else if (hov) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, 0x10FFFFFF);
+            if (sel) round(ctx, x0 + 4, ry + 4, 2, rowH - 9, 1, ACCENT);
+            if (!items.isEmpty()) cosmeticIcon(ctx, items.getFirst(), x0 + 9, ry + 2, 14);
+            String cnt = String.valueOf(items.size());
+            text(ctx, ellipsize(cc.label(), sideR - 16 - width(cnt) - (x0 + 26)), x0 + 26, ry + 5, sel || hov ? TEXT : MUTED);
+            text(ctx, cnt, sideR - 10 - width(cnt), ry + 5, sel ? ACCENT : DIM);
+            int y0 = Math.max(ry, listTop), y1 = Math.min(ry + rowH, bottom);
+            if (y1 > y0) hit(x0 + 4, y0, w - 8, y1 - y0, (a, b, btn) -> openCosmetics(cc));
             ry += rowH;
         }
         ctx.disableScissor();
@@ -428,7 +459,142 @@ public class StyleScreen extends Screen {
         });
     }
 
+    // ================================================================ cosmetics (based on Titus Cosmetics)
+
+    void openCosmetics(CosmeticCategory cc) {
+        cosCat = cc;
+        extras = false;
+        search.visible = true;
+        gridScroll = 0;
+    }
+
+    /** Generated cosmetic icon from the preview atlas. */
+    private void cosmeticIcon(DrawContext ctx, Cosmetic c, int x, int y, int size) {
+        drawPreview(ctx, "cos|" + c.id(), () -> CosmeticIcons.of(c, 96), x, y, size, size, 0, false);
+    }
+
+    private void toggleCosmetic(Cosmetic c) {
+        Loadout lo = CosmeticSync.local();
+        boolean worn = c.id().equals(lo.idOf(c.category()));
+        CosmeticSync.setLocal(worn ? lo.without(c.category()) : lo.with(c));
+        status(worn ? "Took off " + c.name() : "Wearing " + c.name());
+    }
+
+    private void drawCosmetics(DrawContext ctx) {
+        Loadout lo = CosmeticSync.local();
+        String q = search.getText().trim().toLowerCase(Locale.ROOT);
+        List<Cosmetic> list = new ArrayList<>();
+        for (Cosmetic c : CosmeticCatalog.ofCategory(cosCat)) {
+            if (q.isEmpty() || c.name().toLowerCase(Locale.ROOT).contains(q)) list.add(c);
+        }
+        Cosmetic wearing = lo.get(cosCat);
+        bold(ctx, cosCat.label(), cx0, T + 37, TEXT);
+        text(ctx, ellipsize(list.size() + " items  ·  " + (wearing == null ? "nothing worn" : "wearing " + wearing.name()),
+            search.getX() - cx0 - 30), cx0, T + 48, MUTED);
+        // search pill (same look as the styles view)
+        int sx = search.getX() - 16, sw = search.getWidth() + 22;
+        round(ctx, sx, T + 34, sw, 17, 8.5f, FIELD);
+        roundOutline(ctx, sx, T + 34, sw, 17, 8.5f, search.isFocused() ? ACCENT : EDGE, 1f);
+        text(ctx, "Click to wear  ·  click again to take off  ·  one per category", cx0, T + 59, DIM);
+
+        int gap = 8, areaW = cx1 - cx0;
+        int cols = Math.max(1, (areaW + gap) / (66 + gap));
+        int cw = (areaW - gap * (cols - 1)) / cols;
+        int th = Math.min(80, Math.max(40, cw * 3 / 4));
+        int ch = th + 16;
+        gridTop = bodyY;
+        ctx.enableScissor(cx0 - 2, bodyY - 2, cx1 + 2, bodyB);
+        int y0 = bodyY - (int) gridScroll;
+        for (int i = 0; i < list.size(); i++) {
+            Cosmetic c = list.get(i);
+            int x = cx0 + (i % cols) * (cw + gap), y = y0 + (i / cols) * (ch + gap);
+            if (y + ch < bodyY - 2 || y > bodyB) continue;
+            boolean worn = c == wearing || wearing != null && c.id().equals(wearing.id());
+            boolean hov = over(x, y, cw, ch) && mouseY >= bodyY && mouseY < bodyB;
+            if (hov) hoveredCos = c;
+            if (worn || hov) roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 8, worn ? ACCENT : 0x80BFE6FF, 1f);
+            round(ctx, x, y, cw, ch, 7, PANEL);
+            roundGradient(ctx, x, y, cw, th, 7, CARD_TOP, CARD_BOT, true, false);
+            int pad = Math.min(cw, th) / 7;
+            drawPreview(ctx, "cos|" + c.id(), () -> CosmeticIcons.of(c, 96), x, y, cw, th, pad, true);
+            String name = ellipsize(c.name(), cw - 8);
+            text(ctx, name, x + (cw - width(name)) / 2, y + th + 4, worn ? ACCENT_HI : hov ? TEXT : MUTED);
+            // rarity: coloured dot plus label
+            round(ctx, x + 5, y + 5, 5, 5, 2.5f, c.rarity().color());
+            if (worn) badge(ctx, "Worn", x + cw - width("Worn") - 13, y + 4);
+            int hy0 = Math.max(y, bodyY), hy1 = Math.min(y + ch, bodyB);
+            if (hy1 > hy0) hit(x, hy0, cw, hy1 - hy0, (a, b, btn) -> toggleCosmetic(c));
+        }
+        ctx.disableScissor();
+        int rows = (list.size() + cols - 1) / cols;
+        gridMax = Math.max(0, rows * (ch + gap) - gap - (bodyB - bodyY));
+        gridScroll = clamp(gridScroll, 0, gridMax);
+        scrollbar(ctx, cx1 + 4, bodyY, bodyB, gridScroll, gridMax);
+    }
+
+    private void drawCosmeticInspector(DrawContext ctx) {
+        int x = insL, top = T + 36, w = R - 8 - insL, ix = x + 8, iw = w - 16;
+        glass(ctx, x, top, w, B - 32 - top, 8, PANEL);
+        bold(ctx, "Preview", ix, top + 9, TEXT);
+        Loadout lo = CosmeticSync.local();
+        List<Cosmetic> items = CosmeticCatalog.ofCategory(cosCat);
+        Cosmetic shown = hoveredCos != null ? hoveredCos : lo.get(cosCat) != null ? lo.get(cosCat) : items.isEmpty() ? null : items.getFirst();
+        int box = Math.min(iw, (B - T) / 2 - 10);
+        int by = top + 24;
+        roundGradient(ctx, ix, by, iw, box, 7, CARD_TOP, CARD_BOT, true, true);
+        if (client.player != null) {
+            // your own player, wearing your loadout (the cosmetic layer draws it)
+            InventoryScreen.drawEntity(ctx, ix, by, ix + iw, by + box, Math.max(20, box * 2 / 5), 0.0625f, mouseX, mouseY, client.player);
+        } else if (shown != null) {
+            Cosmetic s = shown;
+            drawPreview(ctx, "cos|" + s.id(), () -> CosmeticIcons.of(s, 96), ix, by, iw, box, iw / 5, true);
+        }
+        if (shown == null) return;
+        int ty = by + box + 8;
+        bold(ctx, ellipsize(shown.name(), iw), ix, ty, TEXT);
+        text(ctx, shown.rarity().label(), ix, ty + 12, shown.rarity().color());
+        text(ctx, ellipsize(" · " + cosCat.label(), iw - width(shown.rarity().label())), ix + width(shown.rarity().label()), ty + 12, MUTED);
+        int ly = ty + 25;
+        for (String line : wrap(shown.description(), iw, 2)) { text(ctx, line, ix, ly, DIM); ly += 10; }
+        boolean worn = shown.id().equals(lo.idOf(cosCat));
+        int bw = (iw - 4) / 2, byy = ly + 4;
+        Cosmetic s = shown;
+        button(ctx, ix, byy, bw, worn ? "Take off" : "Wear", !worn, () -> toggleCosmetic(s));
+        button(ctx, ix + bw + 4, byy, iw - bw - 4, "Take all off", false, () -> { CosmeticSync.setLocal(Loadout.EMPTY); status("Took everything off"); });
+        int hy = byy + 22; // sharing hint goes under the buttons (and sliders), only if it fits
+        if (worn && cosCat == CosmeticCategory.OVERLAY && byy + 74 < B - 36) {
+            int sy = byy + 24;
+            hy = sy + 56;
+            sliderRow(ctx, ix, sy, iw, "Speed", Math.round(OverlayTuning.speed(s.id()) * 100),
+                Math.round(OverlayTuning.SPEED_MIN * 100), Math.round(OverlayTuning.SPEED_MAX * 100),
+                v -> OverlayTuning.setSpeed(s.id(), v / 100f));
+            sliderRow(ctx, ix, sy + 28, iw, "Strength", Math.round(OverlayTuning.strength(s.id()) * 100),
+                Math.round(OverlayTuning.STRENGTH_MIN * 100), Math.round(OverlayTuning.STRENGTH_MAX * 100),
+                v -> OverlayTuning.setStrength(s.id(), v / 100f));
+        }
+        if (hy + 9 <= B - 36)
+            text(ctx, ellipsize(cfg.nameIcon ? "Others with the mod see this" : "Only you see it (sharing is off in Extras)", iw), ix, hy, DIM);
+    }
+
+    /** Greedy word wrap to at most {@code maxLines} lines. */
+    private List<String> wrap(String s, int max, int maxLines) {
+        List<String> lines = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : s.split(" ")) {
+            String next = line.isEmpty() ? word : line + " " + word;
+            if (width(next) <= max) { line = new StringBuilder(next); continue; }
+            if (!line.isEmpty()) lines.add(line.toString());
+            line = new StringBuilder(word);
+            if (lines.size() == maxLines) break;
+        }
+        if (lines.size() < maxLines && !line.isEmpty()) lines.add(line.toString());
+        if (lines.size() > maxLines) lines = lines.subList(0, maxLines);
+        if (!lines.isEmpty()) lines.set(lines.size() - 1, ellipsize(lines.getLast(), max));
+        return lines;
+    }
+
     private void drawInspector(DrawContext ctx) {
+        if (cosCat != null && !extras) { drawCosmeticInspector(ctx); return; }
         int x = insL, top = T + 36, w = R - 8 - insL;
         glass(ctx, x, top, w, B - 32 - top, 8, PANEL);
         int ix = x + 8, iw = w - 16;
@@ -676,9 +842,9 @@ public class StyleScreen extends Screen {
     }
 
     private void drawNameIcon(DrawContext ctx, int x, int y, int w) {
-        section(ctx, "Name icon", x, y);
-        toggleRow(ctx, x, y + 17, w, "Show HugoService icons", cfg.nameIcon, () -> { cfg.nameIcon = !cfg.nameIcon; Config.save(); });
-        text(ctx, ellipsize("Shares player UUIDs with this server", w), x, y + 31, DIM);
+        section(ctx, "Sharing (icon & cosmetics)", x, y);
+        toggleRow(ctx, x, y + 17, w, "Share icon & cosmetics", cfg.nameIcon, () -> { cfg.nameIcon = !cfg.nameIcon; Config.save(); });
+        text(ctx, ellipsize("Sends UUIDs + cosmetics to this server", w), x, y + 31, DIM);
         int fy = y + 45;
         round(ctx, x, fy, w, 15, 7.5f, FIELD);
         roundOutline(ctx, x, fy, w, 15, 7.5f, urlField.isFocused() ? ACCENT : EDGE, 0);

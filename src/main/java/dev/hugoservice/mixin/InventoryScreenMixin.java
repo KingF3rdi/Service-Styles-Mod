@@ -16,6 +16,8 @@ public class InventoryScreenMixin {
         at = @At("HEAD"), cancellable = true)
     private static void hugoservice$hideModel(DrawContext ctx, int x1, int y1, int x2, int y2, int size, float scale,
                                               float mouseX, float mouseY, LivingEntity entity, CallbackInfo ci) {
-        if (Config.INSTANCE.hideInventoryModel) ci.cancel();
+        var screen = net.minecraft.client.MinecraftClient.getInstance().currentScreen;
+        boolean inventory = screen instanceof InventoryScreen || screen instanceof net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen;
+        if (Config.INSTANCE.hideInventoryModel && inventory) ci.cancel(); // not in our cosmetics preview
     }
 }

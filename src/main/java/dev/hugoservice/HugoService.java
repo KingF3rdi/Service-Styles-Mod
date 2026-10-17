@@ -19,6 +19,8 @@ public class HugoService implements ClientModInitializer {
     public void onInitializeClient() {
         Config.load();
         Fx.init();
+        dev.hugoservice.cosmetics.CosmeticSync.init();
+        dev.hugoservice.cosmetics.CosmeticRendering.init();
         OPEN = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.open", InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_RIGHT_SHIFT, KeyBinding.Category.create(Identifier.of("hugoservice", "main"))));
         // index resource packs once in the background so the first menu open is fast

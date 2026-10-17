@@ -22,8 +22,12 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
 - **Custom sky** (like Skyboxify): skyboxes from packs (OptiFine / MCPatcher `sky/world0` 3x2 layout) or your own
   images (upload or `config/hugoservice/skies`; 3:2 = cube layout, 2:1 = 360° panorama). Switches live, with
   options to rotate with time, keep sun/moon/stars, darken at night and a client-side time slider.
-- **Name icon** (opt-in): players who use the mod get an icon in front of their name. Needs the small
-  Cloudflare Worker in [`server/`](server/README.md); only Minecraft UUIDs are sent to it.
+- **Cosmetics** (based on Titus Cosmetics): 61 client-side capes, hats, bandanas, halos, back and face
+  items, auras, skin overlays, pets, shields and accessories, rendered on your player. Pick them under *Collections → Cosmetics*
+  with a live 3D preview; overlays have speed and strength sliders. One item per category.
+- **Name icon & sharing** (opt-in): players who use the mod get an icon in front of their name and see each
+  other's cosmetics. Needs the small Cloudflare Worker in [`server/`](server/README.md); only Minecraft UUIDs
+  and cosmetic ids are sent to it.
 
 ## Build
 
@@ -39,3 +43,6 @@ The mod jar ends up in `build/libs/`. Install it together with Fabric Loader and
 
 Menu font: [Poppins](https://github.com/itfoundry/Poppins) © The Poppins Project Authors, SIL Open Font License 1.1
 (`src/main/resources/LICENSE_Poppins_OFL.txt`).
+
+Cosmetics (`dev.hugoservice.cosmetics`): based on Titus Cosmetics 1.3.22, © 2026 Titus, MIT License
+(`src/main/resources/LICENSE_TitusCosmetics.txt`).

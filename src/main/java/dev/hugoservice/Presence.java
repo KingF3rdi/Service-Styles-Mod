@@ -33,19 +33,31 @@ public final class Presence {
         .setStyle(net.minecraft.text.Style.EMPTY.withFont(new StyleSpriteSource.Font(Identifier.of("hugoservice", "icon"))));
     private static volatile UUID self;
     private static volatile boolean busy;
-    private static int ticks;
+    private static int ticks, lastBeat = -1000;
+    private static boolean pendingSend;
 
     static void tick(MinecraftClient mc) {
         Config cfg = Config.INSTANCE;
         if (!cfg.nameIcon || cfg.presenceUrl.isBlank() || mc.player == null || mc.getNetworkHandler() == null) return;
         self = mc.player.getUuid();
-        if (ticks++ % 1200 == 0) post("/heartbeat", "{\"uuid\":\"" + self + "\"}", null);   // every minute
+        // heartbeat every minute, and soon after you change your cosmetics (at most every 5 s)
+        boolean changed = dev.hugoservice.cosmetics.CosmeticSync.takeChanged() || pendingSend;
+        if (ticks++ % 1200 == 0 || changed && ticks - lastBeat >= 100) {
+            JsonObject beat = new JsonObject();
+            beat.addProperty("uuid", self.toString());
+            beat.addProperty("loadout", dev.hugoservice.cosmetics.CosmeticSync.local().encode());
+            post("/heartbeat", beat.toString(), null);
+            lastBeat = ticks;
+            pendingSend = false;
+        } else if (changed) {
+            pendingSend = true;
+        }
         if (ticks % 200 != 0 || busy) return;                                               // look-ups every 10 s
         long now = System.currentTimeMillis();
         List<String> todo = new ArrayList<>();
         for (PlayerListEntry e : mc.getNetworkHandler().getPlayerList()) {
             UUID id = e.getProfile().id();
-            if (id.equals(self) || now - CHECKED.getOrDefault(id, 0L) < 5 * 60_000) continue;
+            if (id.equals(self) || now - CHECKED.getOrDefault(id, 0L) < 60_000) continue; // every minute: cosmetics can change
             todo.add(id.toString());
             if (todo.size() == 100) break;
         }
@@ -60,6 +72,11 @@ public final class Presence {
                 USERS.remove(id);
             }
             if (json != null && json.has("users")) json.getAsJsonArray("users").forEach(u -> USERS.add(UUID.fromString(u.getAsString())));
+            JsonObject loadouts = json != null && json.has("loadouts") ? json.getAsJsonObject("loadouts") : new JsonObject();
+            for (String s : todo) {
+                var l = loadouts.get(s.toLowerCase(java.util.Locale.ROOT));
+                dev.hugoservice.cosmetics.CosmeticSync.store(UUID.fromString(s), l == null ? "" : l.getAsString());
+            }
         });
     }
 
