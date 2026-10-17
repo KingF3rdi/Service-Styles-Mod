@@ -15,8 +15,12 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
 - 3D previews for blocks and the end crystal, sorting (For you, A–Z, Newest, Packs, Presets), search, favourites
 - **Apply** builds `resourcepacks/HugoService-Active` and reloads; **Save pack** writes a `.zip` to `resourcepacks/`
 - **Extras**: crosshair pixel painter, hit colour, hitbox colour (F3+B), block outline, cobweb outline,
-  player glow (only while the player is visible, not through walls), grey world, grass colour,
-  6 UI themes, smooth/pixel font, optional background blur
+  player glow (only while the player is visible, not through walls), shield status (ready / disabled by axe),
+  end crystal and shield opacity, name tag colour and size, inventory size, hide inventory model,
+  name faker (own / enemy names, default skins, hide tier tags), grey world, grass colour,
+  6 UI themes, smooth/pixel font, optional background blur. Every effect has a live preview in the menu.
+- **Name icon** (opt-in): players who use the mod get an icon in front of their name. Needs the small
+  Cloudflare Worker in [`server/`](server/README.md); only Minecraft UUIDs are sent to it.
 
 ## Build
 

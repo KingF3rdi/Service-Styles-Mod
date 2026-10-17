@@ -93,7 +93,7 @@ public class StyleScreen extends Screen {
     private int gridMax, sideMax, extrasMax;
     private String status;
     private long statusUntil;
-    private TextFieldWidget search, packName;
+    private TextFieldWidget search, packName, fakeField, urlField;
     private int mouseX, mouseY;
 
     // layout
@@ -136,6 +136,23 @@ public class StyleScreen extends Screen {
         packName.setMaxLength(48);
         packName.setText(n);
         addDrawableChild(packName);
+
+        fakeField = new TextFieldWidget(textRenderer, 0, 0, 80, 10, Text.literal("Fake name"));
+        styleField(fakeField);
+        fakeField.setMaxLength(16);
+        fakeField.setText(cfg.fakeName);
+        fakeField.setChangedListener(s -> { if (!s.isBlank()) cfg.fakeName = s.trim(); });
+        fakeField.visible = false;
+        addDrawableChild(fakeField);
+
+        urlField = new TextFieldWidget(textRenderer, 0, 0, 80, 10, Text.literal("Server URL"));
+        styleField(urlField);
+        urlField.setMaxLength(200);
+        urlField.setText(cfg.presenceUrl);
+        urlField.setPlaceholder(t("https://...workers.dev").copy().withColor(DIM & 0xFFFFFF));
+        urlField.setChangedListener(s -> cfg.presenceUrl = s.trim());
+        urlField.visible = false;
+        addDrawableChild(urlField);
 
         rescan();
     }
@@ -196,6 +213,8 @@ public class StyleScreen extends Screen {
         hits.clear();
         Thumbs.upload();
         hovered = null;
+        fakeField.visible = false; // the name faker block shows it when on screen
+        urlField.visible = false;
 
         glass(ctx, L, T, R - L, B - T, 10, WIN);
 
@@ -492,11 +511,17 @@ public class StyleScreen extends Screen {
             new Block(102, this::drawMenuBlock),
             new Block(themeHeight(inner), this::drawThemes),
             new Block(crosshairHeight(inner), this::drawCrosshairPainter),
-            new Block(72, (c, x, y, w) -> fxBlock(c, x, y, w, "Hit colour", Fx.HIT, null)),
-            new Block(84, (c, x, y, w) -> fxBlock(c, x, y, w, "Hitbox colour", Fx.HITBOX, "Shown with F3 + B")),
-            new Block(72, (c, x, y, w) -> fxBlock(c, x, y, w, "Block outline", Fx.OUTLINE, null)),
-            new Block(84, (c, x, y, w) -> fxBlock(c, x, y, w, "Cobweb outline", Fx.COBWEB, "Outlines webs near you")),
-            new Block(84, (c, x, y, w) -> fxBlock(c, x, y, w, "Player glow", Fx.GLOW, "Only while you can see them")),
+            new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Hit colour", Fx.HIT, "Red flash when hit", Previews::hit)),
+            new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Hitbox colour", Fx.HITBOX, "Shown with F3 + B", Previews::outline)),
+            new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Block outline", Fx.OUTLINE, "Block you look at", Previews::outline)),
+            new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Cobweb outline", Fx.COBWEB, "Webs near you", Previews::cobweb)),
+            new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Player glow", Fx.GLOW, "Only while visible", Previews::glow)),
+            new Block(SHIELD_H, this::drawShieldStatus),
+            new Block(96, this::drawOpacity),
+            new Block(104, this::drawNametags),
+            new Block(inventoryHeight(inner), this::drawInventoryTweaks),
+            new Block(126, this::drawNameFaker),
+            new Block(84, this::drawNameIcon),
             new Block(greyWorldHeight(inner), this::drawGreyWorld),
             new Block(96, (c, x, y, w) -> drawColorBlock(c, grassGroup(), x, y, w))
         );
@@ -532,20 +557,169 @@ public class StyleScreen extends Screen {
     }
 
     /** One in-game effect: on/off plus colour. */
-    private void fxBlock(DrawContext ctx, int x, int y, int w, String title, String key, String hint) {
+    private interface PreviewFn { java.awt.image.BufferedImage make(int rgb) throws IOException; }
+
+    private static final int FX_H = 92, PREVIEW = 56, SHIELD_H = 128;
+
+    /** One in-game effect: live preview on the left, on/off, hint and colour on the right. */
+    private void fxBlock(DrawContext ctx, int x, int y, int w, String title, String key, String hint, PreviewFn preview) {
         section(ctx, title, x, y);
         Integer color = cfg.fx(key);
-        toggleRow(ctx, x, y + 16, w, "Enabled", color != null, () -> {
+        int shown = cfg.fxColorOf(key);
+        previewBox(ctx, "fx|" + title + "|" + shown, () -> preview.make(shown), x, y + 18, color != null);
+        int rx = x + PREVIEW + 8, rw = w - PREVIEW - 8;
+        toggleRow(ctx, rx, y + 18, rw, "Enabled", color != null, () -> {
             if (!cfg.fxOn.remove(key)) cfg.fxOn.add(key);
             fxChanged(key);
         });
-        int py = y + 32;
-        if (hint != null) { text(ctx, ellipsize(hint, w), x, py, DIM); py += 12; }
-        colorPicker(ctx, x, py, w, color, rgb -> {
+        text(ctx, ellipsize(hint, rw), rx, y + 33, DIM);
+        colorPicker(ctx, rx, y + 48, rw, shown, rgb -> {
             cfg.fxColor.put(key, rgb);
             cfg.fxOn.add(key);
             fxChanged(key);
         });
+    }
+
+    /** Dark rounded box with a cached preview image; dimmed while the effect is off. */
+    private void previewBox(DrawContext ctx, String key, Thumbs.Source src, int x, int y, boolean on) {
+        round(ctx, x, y, PREVIEW, PREVIEW, 7, 0x80060E18);
+        drawPreview(ctx, key, src, x, y, PREVIEW, PREVIEW, 5, false);
+        if (!on) round(ctx, x, y, PREVIEW, PREVIEW, 7, 0x70060E18);
+    }
+
+    // ---- opacity, name tags, inventory, name faker ----
+
+    private static Group groupById(String id) {
+        for (Group g : Categories.allGroups()) if (g.id().equals(id)) return g;
+        throw new IllegalStateException(id);
+    }
+
+    private void drawOpacity(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Opacity", x, y);
+        int half = (w - 8) / 2;
+        Group crystal = groupById("crystal");
+        Style cs = selected(crystal);
+        int co = cfg.crystalOpacity, so = cfg.shieldOpacity;
+        round(ctx, x, y + 18, 26, 26, 6, 0x80060E18);
+        drawPreview(ctx, "op|crystal|" + cs.id + "|" + co, () -> Previews.alpha(Previews.render(crystal, cs, null), co), x, y + 18, 26, 26, 2, false);
+        sliderRow(ctx, x + 30, y + 18, half - 30, "End crystal", co, 10, 100, v -> cfg.crystalOpacity = v);
+        int sx = x + half + 8;
+        round(ctx, sx, y + 18, 26, 26, 6, 0x80060E18);
+        drawPreview(ctx, "op|shield|" + so, () -> Previews.alpha(Previews.shieldFace(), so), sx, y + 18, 26, 26, 2, false);
+        sliderRow(ctx, sx + 30, y + 18, half - 30, "Shield", so, 10, 100, v -> cfg.shieldOpacity = v);
+        text(ctx, ellipsize("Shield: your own, first person", w), x, y + 54, DIM);
+        text(ctx, ellipsize("Crystal: all end crystals", w), x, y + 66, DIM);
+    }
+
+    private void drawNametags(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Name tags", x, y);
+        Integer color = cfg.fx(Fx.NAMETAG);
+        // live preview: a name tag like in game
+        round(ctx, x, y + 18, PREVIEW, PREVIEW, 7, 0x80060E18);
+        float k = cfg.nametagSize / 100f;
+        String name = "Steve";
+        Matrix3x2fStack m = ctx.getMatrices();
+        m.pushMatrix();
+        m.translate(x + PREVIEW / 2f, y + 18 + PREVIEW / 2f);
+        m.scale(k, k);
+        int tw = textRenderer.getWidth(name);
+        ctx.fill(-tw / 2 - 2, -6, tw / 2 + 2, 5, 0x40000000);
+        ctx.drawText(textRenderer, name, -tw / 2, -4, 0xFF000000 | (color == null ? 0xFFFFFF : color), false);
+        m.popMatrix();
+        int rx = x + PREVIEW + 8, rw = w - PREVIEW - 8;
+        toggleRow(ctx, rx, y + 18, rw, "Own colour", color != null, () -> {
+            if (!cfg.fxOn.remove(Fx.NAMETAG)) cfg.fxOn.add(Fx.NAMETAG);
+            Config.save();
+        });
+        colorPicker(ctx, rx, y + 34, rw, cfg.fxColorOf(Fx.NAMETAG), rgb -> { cfg.fxColor.put(Fx.NAMETAG, rgb); cfg.fxOn.add(Fx.NAMETAG); Config.save(); });
+        sliderRow(ctx, x, y + 80, w, "Size", cfg.nametagSize, 50, 200, v -> cfg.nametagSize = v);
+    }
+
+    private static final int[] INV_SCALES = {0, 1, 2, 3, 4, 5, 6};
+
+    private int inventoryHeight(int w) { return 82; }
+
+    private void drawInventoryTweaks(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Inventory", x, y);
+        text(ctx, "Size while a container is open", x, y + 17, MUTED);
+        int cx = x, cy = y + 29;
+        for (int s : INV_SCALES) {
+            String label = s == 0 ? "Normal" : s + "x";
+            int cw = width(label) + 12;
+            if (cx + cw > x + w) { cx = x; cy += 16; }
+            boolean on = cfg.inventoryScale == s, hov = over(cx, cy, cw, 13);
+            round(ctx, cx, cy, cw, 13, 6.5f, on ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
+            text(ctx, label, cx + 6, cy + 3, on ? ACCENT_HI : MUTED);
+            clipHit(cx, cy, cw, 13, (a, b, btn) -> { cfg.inventoryScale = s; Config.save(); });
+            cx += cw + 4;
+        }
+        toggleRow(ctx, x, y + 52, w, "Hide inventory model", cfg.hideInventoryModel,
+            () -> { cfg.hideInventoryModel = !cfg.hideInventoryModel; Config.save(); });
+    }
+
+    private void drawNameFaker(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Name faker", x, y);
+        toggleRow(ctx, x, y + 17, w, "Fake my name", cfg.fakeOwn, () -> { cfg.fakeOwn = !cfg.fakeOwn; Config.save(); });
+        // name input lives in a real text field, moved here every frame
+        int fy = y + 31;
+        round(ctx, x, fy, w, 15, 7.5f, FIELD);
+        roundOutline(ctx, x, fy, w, 15, 7.5f, fakeField.isFocused() ? ACCENT : EDGE, 0);
+        fakeField.setX(x + 7);
+        fakeField.setY(fy + 3);
+        fakeField.setWidth(w - 14);
+        fakeField.visible = fy >= bodyY && fy + 15 <= bodyB;
+        toggleRow(ctx, x, y + 51, w, "Default skin (me)", cfg.fakeOwnSkin, () -> { cfg.fakeOwnSkin = !cfg.fakeOwnSkin; Config.save(); });
+        toggleRow(ctx, x, y + 67, w, "Fake enemy names", cfg.fakeEnemies, () -> { cfg.fakeEnemies = !cfg.fakeEnemies; Config.save(); });
+        toggleRow(ctx, x, y + 83, w, "Default skin (enemies)", cfg.fakeEnemySkin, () -> { cfg.fakeEnemySkin = !cfg.fakeEnemySkin; Config.save(); });
+        toggleRow(ctx, x, y + 99, w, "Hide tier tags", cfg.hideTier, () -> { cfg.hideTier = !cfg.hideTier; Config.save(); });
+    }
+
+    private void drawNameIcon(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Name icon", x, y);
+        toggleRow(ctx, x, y + 17, w, "Show HugoService icons", cfg.nameIcon, () -> { cfg.nameIcon = !cfg.nameIcon; Config.save(); });
+        text(ctx, ellipsize("Shares player UUIDs with this server", w), x, y + 31, DIM);
+        int fy = y + 45;
+        round(ctx, x, fy, w, 15, 7.5f, FIELD);
+        roundOutline(ctx, x, fy, w, 15, 7.5f, urlField.isFocused() ? ACCENT : EDGE, 0);
+        urlField.setX(x + 7);
+        urlField.setY(fy + 3);
+        urlField.setWidth(w - 14);
+        urlField.visible = fy >= bodyY && fy + 15 <= bodyB;
+    }
+
+    /** Label, value and a draggable track; 26px tall. */
+    private void sliderRow(DrawContext ctx, int x, int y, int w, String label, int value, int min, int max, java.util.function.IntConsumer set) {
+        String v = value + "%";
+        text(ctx, ellipsize(label, w - width(v) - 4), x, y, TEXT);
+        text(ctx, v, x + w - width(v), y, ACCENT_HI);
+        int ty = y + 15, tw = w;
+        float f = (value - min) / (float) (max - min);
+        round(ctx, x, ty, tw, 4, 2, 0xFF2A3546);
+        round(ctx, x, ty, Math.max(4, tw * f), 4, 2, ACCENT);
+        round(ctx, x + tw * f - 4, ty - 2, 8, 8, 4, 0xFFFFFFFF);
+        dragHit(x - 2, ty - 4, tw + 4, 12, (mx, my, btn) -> {
+            float t = (float) clamp((mx - x) / Math.max(1, tw), 0, 1);
+            set.accept(Math.round(min + t * (max - min)));
+            painted = true; // saved on mouse release
+        });
+    }
+
+    /** Shield status: tint while ready and while an axe disabled it. */
+    private void drawShieldStatus(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Shield status", x, y);
+        boolean on = cfg.fxOn.contains(Fx.SHIELD);
+        int ready = cfg.fxColorOf(Fx.SHIELD), off = cfg.fxColorOf(Fx.SHIELD_OFF);
+        previewBox(ctx, "fx|shield|" + ready + "|" + off, () -> Previews.shield(ready, off), x, y + 18, on);
+        int rx = x + PREVIEW + 8, rw = w - PREVIEW - 8;
+        toggleRow(ctx, rx, y + 18, rw, "Enabled", on, () -> {
+            if (!cfg.fxOn.remove(Fx.SHIELD)) cfg.fxOn.add(Fx.SHIELD);
+            Config.save();
+        });
+        text(ctx, ellipsize("Your shield, first person", rw), rx, y + 33, DIM);
+        text(ctx, "Ready", rx, y + 48, MUTED);
+        colorPicker(ctx, rx, y + 60, rw, ready, rgb -> { cfg.fxColor.put(Fx.SHIELD, rgb); cfg.fxOn.add(Fx.SHIELD); Config.save(); });
+        text(ctx, "Disabled by axe", rx, y + 88, MUTED);
+        colorPicker(ctx, rx, y + 100, rw, off, rgb -> { cfg.fxColor.put(Fx.SHIELD_OFF, rgb); cfg.fxOn.add(Fx.SHIELD); Config.save(); });
     }
 
     private void fxChanged(String key) {
@@ -975,7 +1149,7 @@ public class StyleScreen extends Screen {
             }
             return true;
         }
-        boolean typing = search.isFocused() || packName.isFocused();
+        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || urlField.isFocused();
         if (!typing) {
             if (input.key() == GLFW.GLFW_KEY_SLASH && !extras) {
                 setFocused(search);
@@ -1011,7 +1185,12 @@ public class StyleScreen extends Screen {
     private void drawThumb(DrawContext ctx, Group g, Style s, Integer tint, int x, int y, int w, int h, int pad, boolean glow) {
         long version = s.id.equals("painted") ? java.util.Arrays.hashCode(cfg.crosshair) : s.modified;
         String key = s.id + "@" + version + "|" + g.id() + "|" + (tint == null ? "" : tint);
-        Thumbs.Thumb th = Thumbs.get(key, () -> Previews.render(g, s, tint));
+        drawPreview(ctx, key, () -> Previews.render(g, s, tint), x, y, w, h, pad, glow);
+    }
+
+    /** Any cached preview image from the thumbnail atlas, fitted into a box. */
+    private void drawPreview(DrawContext ctx, String key, Thumbs.Source src, int x, int y, int w, int h, int pad, boolean glow) {
+        Thumbs.Thumb th = Thumbs.get(key, src);
         if (th == null) {
             if (Thumbs.known(key)) { String q = "?"; text(ctx, q, x + (w - width(q)) / 2, y + h / 2 - 4, DIM); }
             return;

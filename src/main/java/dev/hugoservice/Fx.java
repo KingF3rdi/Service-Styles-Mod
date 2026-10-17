@@ -26,7 +26,9 @@ import java.util.Set;
 
 /** In-game colour effects: hit colour, cobweb outlines and player glow (only while visible). */
 public final class Fx {
-    public static final String HIT = "hit", HITBOX = "hitbox", OUTLINE = "outline", COBWEB = "cobweb", GLOW = "glow";
+    public static final String HIT = "hit", HITBOX = "hitbox", OUTLINE = "outline", COBWEB = "cobweb", GLOW = "glow",
+        SHIELD = "shield", SHIELD_OFF = "shield_off", NAMETAG = "nametag";
+    private static final net.minecraft.item.ItemStack SHIELD_STACK = new net.minecraft.item.ItemStack(net.minecraft.item.Items.SHIELD);
 
     /** Players you can currently see; refreshed every tick. */
     private static final Set<Integer> VISIBLE = new HashSet<>();
@@ -36,6 +38,8 @@ public final class Fx {
     static void init() {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> applyHitColor());
         ClientTickEvents.END_CLIENT_TICK.register(Fx::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(NameFaker::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(Presence::tick);
         WorldRenderEvents.AFTER_ENTITIES.register(ctx -> {
             Integer color = Config.INSTANCE.fx(COBWEB);
             if (color == null || cobwebs.isEmpty()) return;
@@ -78,6 +82,15 @@ public final class Fx {
     private static boolean clear(MinecraftClient mc, Vec3d from, Vec3d to) {
         return mc.world.raycast(new RaycastContext(from, to, RaycastContext.ShapeType.VISUAL, RaycastContext.FluidHandling.NONE, mc.player))
             .getType() == HitResult.Type.MISS;
+    }
+
+    /** Tint (ARGB) for your first-person shield: ready or disabled by an axe. Null when off. */
+    public static Integer shieldTint() {
+        Config cfg = Config.INSTANCE;
+        var p = MinecraftClient.getInstance().player;
+        if (!cfg.fxOn.contains(SHIELD) || p == null) return null;
+        boolean disabled = p.getItemCooldownManager().isCoolingDown(SHIELD_STACK);
+        return 0xFF000000 | cfg.fxColorOf(disabled ? SHIELD_OFF : SHIELD);
     }
 
     public static boolean glowing(int entityId) {

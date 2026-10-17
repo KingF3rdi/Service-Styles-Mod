@@ -11,3 +11,7 @@ run_log.txt
 *.iml
 .vscode/
 bin/
+
+# Cloudflare Worker local state
+server/.wrangler/
+node_modules/

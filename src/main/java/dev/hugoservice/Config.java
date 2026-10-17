@@ -38,6 +38,19 @@ public final class Config {
     /** In-game effects: hit, hitbox, outline, cobweb, glow. */
     public Map<String, Integer> fxColor = new HashMap<>();
     public Set<String> fxOn = new HashSet<>();
+    /** 10..100 percent. */
+    public int crystalOpacity = 100, shieldOpacity = 100;
+    /** Name tag size in percent (50..200). */
+    public int nametagSize = 100;
+    /** GUI scale while an inventory is open; 0 = same as normal. */
+    public int inventoryScale = 0;
+    public boolean hideInventoryModel = false;
+    /** Name faker. */
+    public boolean fakeOwn = false, fakeEnemies = false, fakeOwnSkin = false, fakeEnemySkin = false, hideTier = false;
+    public String fakeName = "Player";
+    /** Name icon via the presence server (opt-in). */
+    public boolean nameIcon = false;
+    public String presenceUrl = "";
     public String theme = "Ice";
     public int sortMode = 0;
     public String lastCategory = "crystal";
@@ -77,7 +90,17 @@ public final class Config {
     }
 
     /** Effect colour (RGB) or null when the effect is off. */
-    public Integer fx(String key) { return fxOn.contains(key) ? fxColor.getOrDefault(key, 0x8AD6FF) : null; }
+    public Integer fx(String key) { return fxOn.contains(key) ? fxColorOf(key) : null; }
+
+    /** Chosen colour of an effect, whether it is on or not. */
+    public int fxColorOf(String key) {
+        return fxColor.getOrDefault(key, switch (key) {
+            case "shield" -> 0x7CFF7C;
+            case "shield_off" -> 0xFF5A5A;
+            case "hit" -> 0xFF0000;
+            default -> 0x8AD6FF;
+        });
+    }
 
     private Config fixNulls() {
         if (loadout == null) loadout = new HashMap<>();
@@ -87,6 +110,8 @@ public final class Config {
         if (keepColour == null) keepColour = new HashSet<>();
         if (lastCategory == null) lastCategory = "crystal";
         if (theme == null) theme = "Ice";
+        if (fakeName == null || fakeName.isBlank()) fakeName = "Player";
+        if (presenceUrl == null) presenceUrl = "";
         if (crosshair == null || crosshair.length != 225) crosshair = new int[225];
         if (fxColor == null) fxColor = new HashMap<>();
         if (fxOn == null) fxOn = new HashSet<>();

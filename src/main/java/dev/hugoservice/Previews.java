@@ -71,6 +71,148 @@ final class Previews {
         return out;
     }
 
+    // ---- effect previews (Extras) ----
+
+    /** Steve seen from the front, 16x32, built from the vanilla skin. */
+    private static BufferedImage doll() throws IOException {
+        byte[] png = Styles.vanilla("textures/entity/player/wide/steve.png");
+        if (png == null) return null;
+        BufferedImage skin = Images.decode(png), out = new BufferedImage(16, 32, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        part(g, skin, 8, 8, 8, 8, 4, 0);     // head
+        part(g, skin, 40, 8, 8, 8, 4, 0);    // hat layer
+        part(g, skin, 20, 20, 8, 12, 4, 8);  // body
+        part(g, skin, 44, 20, 4, 12, 0, 8);  // right arm
+        part(g, skin, 36, 52, 4, 12, 12, 8); // left arm
+        part(g, skin, 4, 20, 4, 12, 4, 20);  // right leg
+        part(g, skin, 20, 52, 4, 12, 8, 20); // left leg
+        g.dispose();
+        return out;
+    }
+
+    private static void part(Graphics2D g, BufferedImage skin, int u, int v, int w, int h, int x, int y) {
+        g.drawImage(skin.getSubimage(u, v, w, h), x, y, null);
+    }
+
+    /** Player in the hurt flash colour. */
+    static BufferedImage hit(int rgb) throws IOException {
+        BufferedImage d = doll();
+        if (d == null) return null;
+        int tr = rgb >> 16 & 255, tg = rgb >> 8 & 255, tb = rgb & 255;
+        for (int y = 0; y < d.getHeight(); y++) for (int x = 0; x < d.getWidth(); x++) {
+            int c = d.getRGB(x, y);
+            if (c >>> 24 == 0) continue;
+            int r = ((c >> 16 & 255) * 2 + tr * 3) / 5, gg = ((c >> 8 & 255) * 2 + tg * 3) / 5, b = ((c & 255) * 2 + tb * 3) / 5;
+            d.setRGB(x, y, 0xFF000000 | r << 16 | gg << 8 | b);
+        }
+        return d;
+    }
+
+    /** Player with a 1px glow outline around the silhouette. */
+    static BufferedImage glow(int rgb) throws IOException {
+        BufferedImage d = doll();
+        if (d == null) return null;
+        BufferedImage out = new BufferedImage(20, 36, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < 36; y++) for (int x = 0; x < 20; x++) {
+            boolean edge = false;
+            for (int dy = -1; dy <= 1 && !edge; dy++) for (int dx = -1; dx <= 1 && !edge; dx++) {
+                int sx = x - 2 + dx, sy = y - 2 + dy;
+                edge = sx >= 0 && sy >= 0 && sx < 16 && sy < 32 && d.getRGB(sx, sy) >>> 24 != 0;
+            }
+            if (edge) out.setRGB(x, y, 0xFF000000 | rgb);
+        }
+        Graphics2D g = out.createGraphics();
+        g.drawImage(d, 2, 2, null);
+        g.dispose();
+        return out;
+    }
+
+    /** Stone block with a coloured selection outline. */
+    static BufferedImage outline(int rgb) throws IOException {
+        byte[] png = Styles.vanilla("textures/block/stone.png");
+        if (png == null) return null;
+        BufferedImage stone = Images.decode(png);
+        return wireCube(stone, stone, rgb, true);
+    }
+
+    /** Cobweb inside a coloured wire cube. */
+    static BufferedImage cobweb(int rgb) throws IOException {
+        byte[] png = Styles.vanilla("textures/block/cobweb.png");
+        if (png == null) return null;
+        BufferedImage out = wireCube(null, null, rgb, false);
+        Graphics2D g = out.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g.drawImage(Images.decode(png), SIZE / 2 - 24, 26, 48, 48, null);
+        g.dispose();
+        return out;
+    }
+
+    /** Two shields: ready colour and disabled colour, tinted like in game. */
+    static BufferedImage shield(int ready, int disabled) throws IOException {
+        byte[] png = Styles.vanilla("textures/entity/shield_base_nopattern.png");
+        if (png == null) return null;
+        BufferedImage tex = Images.decode(png);
+        int k = Math.max(1, tex.getWidth() / 64);
+        BufferedImage face = tex.getSubimage(k, k, 12 * k, 22 * k);
+        BufferedImage out = new BufferedImage(30 * k, 24 * k, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        BufferedImage a = copy(face), b = copy(face);
+        multiply(a, ready);
+        multiply(b, disabled);
+        g.drawImage(a, k, k, null);
+        g.drawImage(b, 17 * k, k, null);
+        g.dispose();
+        return out;
+    }
+
+    /** Plain shield front (12x22 at pack resolution). */
+    static BufferedImage shieldFace() throws IOException {
+        byte[] png = Styles.vanilla("textures/entity/shield_base_nopattern.png");
+        if (png == null) return null;
+        BufferedImage tex = Images.decode(png);
+        int k = Math.max(1, tex.getWidth() / 64);
+        return copy(tex.getSubimage(k, k, 12 * k, 22 * k));
+    }
+
+    /** Multiplies the alpha channel, for opacity previews. */
+    static BufferedImage alpha(BufferedImage img, int percent) {
+        if (img == null || percent >= 100) return img;
+        for (int y = 0; y < img.getHeight(); y++) for (int x = 0; x < img.getWidth(); x++) {
+            int c = img.getRGB(x, y);
+            img.setRGB(x, y, ((c >>> 24) * percent / 100) << 24 | c & 0xFFFFFF);
+        }
+        return img;
+    }
+
+    private static BufferedImage copy(BufferedImage src) {
+        BufferedImage c = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = c.createGraphics();
+        g.drawImage(src, 0, 0, null);
+        g.dispose();
+        return c;
+    }
+
+    /** Iso cube (optional faces) with its visible edges drawn in a colour. */
+    private static BufferedImage wireCube(BufferedImage top, BufferedImage side, int rgb, boolean faces) {
+        BufferedImage out = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        float cx = SIZE / 2f, y0 = 8, w = SIZE - 14;
+        if (faces && top != null) drawCube(g, top, side, side, cx, y0, w);
+        float half = w / 2, q = w / 4, h = w * 0.58f;
+        int[][] e = {
+            {(int) (cx - half), (int) (y0 + q), (int) cx, (int) y0}, {(int) cx, (int) y0, (int) (cx + half), (int) (y0 + q)},
+            {(int) (cx + half), (int) (y0 + q), (int) cx, (int) (y0 + 2 * q)}, {(int) cx, (int) (y0 + 2 * q), (int) (cx - half), (int) (y0 + q)},
+            {(int) (cx - half), (int) (y0 + q), (int) (cx - half), (int) (y0 + q + h)}, {(int) cx, (int) (y0 + 2 * q), (int) cx, (int) (y0 + 2 * q + h)},
+            {(int) (cx + half), (int) (y0 + q), (int) (cx + half), (int) (y0 + q + h)},
+            {(int) (cx - half), (int) (y0 + q + h), (int) cx, (int) (y0 + 2 * q + h)}, {(int) cx, (int) (y0 + 2 * q + h), (int) (cx + half), (int) (y0 + q + h)}
+        };
+        g.setColor(new java.awt.Color(0xFF000000 | rgb, true));
+        g.setStroke(new java.awt.BasicStroke(2.5f));
+        for (int[] l : e) g.drawLine(l[0], l[1], l[2], l[3]);
+        g.dispose();
+        return out;
+    }
+
     /** Isometric cube whose top vertex is at (cx, y0), width w. */
     static void drawCube(Graphics2D g, BufferedImage top, BufferedImage left, BufferedImage right, float cx, float y0, float w) {
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
