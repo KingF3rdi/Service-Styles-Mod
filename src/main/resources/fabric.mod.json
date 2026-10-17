@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "hugoservice",
+  "version": "${version}",
+  "name": "HugoService Style",
+  "description": "Mix single objects (crystal, anchor, totem, ...) from texture packs and save them as a new pack. Open with Right Shift. Poppins font (c) The Poppins Project Authors, SIL OFL 1.1.",
+  "authors": ["HugoService"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": { "client": ["dev.hugoservice.HugoService"] },
+  "mixins": ["hugoservice.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.17.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

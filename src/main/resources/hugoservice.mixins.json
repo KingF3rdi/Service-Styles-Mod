@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.hugoservice.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "EntityHitboxDebugRendererMixin",
+    "EntityMixin",
+    "InGameHudMixin",
+    "MinecraftClientMixin",
+    "OverlayTextureAccessor",
+    "WorldRendererMixin"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}
