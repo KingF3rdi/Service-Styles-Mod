@@ -38,6 +38,7 @@ public final class PackBuilder {
         if (cfg.greyWorld) addGreyWorld(cfg, out);
 
         for (Group c : Categories.allGroups()) {
+            if (c.look() == Categories.Look.SKY) continue; // the skybox is drawn by the mod, not by the pack
             Style style = Styles.find(c, cfg.styleOf(c.id()));
             Integer color = cfg.colorOf(c.id());
             if (style.vanilla && color == null) continue; // vanilla (or grey world) already covers it

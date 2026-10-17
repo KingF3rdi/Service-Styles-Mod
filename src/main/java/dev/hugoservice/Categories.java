@@ -12,7 +12,7 @@ import java.util.List;
  */
 public final class Categories {
     /** How the preview is drawn. */
-    public enum Look { FLAT, WIDE, CUBE, CRYSTAL }
+    public enum Look { FLAT, WIDE, CUBE, CRYSTAL, SKY }
 
     /** Isometric cube faces; tint (RGB) multiplies the top, e.g. for grey grass. */
     public record Cube(String top, String side, Integer topTint, String sideOverlay) {}
@@ -63,6 +63,7 @@ public final class Categories {
         cat("fire", "Fire", Items.FIRE_CHARGE,
             group("fire", "Fire", Look.FLAT, null, "block/fire_0", "block/fire_1")),
         cat("sky", "Sky", Items.CLOCK,
+            skybox(),
             group("sky", "Sun", Look.FLAT, null, "environment/celestial/sun"),
             group("clouds", "Clouds", Look.FLAT, null, "environment/clouds")),
         cat("deepslate", "Deepslate", Items.DEEPSLATE,
@@ -124,6 +125,13 @@ public final class Categories {
     /** PvP first (crystal, anchor, totem...), then world blocks, then interface. Stable inside a section. */
     private static List<Category> sorted(List<Category> raw) {
         return raw.stream().sorted(java.util.Comparator.comparingInt(c -> SECTIONS.indexOf(c.section()))).toList();
+    }
+
+    /** Skybox: OptiFine / MCPatcher sky textures (paths are not under textures/). Not written into packs. */
+    private static Group skybox() {
+        List<String> files = List.of("optifine/sky/world0/sky1.png", "optifine/sky/world0/sky0.png", "optifine/sky/world0/sky2.png",
+            "mcpatcher/sky/world0/sky1.png", "mcpatcher/sky/world0/sky0.png");
+        return new Group("skybox", "Skybox", files.getFirst(), Look.SKY, null, files);
     }
 
     private static Group group(String id, String name, Look look, Cube cube, String... files) {

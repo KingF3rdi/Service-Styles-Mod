@@ -6,6 +6,7 @@
   "client": [
     "AbstractClientPlayerEntityMixin",
     "ChatHudMixin",
+    "ClientWorldPropertiesMixin",
     "EntityHitboxDebugRendererMixin",
     "EntityMixin",
     "EndCrystalEntityRendererMixin",
@@ -18,7 +19,8 @@
     "PlayerListEntryMixin",
     "PlayerListHudMixin",
     "ShieldModelRendererMixin",
-    "WorldRendererMixin"
+    "WorldRendererMixin",
+    "WorldRendererSkyMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }

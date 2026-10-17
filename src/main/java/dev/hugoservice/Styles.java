@@ -238,7 +238,9 @@ public final class Styles {
             img.setRGB(0, 0, 15, 15, px, 0, 15);
             return Images.encode(img);
         }));
-        for (Preset pr : PRESETS) {
+        boolean sky = c.look() == Categories.Look.SKY;
+        if (sky) out.addAll(skyImages());
+        for (Preset pr : sky ? List.<Preset>of() : PRESETS) {
             out.add(new Style("preset:" + pr.id, pr.name, "Built-in preset", false, false, pr.rgb, 0, path -> {
                 byte[] v = vanilla(path);
                 if (v == null) return null;
@@ -250,8 +252,24 @@ public final class Styles {
             for (String f : c.files()) if (pack.entries.containsKey(f)) n++;
             if (n == 0) continue;
             out.add(new Style("pack:" + pack.path.getFileName(), pack.name,
-                "From pack · " + n + "/" + c.files().size() + " textures", false, true, null, pack.modified, pack::read));
+                sky ? "Sky from pack" : "From pack · " + n + "/" + c.files().size() + " textures", false, true, null, pack.modified, pack::read));
         }
+        return out;
+    }
+
+    /** Your own sky images in config/hugoservice/skies (3:2 cube layout or 360° panorama). */
+    private static List<Style> skyImages() {
+        List<Style> out = new ArrayList<>();
+        if (!Files.isDirectory(Config.SKIES)) return out;
+        try (Stream<Path> s = Files.list(Config.SKIES)) {
+            for (Path p : s.sorted().toList()) {
+                String name = p.getFileName().toString();
+                if (!name.toLowerCase(java.util.Locale.ROOT).matches(".*\\.(png|jpe?g)$")) continue;
+                long modified = Files.getLastModifiedTime(p).toMillis();
+                out.add(new Style("skyimg:" + name, name.replaceAll("\\.[^.]+$", ""), "Your image", false, true, null, modified,
+                    path -> Files.readAllBytes(p)));
+            }
+        } catch (IOException ignored) {}
         return out;
     }
 

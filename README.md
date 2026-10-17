@@ -19,6 +19,9 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
   end crystal and shield opacity, name tag colour and size, inventory size, hide inventory model,
   name faker (own / enemy names, default skins, hide tier tags), grey world, grass colour,
   6 UI themes, smooth/pixel font, optional background blur. Every effect has a live preview in the menu.
+- **Custom sky** (like Skyboxify): skyboxes from packs (OptiFine / MCPatcher `sky/world0` 3x2 layout) or your own
+  images (upload or `config/hugoservice/skies`; 3:2 = cube layout, 2:1 = 360° panorama). Switches live, with
+  options to rotate with time, keep sun/moon/stars, darken at night and a client-side time slider.
 - **Name icon** (opt-in): players who use the mod get an icon in front of their name. Needs the small
   Cloudflare Worker in [`server/`](server/README.md); only Minecraft UUIDs are sent to it.
 

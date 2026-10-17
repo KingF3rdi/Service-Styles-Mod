@@ -415,7 +415,7 @@ public class StyleScreen extends Screen {
         if (sel || hov) roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 8, sel ? ACCENT : 0x80BFE6FF, 1f);
         round(ctx, x, y, cw, ch, 7, PANEL);
         roundGradient(ctx, x, y, cw, th, 7, CARD_TOP, CARD_BOT, true, false);
-        drawThumb(ctx, g, s, null, x, y, cw, th, g.look() == Categories.Look.WIDE ? 3 : Math.min(cw, th) / 6, true);
+        drawThumb(ctx, g, s, null, x, y, cw, th, g.look() == Categories.Look.WIDE || g.look() == Categories.Look.SKY ? 3 : Math.min(cw, th) / 6, true);
         String name = ellipsize(s.name, cw - 8);
         text(ctx, name, x + (cw - width(name)) / 2, y + th + 4, sel ? ACCENT_HI : hov ? TEXT : MUTED);
         if (sel) round(ctx, x + 5, y + 5, 5, 5, 2.5f, GOOD);
@@ -445,7 +445,7 @@ public class StyleScreen extends Screen {
         int box = Math.min(iw, (B - T) / 2 - 24);
         int by = top + 24;
         roundGradient(ctx, ix, by, iw, box, 7, CARD_TOP, CARD_BOT, true, true);
-        drawThumb(ctx, p.group(), p.style(), null, ix, by, iw, box, p.group().look() == Categories.Look.WIDE ? 4 : Math.min(iw, box) / 5, true);
+        drawThumb(ctx, p.group(), p.style(), null, ix, by, iw, box, p.group().look() == Categories.Look.WIDE || p.group().look() == Categories.Look.SKY ? 4 : Math.min(iw, box) / 5, true);
 
         int ty = by + box + 8;
         boolean isActive = p.style().id.equals(selected(p.group()).id);
@@ -522,6 +522,7 @@ public class StyleScreen extends Screen {
             new Block(inventoryHeight(inner), this::drawInventoryTweaks),
             new Block(126, this::drawNameFaker),
             new Block(84, this::drawNameIcon),
+            new Block(112, this::drawSkyOptions),
             new Block(greyWorldHeight(inner), this::drawGreyWorld),
             new Block(96, (c, x, y, w) -> drawColorBlock(c, grassGroup(), x, y, w))
         );
@@ -687,9 +688,31 @@ public class StyleScreen extends Screen {
         urlField.visible = fy >= bodyY && fy + 15 <= bodyB;
     }
 
-    /** Label, value and a draggable track; 26px tall. */
+    private void drawSkyOptions(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Sky", x, y);
+        toggleRow(ctx, x, y + 17, w, "Rotate with time", cfg.skyRotate, () -> { cfg.skyRotate = !cfg.skyRotate; Config.save(); });
+        toggleRow(ctx, x, y + 33, w, "Keep sun, moon and stars", cfg.skyKeepSun, () -> { cfg.skyKeepSun = !cfg.skyKeepSun; Config.save(); });
+        toggleRow(ctx, x, y + 49, w, "Darker at night", cfg.skyNightFade, () -> { cfg.skyNightFade = !cfg.skyNightFade; Config.save(); });
+        boolean server = cfg.skyTime < 0;
+        toggleRow(ctx, x, y + 65, w, "Server time", server, () -> { cfg.skyTime = cfg.skyTime < 0 ? 6000 : -1; Config.save(); });
+        if (!server) sliderRow(ctx, x, y + 80, w, "Time", cfg.skyTime, 0, 23999, v -> cfg.skyTime = v, StyleScreen::clock);
+        else text(ctx, ellipsize("Pick a skybox under Collections · Sky", w), x, y + 82, DIM);
+    }
+
+    /** Minecraft ticks to a clock: 0 = 06:00, 6000 = 12:00, 18000 = 00:00. */
+    private static String clock(int ticks) {
+        int minutes = (int) ((ticks / 1000.0 + 6) % 24 * 60);
+        return String.format("%02d:%02d", minutes / 60, minutes % 60);
+    }
+
     private void sliderRow(DrawContext ctx, int x, int y, int w, String label, int value, int min, int max, java.util.function.IntConsumer set) {
-        String v = value + "%";
+        sliderRow(ctx, x, y, w, label, value, min, max, set, v -> v + "%");
+    }
+
+    /** Label, value and a draggable track; 26px tall. */
+    private void sliderRow(DrawContext ctx, int x, int y, int w, String label, int value, int min, int max,
+                           java.util.function.IntConsumer set, java.util.function.IntFunction<String> format) {
+        String v = format.apply(value);
         text(ctx, ellipsize(label, w - width(v) - 4), x, y, TEXT);
         text(ctx, v, x + w - width(v), y, ACCENT_HI);
         int ty = y + 15, tw = w;
@@ -953,6 +976,11 @@ public class StyleScreen extends Screen {
 
     private void pick(Group g, Style s) {
         if (s.vanilla) cfg.loadout.remove(g.id()); else cfg.loadout.put(g.id(), s.id);
+        if (g.look() == Categories.Look.SKY) {
+            Config.save(); // the skybox switches live, no pack rebuild needed
+            status(s.vanilla ? "Vanilla sky" : "Skybox: " + s.name);
+            return;
+        }
         changed();
     }
 
@@ -1036,10 +1064,13 @@ public class StyleScreen extends Screen {
         Thread t = new Thread(() -> {
             String picked;
             try (MemoryStack stack = MemoryStack.stackPush()) {
-                PointerBuffer filters = stack.mallocPointer(1);
+                PointerBuffer filters = stack.mallocPointer(4);
                 filters.put(stack.UTF8("*.zip"));
+                filters.put(stack.UTF8("*.png"));
+                filters.put(stack.UTF8("*.jpg"));
+                filters.put(stack.UTF8("*.jpeg"));
                 filters.flip();
-                picked = TinyFileDialogs.tinyfd_openFileDialog("Upload texture packs", null, filters, "Resource packs (*.zip)", true);
+                picked = TinyFileDialogs.tinyfd_openFileDialog("Upload packs or sky images", null, filters, "Packs (*.zip) and sky images (*.png, *.jpg)", true);
             } catch (Throwable e) {
                 HugoService.LOG.warn("File dialog failed", e);
                 picked = null;
@@ -1066,6 +1097,10 @@ public class StyleScreen extends Screen {
                 if (Files.isDirectory(p)) {
                     copyTree(p, target);
                     ok++;
+                } else if (p.toString().toLowerCase(Locale.ROOT).matches(".*\\.(png|jpe?g)$")) {
+                    Files.createDirectories(Config.SKIES); // images become skyboxes
+                    Files.copy(p, Config.SKIES.resolve(p.getFileName().toString()), StandardCopyOption.REPLACE_EXISTING);
+                    ok++;
                 } else if (p.toString().toLowerCase(Locale.ROOT).endsWith(".zip")) {
                     Files.createDirectories(Config.UPLOADS);
                     Files.copy(p, target, StandardCopyOption.REPLACE_EXISTING);
@@ -1076,7 +1111,7 @@ public class StyleScreen extends Screen {
             }
         }
         rescan();
-        status(ok == 0 ? "Only .zip packs or pack folders can be uploaded" : "Uploaded " + ok + " pack" + (ok == 1 ? "" : "s"));
+        status(ok == 0 ? "Only .zip packs, pack folders or sky images can be uploaded" : "Uploaded " + ok + " file" + (ok == 1 ? "" : "s"));
     }
 
     private static void copyTree(Path from, Path to) throws IOException {

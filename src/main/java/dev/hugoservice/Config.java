@@ -18,6 +18,7 @@ public final class Config {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final Path DIR = FabricLoader.getInstance().getConfigDir().resolve("hugoservice");
     public static final Path UPLOADS = DIR.resolve("packs");
+    public static final Path SKIES = DIR.resolve("skies");
     private static final Path FILE = DIR.resolve("config.json");
 
     /** category id -> style id */
@@ -51,6 +52,9 @@ public final class Config {
     /** Name icon via the presence server (opt-in). */
     public boolean nameIcon = false;
     public String presenceUrl = "";
+    /** Skybox options; skyTime -1 = server time. */
+    public boolean skyRotate = false, skyKeepSun = false, skyNightFade = true;
+    public int skyTime = -1;
     public String theme = "Ice";
     public int sortMode = 0;
     public String lastCategory = "crystal";
@@ -60,6 +64,7 @@ public final class Config {
     public static void load() {
         try {
             Files.createDirectories(UPLOADS);
+            Files.createDirectories(SKIES);
             if (Files.exists(FILE)) {
                 Config c = GSON.fromJson(Files.readString(FILE, StandardCharsets.UTF_8), Config.class);
                 if (c != null) INSTANCE = c.fixNulls();

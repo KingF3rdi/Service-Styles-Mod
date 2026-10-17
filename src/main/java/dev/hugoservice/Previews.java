@@ -19,6 +19,7 @@ final class Previews {
             case CUBE -> cube(g.cube(), s, tint);
             case CRYSTAL -> crystal(s, tint);
             case FLAT, WIDE -> flat(g, s, tint);
+            case SKY -> s.vanilla ? vanillaSky() : Sky.preview(g, s);
         };
     }
 
@@ -68,6 +69,17 @@ final class Previews {
         drawCube(g, sub(tex, 40, 0, k), sub(tex, 40, 8, k), sub(tex, 48, 8, k), SIZE / 2f, 30, 40);
         drawCube(g, sub(tex, 8, 0, k), sub(tex, 8, 8, k), sub(tex, 16, 8, k), SIZE / 2f, 10, 76);
         g.dispose();
+        return out;
+    }
+
+    /** Vanilla overworld sky colours as a simple gradient. */
+    private static BufferedImage vanillaSky() {
+        BufferedImage out = new BufferedImage(192, 96, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < 96; y++) {
+            float t = y / 95f;
+            int r = (int) (0x78 + (0xC0 - 0x78) * t), g = (int) (0xA7 + (0xD8 - 0xA7) * t), b = 0xFF;
+            for (int x = 0; x < 192; x++) out.setRGB(x, y, 0xFF000000 | r << 16 | g << 8 | b);
+        }
         return out;
     }
 
