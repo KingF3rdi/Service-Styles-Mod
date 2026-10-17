@@ -19,6 +19,7 @@ public final class Config {
     public static final Path DIR = FabricLoader.getInstance().getConfigDir().resolve("hugoservice");
     public static final Path UPLOADS = DIR.resolve("packs");
     public static final Path SKIES = DIR.resolve("skies");
+    public static final Path CAPES = DIR.resolve("capes");
     private static final Path FILE = DIR.resolve("config.json");
 
     /** category id -> style id */
@@ -45,6 +46,11 @@ public final class Config {
     public int nametagSize = 100;
     /** GUI scale while an inventory is open; 0 = same as normal. */
     public int inventoryScale = 0;
+    // Spotify player: the client id of your own Spotify app; the login token stays on this PC
+    public String spotifyClientId = "";
+    public String spotifyRefresh = "";
+    public boolean spotifyWindow = true, spotifyLyrics = true, spotifySky = false;
+    public int spotifyCorner = 1; // 0 top left, 1 top right, 2 bottom left, 3 bottom right
     public boolean hideInventoryModel = false;
     /** Name faker. */
     public boolean fakeOwn = false, fakeEnemies = false, fakeOwnSkin = false, fakeEnemySkin = false, hideTier = false;
@@ -65,6 +71,7 @@ public final class Config {
         try {
             Files.createDirectories(UPLOADS);
             Files.createDirectories(SKIES);
+            Files.createDirectories(CAPES);
             if (Files.exists(FILE)) {
                 Config c = GSON.fromJson(Files.readString(FILE, StandardCharsets.UTF_8), Config.class);
                 if (c != null) INSTANCE = c.fixNulls();
@@ -117,6 +124,8 @@ public final class Config {
         if (theme == null) theme = "Ice";
         if (fakeName == null || fakeName.isBlank()) fakeName = "Player";
         if (presenceUrl == null) presenceUrl = "";
+        if (spotifyClientId == null) spotifyClientId = "";
+        if (spotifyRefresh == null) spotifyRefresh = "";
         if (crosshair == null || crosshair.length != 225) crosshair = new int[225];
         if (fxColor == null) fxColor = new HashMap<>();
         if (fxOn == null) fxOn = new HashSet<>();

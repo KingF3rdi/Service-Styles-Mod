@@ -45,6 +45,11 @@ public final class CosmeticTextures {
 		BufferedImage image = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
 		Random random = new Random(cosmetic.id().hashCode());
 		int accent = opaque(cosmetic.rarity().color());
+		java.nio.file.Path own = CosmeticCatalog.ownFile(cosmetic.id());
+		if (own != null) {
+			ownCape(image, own);
+			return image;
+		}
 		switch (cosmetic.category()) {
 			case OVERLAY -> {
 				OverlayArt.paint(image, cosmetic);
@@ -60,6 +65,23 @@ public final class CosmeticTextures {
 			}
 			case ACCESSORY -> {
 				AccessoryArt.paint(image, cosmetic);
+				return image;
+			}
+			case TRAIL -> {
+				// the orb takes the colour of the particles (HugoService addition)
+				orb(image, switch (String.valueOf(cosmetic.particle())) {
+					case "flame" -> 0xFFFF8A2A;
+					case "soul_fire_flame" -> 0xFF4FE3FF;
+					case CosmeticCatalog.TRAIL_RAINBOW -> 0xFFFF5CC8;
+					case "cherry_leaves" -> 0xFFFFA6D2;
+					case "end_rod", "snowflake" -> 0xFFF2F8FF;
+					case "note" -> 0xFF5CF07A;
+					case "totem_of_undying" -> 0xFFE8D24A;
+					case "electric_spark" -> 0xFF8AD6FF;
+					case "enchant", "portal" -> 0xFFB388FF;
+					case "heart" -> 0xFFFF4F6A;
+					default -> accent;
+				});
 				return image;
 			}
 			case BANDANA -> {
@@ -102,6 +124,31 @@ public final class CosmeticTextures {
 	}
 
 	// ---- Capes: front face 1,1 10x16 and back face 12,1 10x16 ---------------------------------------------------
+
+	/**
+	 * Own cape (HugoService addition). A 2:1 image is a normal Minecraft cape texture (64x32 or HD) and is used as it
+	 * is; any other image is a picture that fills both faces of the cape.
+	 */
+	private static void ownCape(BufferedImage img, java.nio.file.Path file) {
+		java.awt.Graphics2D g = img.createGraphics();
+		g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		try {
+			BufferedImage src = javax.imageio.ImageIO.read(file.toFile());
+			if (src == null) {
+				throw new java.io.IOException("not an image");
+			}
+			if (src.getWidth() == 2 * src.getHeight()) {
+				g.drawImage(src, 0, 0, 64, 32, null);
+			} else {
+				fill(img, 0xFF15151C);
+				g.drawImage(src, 1, 1, 10, 16, null);
+				g.drawImage(src, 12, 1, 10, 16, null);
+			}
+		} catch (java.io.IOException e) {
+			fill(img, 0xFF3A0F14); // unreadable file: plain dark red cape
+		}
+		g.dispose();
+	}
 
 	/** Near-black glass with glowing purple cracks. */
 	private static void obsidianCape(BufferedImage img, Random r) {

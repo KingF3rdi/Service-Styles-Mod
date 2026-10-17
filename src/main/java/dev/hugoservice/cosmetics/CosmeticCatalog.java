@@ -1,12 +1,18 @@
 // Based on Titus Cosmetics 1.3.22, MIT License, Copyright (c) 2026 Titus. See LICENSE_TitusCosmetics.txt.
 package dev.hugoservice.cosmetics;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Every cosmetic the mod knows. The geometry is defined here, in player model units (see {@link CosmeticBox}). The
@@ -17,11 +23,52 @@ import java.util.stream.Collectors;
  * painters in this package draw into them. Overlays use the player skin layout instead, see {@link CosmeticTextures}.
  */
 public final class CosmeticCatalog {
-	private static final List<Cosmetic> ALL = build();
-	private static final Map<String, Cosmetic> BY_ID = ALL.stream()
-			.collect(Collectors.toUnmodifiableMap(Cosmetic::id, Function.identity()));
+	private static final List<Cosmetic> BASE = build();
+	private static volatile List<Cosmetic> ALL = BASE;
+	private static volatile Map<String, Cosmetic> BY_ID = index(BASE);
+	/** Own capes (HugoService addition): cosmetic id to the PNG it is drawn from. */
+	private static volatile Map<String, Path> OWN = Map.of();
 
 	private CosmeticCatalog() {
+	}
+
+	private static Map<String, Cosmetic> index(List<Cosmetic> list) {
+		return list.stream().collect(Collectors.toUnmodifiableMap(Cosmetic::id, Function.identity()));
+	}
+
+	/**
+	 * Own capes (HugoService addition): every PNG in the folder becomes a cape that only you see, since other players
+	 * do not have the file. The id carries a hash of the file, so an edited image gets a fresh texture.
+	 */
+	public static void loadOwnCapes(Path dir) {
+		List<Cosmetic> own = new ArrayList<>();
+		Map<String, Path> files = new HashMap<>();
+		try (Stream<Path> list = Files.list(dir)) {
+			for (Path p : list.filter(f -> f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".png")).sorted().toList()) {
+				String name = p.getFileName().toString();
+				name = name.substring(0, name.length() - 4);
+				String slug = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_").replaceAll("^_|_$", "");
+				slug = slug.substring(0, Math.min(24, slug.length()));
+				long stamp = Files.getLastModifiedTime(p).toMillis() ^ Files.size(p);
+				String id = "own_" + slug + "_" + Integer.toHexString((int) (stamp ^ stamp >>> 32) & 0xFFFFFF);
+				if (files.putIfAbsent(id, p) != null) continue;
+				own.add(new Cosmetic(id, name.length() > 28 ? name.substring(0, 28) : name, CosmeticCategory.CAPE,
+						Rarity.COMMON, "Your own cape. Only you see it.", Anchor.BODY, Motion.SWAY,
+						List.of(new CosmeticBox(-5, 0, 2.4f, 10, 16, 0.8f, 0, 0)), null));
+			}
+		} catch (IOException ignored) {
+			// no folder yet: no own capes
+		}
+		List<Cosmetic> all = new ArrayList<>(BASE);
+		all.addAll(own);
+		OWN = Map.copyOf(files);
+		ALL = List.copyOf(all);
+		BY_ID = index(ALL);
+	}
+
+	/** The PNG of an own cape, or null for every other cosmetic. */
+	public static Path ownFile(String id) {
+		return OWN.get(id);
 	}
 
 	/** All cosmetics, grouped by category in sidebar order. */
@@ -117,6 +164,20 @@ public final class CosmeticCatalog {
 		aura(out, "heart_aura", "Heart Aura", Rarity.COMMON, "Hearts floating around you", "heart");
 		aura(out, "spark_aura", "Spark Aura", Rarity.RARE, "End rod sparks around you", "end_rod");
 
+		// Trails are particles left behind while you move (HugoService addition, spawned by CosmeticAuras).
+		trail(out, "flame_trail", "Flame Trail", Rarity.RARE, "Flames licking at your heels", "flame");
+		trail(out, "soul_trail", "Soul Trail", Rarity.EPIC, "Blue soul fire where you walked", "soul_fire_flame");
+		trail(out, "rainbow_trail", "Rainbow Trail", Rarity.LEGENDARY, "A colour wave following your steps", TRAIL_RAINBOW);
+		trail(out, "sakura_trail", "Sakura Trail", Rarity.RARE, "Cherry petals drifting behind you", "cherry_leaves");
+		trail(out, "star_trail", "Star Trail", Rarity.EPIC, "Glittering end rod sparks", "end_rod");
+		trail(out, "note_trail", "Music Trail", Rarity.COMMON, "Notes bouncing out of every step", "note");
+		trail(out, "totem_trail", "Totem Trail", Rarity.LEGENDARY, "The green and gold of a popped totem", "totem_of_undying");
+		trail(out, "frost_trail", "Frost Trail", Rarity.RARE, "Snowflakes swirling behind you", "snowflake");
+		trail(out, "spark_trail", "Spark Trail", Rarity.EPIC, "Electric sparks crackling at your feet", "electric_spark");
+		trail(out, "rune_trail", "Rune Trail", Rarity.COMMON, "Enchanting runes rising from the ground", "enchant");
+		trail(out, "portal_trail", "Portal Trail", Rarity.RARE, "Purple portal dust", "portal");
+		trail(out, "heart_trail", "Heart Trail", Rarity.COMMON, "Hearts popping up where you walk", "heart");
+
 		// Overlays are drawn over the whole skin. The glints share one design and differ in palette and pattern.
 		overlay(out, "verdant_glint", "Verdant Glint", Rarity.COMMON, "Green circuit lines over the skin");
 		overlay(out, "venom_coat", "Venom Coat", Rarity.COMMON, "A translucent green slime coat");
@@ -183,6 +244,15 @@ public final class CosmeticCatalog {
 	private static void aura(List<Cosmetic> out, String id, String name, Rarity rarity, String description,
 			String particle) {
 		out.add(new Cosmetic(id, name, CosmeticCategory.AURA, rarity, description, Anchor.BODY, Motion.NONE,
+				List.of(), particle));
+	}
+
+	/** Particle name of the trail that cycles through the rainbow with coloured dust. */
+	public static final String TRAIL_RAINBOW = "hugoservice_rainbow";
+
+	private static void trail(List<Cosmetic> out, String id, String name, Rarity rarity, String description,
+			String particle) {
+		out.add(new Cosmetic(id, name, CosmeticCategory.TRAIL, rarity, description, Anchor.BODY, Motion.NONE,
 				List.of(), particle));
 	}
 

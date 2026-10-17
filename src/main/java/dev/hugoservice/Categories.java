@@ -12,7 +12,7 @@ import java.util.List;
  */
 public final class Categories {
     /** How the preview is drawn. */
-    public enum Look { FLAT, WIDE, CUBE, CRYSTAL, SKY }
+    public enum Look { FLAT, WIDE, CUBE, CRYSTAL, SKY, KNIFE }
 
     /** Isometric cube faces; tint (RGB) multiplies the top, e.g. for grey grass. */
     public record Cube(String top, String side, Integer topTint, String sideOverlay) {}
@@ -48,6 +48,9 @@ public final class Categories {
             group("shovels", "Shovels", Look.FLAT, null, "item/netherite_shovel", "item/diamond_shovel"),
             group("hoes", "Hoes", Look.FLAT, null, "item/netherite_hoe", "item/diamond_hoe"),
             group("spears", "Spears", Look.FLAT, null, "item/netherite_spear", "item/diamond_spear")),
+        cat("knives", "Knives", Items.IRON_SWORD,
+            new Group(Knives.MODEL_GROUP, "Knife", Knives.TEXTURE, Look.KNIFE, null, Knives.modelFiles()),
+            new Group(Knives.FINISH_GROUP, "Finish", Knives.TEXTURE, Look.KNIFE, null, List.of(Knives.TEXTURE))),
         cat("gaps", "Gaps & Pearls", Items.GOLDEN_APPLE,
             group("gaps", "Gaps", Look.FLAT, null, "item/golden_apple"),
             group("pearls", "Pearls", Look.FLAT, null, "item/ender_pearl"),

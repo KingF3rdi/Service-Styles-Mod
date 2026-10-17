@@ -4,11 +4,17 @@ import dev.hugoservice.Categories.Cube;
 import dev.hugoservice.Categories.Group;
 import dev.hugoservice.Styles.Style;
 
+import org.joml.Matrix3f;
+import org.joml.Vector3f;
+
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 /** Builds preview images: flat item art, isometric blocks and a 3D-looking end crystal. */
 final class Previews {
@@ -20,6 +26,7 @@ final class Previews {
             case CRYSTAL -> crystal(s, tint);
             case FLAT, WIDE -> flat(g, s, tint);
             case SKY -> s.vanilla ? vanillaSky() : Sky.preview(g, s);
+            case KNIFE -> Knives.preview(g, s);
         };
     }
 
@@ -58,18 +65,77 @@ final class Previews {
         return out;
     }
 
+    /**
+     * End crystal as it stands in the world (vanilla model, frozen mid-spin): base plate, outer and
+     * inner glass tilted 60° about the diagonal, core inside. Real 3D faces, painted back to front.
+     */
     private static BufferedImage crystal(Style s, Integer tint) throws IOException {
         BufferedImage tex = load(s, "textures/entity/end_crystal/end_crystal.png");
         if (tex == null) return null;
         if (tint != null) Images.tint(tex, tint);
         int k = Math.max(1, tex.getWidth() / 64);
+        float spin = (float) Math.toRadians(25), tilt = (float) Math.toRadians(60);
+        Vector3f axis = new Vector3f(0.70710677f, 0, 0.70710677f);
+        Matrix3f view = new Matrix3f().rotateX((float) Math.toRadians(22)).rotateY((float) Math.toRadians(-30));
+        Matrix3f outer = new Matrix3f().rotateY(spin).rotate(tilt, axis);
+        Matrix3f step = new Matrix3f().rotate(tilt, axis).rotateY(spin).scale(0.875f);
+        Matrix3f inner = new Matrix3f(outer).mul(step), core = new Matrix3f(inner).mul(step);
+        Vector3f glass = new Vector3f(0, 16, 0); // model px; bob midpoint above the 4px base
+        List<Face> faces = new ArrayList<>();
+        box(faces, tex, k, view, new Matrix3f(), new Vector3f(0, 2, 0), 0, 16, 12, 4, 12);
+        box(faces, tex, k, view, core, glass, 32, 0, 8, 8, 8);
+        box(faces, tex, k, view, inner, glass, 0, 0, 8, 8, 8);
+        box(faces, tex, k, view, outer, glass, 0, 0, 8, 8, 8);
+
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        for (Face f : faces) for (float[] p : f.corners()) {
+            minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
+            minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
+        }
+        float sc = Math.min((SIZE - 8) / (maxX - minX), (SIZE - 8) / (maxY - minY));
+        float ox = (SIZE - (maxX - minX) * sc) / 2 - minX * sc, oy = (SIZE - (maxY - minY) * sc) / 2 - minY * sc;
+        faces.sort(Comparator.comparingDouble(Face::depth));
         BufferedImage out = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = out.createGraphics();
-        // core (texOffs 32,0) inside, glass (texOffs 0,0) around it
-        drawCube(g, sub(tex, 40, 0, k), sub(tex, 40, 8, k), sub(tex, 48, 8, k), SIZE / 2f, 30, 40);
-        drawCube(g, sub(tex, 8, 0, k), sub(tex, 8, 8, k), sub(tex, 16, 8, k), SIZE / 2f, 10, 76);
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        for (Face f : faces) {
+            face(g, f.img(), f.ox() * sc + ox, f.oy() * sc + oy, f.ax() * sc + ox, f.ay() * sc + oy, f.bx() * sc + ox, f.by() * sc + oy);
+        }
         g.dispose();
         return out;
+    }
+
+    private static final Vector3f LIGHT = new Vector3f(0.3f, 1f, 0.55f).normalize();
+
+    /** A projected quad: texture corner (0,0) at o, (1,0) at a, (0,1) at b (screen y down). */
+    private record Face(BufferedImage img, float ox, float oy, float ax, float ay, float bx, float by, float depth) {
+        float[][] corners() { return new float[][] {{ox, oy}, {ax, ay}, {bx, by}, {ax + bx - ox, ay + by - oy}}; }
+    }
+
+    /** The six faces of a model box (Minecraft UV layout at u, v), turned by m and centred at c. */
+    private static void box(List<Face> out, BufferedImage tex, int k, Matrix3f view, Matrix3f m, Vector3f c,
+                            int u, int v, int w, int h, int d) {
+        float x = w / 2f, y = h / 2f, z = d / 2f;
+        quad(out, tex, k, view, m, c, u + d, v, w, d, -x, y, -z, w, 0, 0, 0, 0, d);                // top
+        quad(out, tex, k, view, m, c, u + d + w, v, w, d, -x, -y, z, w, 0, 0, 0, 0, -d);           // bottom
+        quad(out, tex, k, view, m, c, u, v + d, d, h, -x, y, -z, 0, 0, d, 0, -h, 0);               // west
+        quad(out, tex, k, view, m, c, u + d, v + d, w, h, -x, y, z, w, 0, 0, 0, -h, 0);            // south
+        quad(out, tex, k, view, m, c, u + d + w, v + d, d, h, x, y, z, 0, 0, -d, 0, -h, 0);        // east
+        quad(out, tex, k, view, m, c, u + 2 * d + w, v + d, w, h, x, y, -z, -w, 0, 0, 0, -h, 0);   // north
+    }
+
+    private static void quad(List<Face> out, BufferedImage tex, int k, Matrix3f view, Matrix3f m, Vector3f c,
+                             int tu, int tv, int tw, int th, float ox, float oy, float oz,
+                             float ax, float ay, float az, float bx, float by, float bz) {
+        Vector3f o = m.transform(new Vector3f(ox, oy, oz)).add(c);
+        Vector3f a = m.transform(new Vector3f(ax, ay, az)), b = m.transform(new Vector3f(bx, by, bz));
+        float light = 0.6f + 0.4f * Math.max(0, new Vector3f(b).cross(a).normalize().dot(LIGHT));
+        view.transform(o);
+        view.transform(a);
+        view.transform(b);
+        BufferedImage img = shade(tex.getSubimage(tu * k, tv * k, tw * k, th * k), light);
+        float depth = o.z + (a.z + b.z) / 2; // face centre; bigger = nearer
+        out.add(new Face(img, o.x, -o.y, o.x + a.x, -(o.y + a.y), o.x + b.x, -(o.y + b.y), depth));
     }
 
     /** Vanilla overworld sky colours as a simple gradient. */
@@ -236,7 +302,7 @@ final class Previews {
     }
 
     /** Maps the image's unit square so (0,0)->o, (1,0)->a, (0,1)->b. */
-    private static void face(Graphics2D g, BufferedImage img, float ox, float oy, float ax, float ay, float bx, float by) {
+    static void face(Graphics2D g, BufferedImage img, float ox, float oy, float ax, float ay, float bx, float by) {
         AffineTransform at = new AffineTransform(ax - ox, ay - oy, bx - ox, by - oy, ox, oy);
         // tiny overdraw closes hairline seams between faces
         at.scale(1.012 / img.getWidth(), 1.012 / img.getHeight());
@@ -262,11 +328,7 @@ final class Previews {
         return h > w && h % w == 0 ? img.getSubimage(0, 0, w, w) : img;
     }
 
-    private static BufferedImage sub(BufferedImage tex, int x, int y, int k) {
-        return tex.getSubimage(x * k, y * k, 8 * k, 8 * k);
-    }
-
-    private static BufferedImage shade(BufferedImage src, float f) {
+    static BufferedImage shade(BufferedImage src, float f) {
         BufferedImage copy = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = copy.createGraphics();
         g.drawImage(src, 0, 0, null);

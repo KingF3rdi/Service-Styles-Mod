@@ -43,6 +43,40 @@ final class Shapes {
         return s;
     }
 
+    /** Inner glow width of {@link #rim} in screen pixels. */
+    static final int GLOW = 4;
+
+    /**
+     * Liquid-glass edge for a w*h rounded rect: a 1px specular ring plus a faint inner glow, with the
+     * brightness of {@link #rimLight} baked in (bright top, faint sides, soft catch light at the bottom).
+     */
+    static Sprite rim(int w, int h, int r) {
+        if (w > MAX || h > MAX || w <= 0 || h <= 0) return null;
+        long key = (long) w | (long) h << 9 | (long) r << 18 | 1L << 40;
+        Sprite s = SPRITES.get(key);
+        if (s != null) return s;
+        s = alloc(w, h);
+        double hw = w / 2.0, hh = h / 2.0;
+        for (int y = 0; y < h; y++) {
+            float light = rimLight((y + 0.5f) / h);
+            for (int x = 0; x < w; x++) {
+                double d = sdf(x + 0.5 - hw, y + 0.5 - hh, hw, hh, r);
+                double ring = clamp(0.5 - d) - clamp(0.5 - (d + 1));
+                double glow = d < -1 ? 0.28 * Math.pow(clamp(1 + (d + 1) / GLOW), 2) : 0;
+                img.setColorArgb(s.u() + x, s.v() + y, (int) Math.round(clamp(ring + glow) * light * 255) << 24 | 0xFFFFFF);
+            }
+        }
+        SPRITES.put(key, s);
+        dirty = true;
+        return s;
+    }
+
+    /** Rim brightness from the top (v = 0) to the bottom (v = 1) of a glass shape. */
+    static float rimLight(float v) {
+        return v < 0.5f ? 0.16f + 0.84f * (float) Math.pow(1 - v / 0.5f, 1.6)
+            : 0.16f + 0.4f * (float) Math.pow((v - 0.5f) / 0.5f, 2);
+    }
+
     /** Soft white radial spot (64x64) for the glow behind previews. */
     static Sprite glow() {
         long key = -1L;

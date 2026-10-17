@@ -238,9 +238,10 @@ public final class Styles {
             img.setRGB(0, 0, 15, 15, px, 0, 15);
             return Images.encode(img);
         }));
-        boolean sky = c.look() == Categories.Look.SKY;
+        boolean sky = c.look() == Categories.Look.SKY, knife = Knives.isKnifeGroup(c);
         if (sky) out.addAll(skyImages());
-        for (Preset pr : sky ? List.<Preset>of() : PRESETS) {
+        if (knife) out.addAll(Knives.styles(c));
+        for (Preset pr : sky || knife ? List.<Preset>of() : PRESETS) {
             out.add(new Style("preset:" + pr.id, pr.name, "Built-in preset", false, false, pr.rgb, 0, path -> {
                 byte[] v = vanilla(path);
                 if (v == null) return null;

@@ -67,7 +67,7 @@ public class StyleScreen extends Screen {
     private void applyTheme() {
         Theme t = THEMES.getFirst();
         for (Theme th : THEMES) if (th.name().equals(cfg.theme)) t = th;
-        WIN = 0xB8000000 | t.win();
+        WIN = (cfg.blur ? 0x80000000 : 0xB4000000) | t.win(); // with blur behind it the glass can be clearer
         PANEL = 0x1C000000 | t.tint();
         PANEL_HI = 0x30000000 | t.tint();
         HOVER = 0x44000000 | t.tint();
@@ -103,7 +103,7 @@ public class StyleScreen extends Screen {
     private int gridMax, sideMax, extrasMax;
     private String status;
     private long statusUntil;
-    private TextFieldWidget search, packName, fakeField, urlField;
+    private TextFieldWidget search, packName, fakeField, urlField, spotifyField;
     private int mouseX, mouseY;
 
     // layout
@@ -163,6 +163,15 @@ public class StyleScreen extends Screen {
         urlField.setChangedListener(s -> cfg.presenceUrl = s.trim());
         urlField.visible = false;
         addDrawableChild(urlField);
+
+        spotifyField = new TextFieldWidget(textRenderer, 0, 0, 80, 10, Text.literal("Spotify Client ID"));
+        styleField(spotifyField);
+        spotifyField.setMaxLength(64);
+        spotifyField.setText(cfg.spotifyClientId);
+        spotifyField.setPlaceholder(t("Client ID").copy().withColor(DIM & 0xFFFFFF));
+        spotifyField.setChangedListener(s -> cfg.spotifyClientId = s.trim());
+        spotifyField.visible = false;
+        addDrawableChild(spotifyField);
 
         rescan();
     }
@@ -228,8 +237,9 @@ public class StyleScreen extends Screen {
         hoveredCos = null;
         fakeField.visible = false; // the name faker block shows it when on screen
         urlField.visible = false;
+        spotifyField.visible = false;
 
-        glass(ctx, L, T, R - L, B - T, 10, WIN);
+        glass(ctx, L, T, R - L, B - T, 14, WIN, 0xD8FFFFFF);
 
         drawHeader(ctx);
         drawSidebar(ctx);
@@ -257,7 +267,7 @@ public class StyleScreen extends Screen {
             boolean custom = false;
             for (Group g : c.groups()) custom |= !cfg.styleOf(g.id()).equals(Styles.VANILLA_ID) || cfg.colorOf(g.id()) != null;
             boolean on = c == cat && !extras && cosCat == null;
-            round(ctx, ix, T + 7, 20, 20, 6, on ? ACCENT_SOFT : over(ix, T + 7, 20, 20) ? HOVER : PANEL);
+            lens(ctx, ix, T + 7, 20, 20, 7, on ? ACCENT_SOFT : over(ix, T + 7, 20, 20) ? HOVER : PANEL);
             item(ctx, c, ix + 5, T + 12);
             if (custom) round(ctx, ix + 8, T + 29, 4, 2, 1, on ? ACCENT : GOOD);
             hit(ix, T + 7, 20, 20, (a, b, btn) -> selectCategory(c));
@@ -266,11 +276,11 @@ public class StyleScreen extends Screen {
 
     private void drawSidebar(DrawContext ctx) {
         int x0 = L + 8, top = T + 36, w = sideR - x0;
-        glass(ctx, x0, top, w, B - 32 - top, 8, PANEL);
+        glass(ctx, x0, top, w, B - 32 - top, 12, PANEL);
 
         int sx = x0 + 5, sy = top + 5, sw = w - 10, half = sw / 2;
         round(ctx, sx, sy, sw, 16, 8, FIELD);
-        round(ctx, extras ? sx + half : sx, sy, extras ? sw - half : half, 16, 8, ACCENT_SOFT);
+        lens(ctx, extras ? sx + half : sx, sy, extras ? sw - half : half, 16, 8, ACCENT_SOFT);
         segment(ctx, sx, sy, half, "Collections", !extras, () -> showExtras(false));
         segment(ctx, sx + half, sy, sw - half, "Extras", extras, () -> showExtras(true));
 
@@ -287,7 +297,7 @@ public class StyleScreen extends Screen {
             }
             boolean sel = c == cat && !extras && cosCat == null;
             boolean hov = over(x0 + 4, ry, w - 8, rowH - 1) && mouseY >= listTop && mouseY < bottom;
-            if (sel) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
+            if (sel) lens(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
             else if (hov) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, 0x10FFFFFF);
             if (sel) round(ctx, x0 + 4, ry + 4, 2, rowH - 9, 1, ACCENT);
             item(ctx, c, x0 + 11, ry + 4);
@@ -305,7 +315,7 @@ public class StyleScreen extends Screen {
             List<Cosmetic> items = CosmeticCatalog.ofCategory(cc);
             boolean sel = cc == cosCat && !extras;
             boolean hov = over(x0 + 4, ry, w - 8, rowH - 1) && mouseY >= listTop && mouseY < bottom;
-            if (sel) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
+            if (sel) lens(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
             else if (hov) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, 0x10FFFFFF);
             if (sel) round(ctx, x0 + 4, ry + 4, 2, rowH - 9, 1, ACCENT);
             if (!items.isEmpty()) cosmeticIcon(ctx, items.getFirst(), x0 + 9, ry + 2, 14);
@@ -350,7 +360,7 @@ public class StyleScreen extends Screen {
         String label = "Sort: " + SORTS[cfg.sortMode] + "  ▾";
         int sw = width(label) + 14, sx = cx1 - sw;
         boolean shov = over(sx, y, sw, 14);
-        round(ctx, sx, y, sw, 14, 7, shov ? HOVER : PANEL_HI);
+        lens(ctx, sx, y, sw, 14, 7, shov ? HOVER : PANEL_HI);
         text(ctx, label, sx + 7, y + 3, shov ? TEXT : MUTED);
         hit(sx, y, sw, 14, (a, b, btn) -> {
             cfg.sortMode = Math.floorMod(cfg.sortMode + (btn == 1 ? -1 : 1), SORTS.length);
@@ -365,7 +375,7 @@ public class StyleScreen extends Screen {
             int w = width(name) + 12;
             if (x + w > limit) { x = cx0; y += 17; limit = cx1; }
             boolean on = g == null ? groupFilter == null : g.id().equals(groupFilter), hov = over(x, y, w, 14);
-            if (on || hov) round(ctx, x, y, w, 14, 7, on ? ACCENT_SOFT : 0x14FFFFFF);
+            if (on || hov) lens(ctx, x, y, w, 14, 7, on ? ACCENT_SOFT : 0x14FFFFFF);
             text(ctx, name, x + 6, y + 3, on ? ACCENT_HI : hov ? TEXT : MUTED);
             hit(x, y, w, 14, (a, b, btn) -> { groupFilter = g == null ? null : g.id(); gridScroll = 0; });
             x += w + 4;
@@ -381,7 +391,7 @@ public class StyleScreen extends Screen {
         // search pill
         int sx = search.getX() - 16, sw = search.getWidth() + 22;
         round(ctx, sx, T + 34, sw, 17, 8.5f, FIELD);
-        roundOutline(ctx, sx, T + 34, sw, 17, 8.5f, search.isFocused() ? ACCENT : EDGE, 1f);
+        if (search.isFocused()) roundOutline(ctx, sx, T + 34, sw, 17, 8.5f, ACCENT, 1f); else rim(ctx, sx, T + 34, sw, 17, 8.5f, 0x60FFFFFF);
         round(ctx, sx + 6, T + 38, 6, 6, 3, MUTED);
         round(ctx, sx + 7, T + 39, 4, 4, 2, 0xFF0B1522);
         round(ctx, sx + 11, T + 43, 2.5f, 2.5f, 1, MUTED);
@@ -393,7 +403,7 @@ public class StyleScreen extends Screen {
         int segW = Math.max(width("All"), width(favLabel)) + 14;
         int gx = sx - 8 - segW * 2;
         round(ctx, gx, T + 34, segW * 2, 17, 8.5f, FIELD);
-        round(ctx, favOnly ? gx + segW : gx, T + 34, segW, 17, 8.5f, ACCENT_SOFT);
+        lens(ctx, favOnly ? gx + segW : gx, T + 34, segW, 17, 8.5f, ACCENT_SOFT);
         segment(ctx, gx, T + 34, segW, "All", !favOnly, () -> { favOnly = false; gridScroll = 0; });
         segment(ctx, gx + segW, T + 34, segW, favLabel, favOnly, () -> { favOnly = true; gridScroll = 0; });
         text(ctx, ellipsize(count(cat) + " styles  ·  " + names, gx - cx0 - 8), cx0, T + 48, MUTED);
@@ -443,9 +453,10 @@ public class StyleScreen extends Screen {
     private void drawCard(DrawContext ctx, Group g, Style s, boolean sel, int x, int y, int cw, int th, int ch) {
         boolean hov = over(x, y, cw, ch) && mouseY >= gridTop && mouseY < bodyB;
         if (hov) hovered = new Pick(g, s);
-        if (sel || hov) roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 8, sel ? ACCENT : 0x80BFE6FF, 1f);
-        round(ctx, x, y, cw, ch, 7, PANEL);
-        roundGradient(ctx, x, y, cw, th, 7, CARD_TOP, CARD_BOT, true, false);
+        if (sel || hov) roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 9, sel ? ACCENT : 0x80BFE6FF, 1f);
+        round(ctx, x, y, cw, ch, 8, PANEL);
+        roundGradient(ctx, x, y, cw, th, 8, CARD_TOP, CARD_BOT, true, false);
+        rim(ctx, x, y, cw, ch, 8, hov ? 0x90FFFFFF : 0x58FFFFFF);
         drawThumb(ctx, g, s, null, x, y, cw, th, g.look() == Categories.Look.WIDE || g.look() == Categories.Look.SKY ? 3 : Math.min(cw, th) / 6, true);
         String name = ellipsize(s.name, cw - 8);
         text(ctx, name, x + (cw - width(name)) / 2, y + th + 4, sel ? ACCENT_HI : hov ? TEXT : MUTED);
@@ -494,8 +505,9 @@ public class StyleScreen extends Screen {
         // search pill (same look as the styles view)
         int sx = search.getX() - 16, sw = search.getWidth() + 22;
         round(ctx, sx, T + 34, sw, 17, 8.5f, FIELD);
-        roundOutline(ctx, sx, T + 34, sw, 17, 8.5f, search.isFocused() ? ACCENT : EDGE, 1f);
-        text(ctx, "Click to wear  ·  click again to take off  ·  one per category", cx0, T + 59, DIM);
+        if (search.isFocused()) roundOutline(ctx, sx, T + 34, sw, 17, 8.5f, ACCENT, 1f); else rim(ctx, sx, T + 34, sw, 17, 8.5f, 0x60FFFFFF);
+        text(ctx, ellipsize(capesView() ? "Click to wear  ·  Upload or drop a .png for your own cape"
+            : "Click to wear  ·  click again to take off  ·  one per category", cx1 - cx0), cx0, T + 59, DIM);
 
         int gap = 8, areaW = cx1 - cx0;
         int cols = Math.max(1, (areaW + gap) / (66 + gap));
@@ -512,9 +524,10 @@ public class StyleScreen extends Screen {
             boolean worn = c == wearing || wearing != null && c.id().equals(wearing.id());
             boolean hov = over(x, y, cw, ch) && mouseY >= bodyY && mouseY < bodyB;
             if (hov) hoveredCos = c;
-            if (worn || hov) roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 8, worn ? ACCENT : 0x80BFE6FF, 1f);
-            round(ctx, x, y, cw, ch, 7, PANEL);
-            roundGradient(ctx, x, y, cw, th, 7, CARD_TOP, CARD_BOT, true, false);
+            if (worn || hov) roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 9, worn ? ACCENT : 0x80BFE6FF, 1f);
+            round(ctx, x, y, cw, ch, 8, PANEL);
+            roundGradient(ctx, x, y, cw, th, 8, CARD_TOP, CARD_BOT, true, false);
+            rim(ctx, x, y, cw, ch, 8, hov ? 0x90FFFFFF : 0x58FFFFFF);
             int pad = Math.min(cw, th) / 7;
             drawPreview(ctx, "cos|" + c.id(), () -> CosmeticIcons.of(c, 96), x, y, cw, th, pad, true);
             String name = ellipsize(c.name(), cw - 8);
@@ -534,7 +547,7 @@ public class StyleScreen extends Screen {
 
     private void drawCosmeticInspector(DrawContext ctx) {
         int x = insL, top = T + 36, w = R - 8 - insL, ix = x + 8, iw = w - 16;
-        glass(ctx, x, top, w, B - 32 - top, 8, PANEL);
+        glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
         bold(ctx, "Preview", ix, top + 9, TEXT);
         Loadout lo = CosmeticSync.local();
         List<Cosmetic> items = CosmeticCatalog.ofCategory(cosCat);
@@ -596,7 +609,7 @@ public class StyleScreen extends Screen {
     private void drawInspector(DrawContext ctx) {
         if (cosCat != null && !extras) { drawCosmeticInspector(ctx); return; }
         int x = insL, top = T + 36, w = R - 8 - insL;
-        glass(ctx, x, top, w, B - 32 - top, 8, PANEL);
+        glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
         int ix = x + 8, iw = w - 16;
         if (extras) {
             bold(ctx, "Extras", ix, top + 9, TEXT);
@@ -639,16 +652,19 @@ public class StyleScreen extends Screen {
         int y = B - 27;
         int x = L + 8;
         x += button(ctx, x, y, 0, "Upload", false, this::upload) + 5;
-        x += button(ctx, x, y, 0, "Folder", false, () -> Util.getOperatingSystem().open(Config.UPLOADS)) + 5;
+        x += button(ctx, x, y, 0, "Folder", false, () -> Util.getOperatingSystem().open(capesView() ? Config.CAPES : Config.UPLOADS)) + 5;
         x += button(ctx, x, y, 0, "Reset", false, this::reset) + 5;
 
         int applyW = 56, saveW = 66;
         int ax = R - 8 - applyW, sx = ax - 5 - saveW;
         button(ctx, ax, y, applyW, busy ? "..." : dirty ? "Apply •" : "Apply", true, this::apply);
         button(ctx, sx, y, saveW, "Save pack", false, this::savePack);
-        int nx = packName.getX() - 8, nw = packName.getWidth() + 14;
+        // name field sits left of "Save pack" and gives way to the left buttons in small windows
+        int nRight = sx - 5, nx = Math.max(x, nRight - Math.max(64, Math.min(120, (R - L) / 6))), nw = nRight - nx;
+        packName.setX(nx + 8);
+        packName.setWidth(Math.max(10, nw - 14));
         round(ctx, nx, y, nw, 17, 8.5f, FIELD);
-        roundOutline(ctx, nx, y, nw, 17, 8.5f, packName.isFocused() ? ACCENT : EDGE, 1f);
+        if (packName.isFocused()) roundOutline(ctx, nx, y, nw, 17, 8.5f, ACCENT, 1f); else rim(ctx, nx, y, nw, 17, 8.5f, 0x60FFFFFF);
 
         boolean live = status != null && System.currentTimeMillis() < statusUntil;
         String msg = live ? status : "Click select  ·  Right-click zoom  ·  F favorite  ·  / search";
@@ -688,6 +704,7 @@ public class StyleScreen extends Screen {
             new Block(inventoryHeight(inner), this::drawInventoryTweaks),
             new Block(126, this::drawNameFaker),
             new Block(84, this::drawNameIcon),
+            new Block(178, this::drawSpotify),
             new Block(112, this::drawSkyOptions),
             new Block(greyWorldHeight(inner), this::drawGreyWorld),
             new Block(96, (c, x, y, w) -> drawColorBlock(c, grassGroup(), x, y, w))
@@ -700,7 +717,7 @@ public class StyleScreen extends Screen {
             for (int k = 1; k < cols; k++) if (colY[k] < colY[c]) c = k;
             int x = cx0 + c * (colW + gap), y = base + colY[c];
             if (y + b.h() >= bodyY && y <= bodyB) {
-                glass(ctx, x, y, colW, b.h(), 8, PANEL);
+                glass(ctx, x, y, colW, b.h(), 10, PANEL);
                 b.drawer().draw(ctx, x + 8, y + 8, inner);
             }
             colY[c] += b.h() + gap;
@@ -815,7 +832,7 @@ public class StyleScreen extends Screen {
             int cw = width(label) + 12;
             if (cx + cw > x + w) { cx = x; cy += 16; }
             boolean on = cfg.inventoryScale == s, hov = over(cx, cy, cw, 13);
-            round(ctx, cx, cy, cw, 13, 6.5f, on ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
+            lens(ctx, cx, cy, cw, 13, 6.5f, on ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
             text(ctx, label, cx + 6, cy + 3, on ? ACCENT_HI : MUTED);
             clipHit(cx, cy, cw, 13, (a, b, btn) -> { cfg.inventoryScale = s; Config.save(); });
             cx += cw + 4;
@@ -830,7 +847,7 @@ public class StyleScreen extends Screen {
         // name input lives in a real text field, moved here every frame
         int fy = y + 31;
         round(ctx, x, fy, w, 15, 7.5f, FIELD);
-        roundOutline(ctx, x, fy, w, 15, 7.5f, fakeField.isFocused() ? ACCENT : EDGE, 0);
+        if (fakeField.isFocused()) roundOutline(ctx, x, fy, w, 15, 7.5f, ACCENT, 0); else rim(ctx, x, fy, w, 15, 7.5f, 0x60FFFFFF);
         fakeField.setX(x + 7);
         fakeField.setY(fy + 3);
         fakeField.setWidth(w - 14);
@@ -847,11 +864,55 @@ public class StyleScreen extends Screen {
         text(ctx, ellipsize("Sends UUIDs + cosmetics to this server", w), x, y + 31, DIM);
         int fy = y + 45;
         round(ctx, x, fy, w, 15, 7.5f, FIELD);
-        roundOutline(ctx, x, fy, w, 15, 7.5f, urlField.isFocused() ? ACCENT : EDGE, 0);
+        if (urlField.isFocused()) roundOutline(ctx, x, fy, w, 15, 7.5f, ACCENT, 0); else rim(ctx, x, fy, w, 15, 7.5f, 0x60FFFFFF);
         urlField.setX(x + 7);
         urlField.setY(fy + 3);
         urlField.setWidth(w - 14);
         urlField.visible = fy >= bodyY && fy + 15 <= bodyB;
+    }
+
+    private static final String[] CORNERS = {"Top left", "Top right", "Bottom left", "Bottom right"};
+
+    /** Spotify player: your own app's client id, login, where it shows, and play controls (Premium). */
+    private void drawSpotify(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Spotify player", x, y);
+        text(ctx, ellipsize("Client ID of your app on developer.spotify.com", w), x, y + 17, DIM);
+        int fy = y + 29;
+        round(ctx, x, fy, w, 15, 7.5f, FIELD);
+        if (spotifyField.isFocused()) roundOutline(ctx, x, fy, w, 15, 7.5f, ACCENT, 0); else rim(ctx, x, fy, w, 15, 7.5f, 0x60FFFFFF);
+        spotifyField.setX(x + 7);
+        spotifyField.setY(fy + 3);
+        spotifyField.setWidth(w - 14);
+        spotifyField.visible = fy >= bodyY && fy + 15 <= bodyB;
+        text(ctx, ellipsize("Redirect URI: " + Spotify.REDIRECT, w), x, y + 48, DIM);
+
+        int by = y + 61;
+        // buttons register plain hits, so only draw them while fully inside the scroll area
+        if (by < bodyY || by + 17 > bodyB) return;
+        int bw = button(ctx, x, by, 0, Spotify.connected() ? "Disconnect" : "Connect", !Spotify.connected(),
+            () -> { Config.save(); if (Spotify.connected()) Spotify.disconnect(); else Spotify.connect(); });
+        Spotify.Track tr = Spotify.track;
+        String state = !Spotify.status.isEmpty() ? Spotify.status : Spotify.connected() ? "Connected" : "Not connected";
+        if (tr != null) state = (Spotify.playing ? "Playing: " : "Paused: ") + tr.name();
+        text(ctx, ellipsize(state, w - bw - 8), x + bw + 8, by + 5, tr != null ? GOOD : MUTED);
+
+        toggleRow(ctx, x, y + 84, w, "Player window", cfg.spotifyWindow, () -> { cfg.spotifyWindow = !cfg.spotifyWindow; Config.save(); });
+        toggleRow(ctx, x, y + 100, w, "Lyrics in the window", cfg.spotifyLyrics, () -> { cfg.spotifyLyrics = !cfg.spotifyLyrics; Config.save(); });
+        toggleRow(ctx, x, y + 116, w, "Lyrics on the sky", cfg.spotifySky, () -> { cfg.spotifySky = !cfg.spotifySky; Config.save(); });
+
+        int cy = y + 134;
+        text(ctx, "Window", x, cy + 3, TEXT);
+        String corner = CORNERS[Math.floorMod(cfg.spotifyCorner, 4)];
+        int cw = width(corner) + 16, cx = x + w - cw;
+        lens(ctx, cx, cy, cw, 14, 7, over(cx, cy, cw, 14) ? HOVER : PANEL_HI);
+        text(ctx, corner, cx + 8, cy + 3, TEXT);
+        clipHit(cx, cy, cw, 14, (a, b, btn) -> { cfg.spotifyCorner = Math.floorMod(cfg.spotifyCorner + (btn == 1 ? -1 : 1), 4); Config.save(); });
+
+        int ky = y + 154, kx = x;
+        if (ky + 17 > bodyB) return;
+        kx += button(ctx, kx, ky, 0, "Previous", false, Spotify::previous) + 5;
+        kx += button(ctx, kx, ky, 0, Spotify.playing ? "Pause" : "Play", false, Spotify::playPause) + 5;
+        button(ctx, kx, ky, 0, "Next", false, Spotify::next);
     }
 
     private void drawSkyOptions(DrawContext ctx, int x, int y, int w) {
@@ -999,7 +1060,7 @@ public class StyleScreen extends Screen {
 
     private void smallButton(DrawContext ctx, int x, int y, int w, String label, boolean primary, Runnable r) {
         boolean hov = over(x, y, w, 14);
-        round(ctx, x, y, w, 14, 7, primary ? (hov ? ACCENT_HI : ACCENT) : (hov ? HOVER : PANEL_HI));
+        lens(ctx, x, y, w, 14, 7, primary ? (hov ? ACCENT_HI : ACCENT) : (hov ? HOVER : PANEL_HI));
         String l = ellipsize(label, w - 6);
         text(ctx, l, x + (w - width(l)) / 2, y + 3, primary ? INK : TEXT);
         clipHit(x, y, w, 14, (a, b, btn) -> r.run());
@@ -1020,7 +1081,7 @@ public class StyleScreen extends Screen {
         String key = waitingKey ? "Press a key..." : HugoService.OPEN.getBoundKeyLocalizedText().getString();
         int kw = width(key) + 14, kx = x + w - kw;
         boolean hov = over(kx, y + 55, kw, 15);
-        round(ctx, kx, y + 55, kw, 15, 7.5f, waitingKey ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
+        lens(ctx, kx, y + 55, kw, 15, 7.5f, waitingKey ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
         if (waitingKey) roundOutline(ctx, kx, y + 55, kw, 15, 7.5f, ACCENT, 0);
         text(ctx, key, kx + 7, y + 59, waitingKey ? ACCENT_HI : TEXT);
         clipHit(kx, y + 55, kw, 15, (a, b, btn) -> waitingKey = true);
@@ -1045,7 +1106,7 @@ public class StyleScreen extends Screen {
             if (cx + cw > w) { cx = 0; cy += 18; }
             int bx = x + cx;
             boolean on = t.name().equals(cfg.theme), hov = over(bx, cy, cw, 15);
-            round(ctx, bx, cy, cw, 15, 7.5f, on ? (0x40000000 | t.accent()) : hov ? HOVER : PANEL_HI);
+            lens(ctx, bx, cy, cw, 15, 7.5f, on ? (0x40000000 | t.accent()) : hov ? HOVER : PANEL_HI);
             if (on) roundOutline(ctx, bx, cy, cw, 15, 7.5f, 0xFF000000 | t.accent(), 0);
             round(ctx, bx + 5, cy + 4, 7, 7, 3.5f, 0xFF000000 | t.accent());
             text(ctx, t.name(), bx + 16, cy + 4, on ? TEXT : MUTED);
@@ -1075,7 +1136,7 @@ public class StyleScreen extends Screen {
             boolean on = cfg.keepColour.contains(g.name());
             int bx = x + cx;
             boolean hov = over(bx, cy, cw, 13);
-            round(ctx, bx, cy, cw, 13, 6.5f, on ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
+            lens(ctx, bx, cy, cw, 13, 6.5f, on ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
             text(ctx, g.name(), bx + 6, cy + 3, on ? ACCENT_HI : MUTED);
             clipHit(bx, cy, cw, 13, (a, b, btn) -> {
                 if (!cfg.keepColour.remove(g.name())) cfg.keepColour.add(g.name());
@@ -1255,13 +1316,23 @@ public class StyleScreen extends Screen {
         importPacks(paths);
     }
 
+    /** True while the Capes view is open: images then become own capes instead of skies. */
+    private boolean capesView() {
+        return cosCat == CosmeticCategory.CAPE && !extras;
+    }
+
     private void importPacks(List<Path> paths) {
         int ok = 0;
+        boolean capes = capesView();
         for (Path p : paths) {
             try {
                 Path target = Config.UPLOADS.resolve(p.getFileName().toString());
                 if (Files.isDirectory(p)) {
                     copyTree(p, target);
+                    ok++;
+                } else if (capes && p.toString().toLowerCase(Locale.ROOT).endsWith(".png")) {
+                    Files.createDirectories(Config.CAPES);
+                    Files.copy(p, Config.CAPES.resolve(p.getFileName().toString()), StandardCopyOption.REPLACE_EXISTING);
                     ok++;
                 } else if (p.toString().toLowerCase(Locale.ROOT).matches(".*\\.(png|jpe?g)$")) {
                     Files.createDirectories(Config.SKIES); // images become skyboxes
@@ -1276,8 +1347,10 @@ public class StyleScreen extends Screen {
                 HugoService.LOG.warn("Could not import {}", p, e);
             }
         }
-        rescan();
-        status(ok == 0 ? "Only .zip packs, pack folders or sky images can be uploaded" : "Uploaded " + ok + " file" + (ok == 1 ? "" : "s"));
+        if (capes) CosmeticCatalog.loadOwnCapes(Config.CAPES);
+        else rescan();
+        status(ok == 0 ? (capes ? "Capes are .png images" : "Only .zip packs, pack folders or sky images can be uploaded")
+            : "Uploaded " + ok + (capes ? " cape" : " file") + (ok == 1 ? "" : "s"));
     }
 
     private static void copyTree(Path from, Path to) throws IOException {
@@ -1350,7 +1423,7 @@ public class StyleScreen extends Screen {
             }
             return true;
         }
-        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || urlField.isFocused();
+        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || urlField.isFocused() || spotifyField.isFocused();
         if (!typing) {
             if (input.key() == GLFW.GLFW_KEY_SLASH && !extras) {
                 setFocused(search);
@@ -1380,7 +1453,7 @@ public class StyleScreen extends Screen {
 
     // ================================================================ drawing helpers
 
-    private int scale() { return Math.max(1, client.getWindow().getScaleFactor()); }
+    static int scale() { return Math.max(1, net.minecraft.client.MinecraftClient.getInstance().getWindow().getScaleFactor()); }
 
     /** Preview in real screen pixels, integer-scaled when it grows so pixel art stays crisp. */
     private void drawThumb(DrawContext ctx, Group g, Style s, Integer tint, int x, int y, int w, int h, int pad, boolean glow) {
@@ -1430,7 +1503,7 @@ public class StyleScreen extends Screen {
         int bw = w > 0 ? w : width(label) + 16;
         boolean hov = over(x, y, bw, 17);
         int bg = primary ? (hov ? ACCENT_HI : ACCENT) : (hov ? HOVER : PANEL_HI);
-        round(ctx, x, y, bw, 17, 8.5f, bg);
+        lens(ctx, x, y, bw, 17, 8.5f, bg);
         String l = ellipsize(label, bw - 8);
         text(ctx, l, x + (bw - width(l)) / 2, y + 5, primary ? INK : TEXT);
         hit(x, y, bw, 17, (a, b, btn) -> r.run());
@@ -1454,7 +1527,7 @@ public class StyleScreen extends Screen {
         round(ctx, x, y, 3, bar, 1.5f, ACCENT);
     }
 
-    private void round(DrawContext ctx, float x, float y, float w, float h, float r, int color) {
+    static void round(DrawContext ctx, float x, float y, float w, float h, float r, int color) {
         roundGradient(ctx, x, y, w, h, r, color, color, true, true);
     }
 
@@ -1467,7 +1540,7 @@ public class StyleScreen extends Screen {
      * Rounded rectangle in real screen pixels. Small shapes are one quad from the shape atlas;
      * big panels use 4 atlas corners plus 3 plain fills. Gradients on small shapes use the mid colour.
      */
-    private void roundGradient(DrawContext ctx, float x, float y, float w, float h, float r, int top, int bottom, boolean rt, boolean rb) {
+    static void roundGradient(DrawContext ctx, float x, float y, float w, float h, float r, int top, int bottom, boolean rt, boolean rb) {
         int s = scale();
         int X = Math.round(x * s), Y = Math.round(y * s), W = Math.round(w * s), H = Math.round(h * s);
         if (W <= 0 || H <= 0) return;
@@ -1503,16 +1576,63 @@ public class StyleScreen extends Screen {
         else ctx.fillGradient(x0, y0, x1, y1, top, bottom);
     }
 
-    /** Frosted panel: translucent fill, faint light edge and a brighter top highlight. */
+    /** Liquid-glass panel: clear tinted body with a light sheen at the top and a specular rim. */
     private void glass(DrawContext ctx, float x, float y, float w, float h, float r, int fill) {
+        glass(ctx, x, y, w, h, r, fill, 0x8CFFFFFF);
+    }
+
+    static void glass(DrawContext ctx, float x, float y, float w, float h, float r, int fill, int rimColor) {
+        roundGradient(ctx, x, y, w, h, r, lerp(fill, 0xFFFFFFFF, 0.07f), fill, true, true);
+        rim(ctx, x, y, w, h, r, rimColor);
+    }
+
+    /** Glass control (button, chip, tab): fill plus a softer rim. */
+    private void lens(DrawContext ctx, float x, float y, float w, float h, float r, int fill) {
         round(ctx, x, y, w, h, r, fill);
-        roundOutline(ctx, x, y, w, h, r, EDGE, 0);
+        rim(ctx, x, y, w, h, r, 0x78FFFFFF);
+    }
+
+    /**
+     * Liquid-glass edge (see {@link Shapes#rim}). One quad when small; big panels get ring corners
+     * plus 1px strips whose brightness follows the same top-to-bottom light curve.
+     */
+    static void rim(DrawContext ctx, float x, float y, float w, float h, float r, int color) {
         int s = scale();
+        int X = Math.round(x * s), Y = Math.round(y * s), W = Math.round(w * s), H = Math.round(h * s);
+        if (W < 6 || H < 6) return;
+        int R = Math.max(2, Math.min(Math.round(r * s), Math.min(W, H) / 2));
         Matrix3x2fStack m = ctx.getMatrices();
         m.pushMatrix();
         m.scale(1f / s, 1f / s);
-        ctx.fill(Math.round((x + r) * s), Math.round(y * s), Math.round((x + w - r) * s), Math.round(y * s) + 1, 0x50FFFFFF);
+        Shapes.Sprite one = Shapes.rim(W, H, R);
+        if (one != null) {
+            sprite(ctx, X, Y, W, H, one.u(), one.v(), color);
+        } else {
+            Shapes.Sprite ring = Shapes.get(2 * R, 2 * R, R, 1, 15);
+            int top = fade(color, Shapes.rimLight(0)), bot = fade(color, Shapes.rimLight(1)), mid = fade(color, Shapes.rimLight(0.5f));
+            int sideTop = fade(color, Shapes.rimLight((float) R / H)), sideBot = fade(color, Shapes.rimLight(1 - (float) R / H));
+            sprite(ctx, X, Y, R, R, ring.u(), ring.v(), top);
+            sprite(ctx, X + W - R, Y, R, R, ring.u() + R, ring.v(), top);
+            sprite(ctx, X, Y + H - R, R, R, ring.u(), ring.v() + R, bot);
+            sprite(ctx, X + W - R, Y + H - R, R, R, ring.u() + R, ring.v() + R, bot);
+            ctx.fill(X + R, Y, X + W - R, Y + 1, top);
+            ctx.fill(X + R, Y + H - 1, X + W - R, Y + H, bot);
+            int my = Y + H / 2;
+            for (int ex : new int[] {X, X + W - 1}) {
+                ctx.fillGradient(ex, Y + R, ex + 1, my, sideTop, mid);
+                ctx.fillGradient(ex, my, ex + 1, Y + H - R, mid, sideBot);
+            }
+            // inner glow under the top edge and above the bottom edge
+            int g = Shapes.GLOW;
+            ctx.fillGradient(X + R, Y + 1, X + W - R, Y + 1 + g, fade(color, 0.28f), color & 0xFFFFFF);
+            ctx.fillGradient(X + R, Y + H - 1 - g, X + W - R, Y + H - 1, color & 0xFFFFFF, fade(color, 0.28f * Shapes.rimLight(1)));
+        }
         m.popMatrix();
+    }
+
+    /** Scales a colour's alpha. */
+    private static int fade(int color, float f) {
+        return Math.round((color >>> 24) * Math.max(0, Math.min(1, f))) << 24 | color & 0xFFFFFF;
     }
 
     /** Rounded ring; thickness in GUI pixels (0 = one real pixel). One quad when small. */

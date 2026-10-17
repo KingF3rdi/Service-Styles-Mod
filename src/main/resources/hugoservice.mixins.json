@@ -10,6 +10,7 @@
     "EntityHitboxDebugRendererMixin",
     "EntityMixin",
     "EndCrystalEntityRendererMixin",
+    "HeldItemRendererMixin",
     "InGameHudMixin",
     "InventoryScreenMixin",
     "LabelCommandsMixin",

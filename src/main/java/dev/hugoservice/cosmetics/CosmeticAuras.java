@@ -5,6 +5,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.particle.DustParticleEffect;
+import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleType;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.registry.Registries;
@@ -42,7 +44,9 @@ public final class CosmeticAuras {
 			if (player.squaredDistanceTo(client.player) > RANGE * RANGE) {
 				continue;
 			}
-			Cosmetic aura = CosmeticRendering.loadoutOf(player).get(CosmeticCategory.AURA);
+			Loadout loadout = CosmeticRendering.loadoutOf(player);
+			trail(level, player, loadout.get(CosmeticCategory.TRAIL), random);
+			Cosmetic aura = loadout.get(CosmeticCategory.AURA);
 			if (aura == null || aura.particle() == null) {
 				continue;
 			}
@@ -55,6 +59,32 @@ public final class CosmeticAuras {
 					spawn(level, player, simple, random);
 				}
 			}
+		}
+	}
+
+	/** Trail (HugoService addition): particles where the player was last tick, only while it moves. */
+	private static void trail(ClientWorld level, AbstractClientPlayerEntity player, Cosmetic trail, Random random) {
+		if (trail == null || trail.particle() == null) {
+			return;
+		}
+		double dx = player.getX() - player.lastX, dy = player.getY() - player.lastY, dz = player.getZ() - player.lastZ;
+		if (dx * dx + dy * dy + dz * dz < 0.0004 || player.isInvisible()) {
+			return;
+		}
+		ParticleEffect effect;
+		if (CosmeticCatalog.TRAIL_RAINBOW.equals(trail.particle())) {
+			float hue = (level.getTime() % 60) / 60f;
+			effect = new DustParticleEffect(java.awt.Color.HSBtoRGB(hue, 0.85f, 1f) & 0xFFFFFF, 1.2f);
+		} else if (Registries.PARTICLE_TYPE.getOptionalValue(Identifier.ofVanilla(trail.particle())).orElse(null)
+				instanceof SimpleParticleType simple) {
+			effect = simple;
+		} else {
+			return;
+		}
+		for (int i = 0; i < 2; i++) {
+			double x = player.lastX + (random.nextDouble() - 0.5) * 0.35;
+			double z = player.lastZ + (random.nextDouble() - 0.5) * 0.35;
+			level.addParticleClient(effect, x, player.lastY + 0.05 + random.nextDouble() * 0.15, z, 0.0, 0.01, 0.0);
 		}
 	}
 

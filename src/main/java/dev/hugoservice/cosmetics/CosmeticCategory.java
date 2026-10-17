@@ -10,6 +10,7 @@ public enum CosmeticCategory {
 	BACK("Back"),
 	FACE("Face"),
 	AURA("Auras"),
+	TRAIL("Trails"),
 	OVERLAY("Overlays"),
 	PET("Pets"),
 	SHIELD("Shields"),
