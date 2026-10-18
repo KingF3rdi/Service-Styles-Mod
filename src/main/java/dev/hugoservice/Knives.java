@@ -19,7 +19,7 @@ import java.util.Random;
  *
  * <p>Models stand upright in model space (grip at the bottom, tip at the top); the display transforms turn them
  * 45° so they lie in the hand and in the GUI like a sword sprite. Texture: 64x64, UV regions in 0..16 units:
- * blade u 0-8, handle u 8-12, metal u 12-16 v 0-8, edge u 12-16 v 8-16.
+ * blade u 0-8, handle u 8-11, fuller u 11-12, metal u 12-16 v 0-8, edge u 12-16 v 8-16.
  */
 public final class Knives {
     public static final String MODEL_GROUP = "knife", FINISH_GROUP = "knife_finish";
@@ -40,17 +40,18 @@ public final class Knives {
 
     // ================================================================ models
 
-    enum Part { BLADE, HANDLE, METAL, EDGE }
+    enum Part { BLADE, HANDLE, METAL, EDGE, FULLER }
 
     /** How the knife moves when inspected or drawn. */
-    public enum Anim { SPIN, FLIP, TURN }
+    public enum Anim { SPIN, FLIP, TURN, FLICK, HEAVY, TWIRL, PUSH }
 
     /** Box in model units, rotated by {@code angle} degrees about Z through (ox, oy); angle within ±45 in 22.5 steps. */
     record Box(Part part, float x0, float y0, float z0, float x1, float y1, float z1, float angle, float ox, float oy) {}
 
     public record Model(String id, String name, Anim anim, List<Box> boxes) {}
 
-    public static final List<Model> MODELS = List.of(karambit(), butterfly(), bayonet(), flip(), bowie(), gut());
+    public static final List<Model> MODELS = List.of(karambit(), talon(), butterfly(), bayonet(), m9(), flip(),
+        stiletto(), bowie(), huntsman(), gut(), push());
 
     public static Model model(String id) {
         for (Model m : MODELS) if (m.id.equals(id)) return m;
@@ -103,6 +104,89 @@ public final class Knives {
         return new Model("karambit", "Karambit", Anim.SPIN, List.copyOf(b));
     }
 
+    /** Bigger claw than the karambit with a longer, wider curve. */
+    private static Model talon() {
+        List<Box> b = new ArrayList<>();
+        box(b, Part.METAL, 6.5f, 0.0f, 9.5f, 0.6f, 1.2f);
+        box(b, Part.METAL, 6.5f, 2.6f, 9.5f, 3.2f, 1.2f);
+        box(b, Part.METAL, 6.5f, 0.6f, 7.1f, 2.6f, 1.2f);
+        box(b, Part.METAL, 8.9f, 0.6f, 9.5f, 2.6f, 1.2f);
+        float[] p = seg(b, Part.HANDLE, 8, 3.2f, -22.5f, 3.6f, 1.7f, 1.5f);
+        p = seg(b, Part.METAL, p[0], p[1], -22.5f, 0.6f, 2.0f, 1.7f);
+        float[] angles = {0, 22.5f, 45, 67.5f, 90}, lens = {2.8f, 2.6f, 2.3f, 2.0f, 1.4f}, widths = {1.9f, 1.7f, 1.4f, 1.0f, 0.6f};
+        for (int i = 0; i < angles.length; i++) {
+            double a = Math.toRadians(angles[i]);
+            float lx = (float) -Math.cos(a), ly = (float) -Math.sin(a);
+            float off = widths[i] / 2 - 0.15f;
+            seg(b, Part.EDGE, p[0] + lx * off, p[1] + ly * off, angles[i], lens[i], 0.3f, 0.7f);
+            if (i < 3) seg(b, Part.FULLER, p[0] - lx * 0.1f, p[1] - ly * 0.1f, angles[i], lens[i], 0.3f, 0.66f);
+            p = seg(b, Part.BLADE, p[0], p[1], angles[i], lens[i], widths[i], 0.6f);
+        }
+        return new Model("talon", "Talon", Anim.SPIN, List.copyOf(b));
+    }
+
+    /** Military bayonet with grip ribs, a ringed guard and a saw-toothed spine. */
+    private static Model m9() {
+        List<Box> b = new ArrayList<>();
+        box(b, Part.METAL, 7.1f, 0.2f, 8.9f, 1.0f, 1.8f);
+        box(b, Part.HANDLE, 7.2f, 1.0f, 8.8f, 5.6f, 1.7f);
+        for (float y = 1.6f; y < 5.2f; y += 0.8f) box(b, Part.METAL, 7.15f, y, 8.85f, y + 0.2f, 1.75f);
+        box(b, Part.METAL, 6.0f, 5.6f, 10.0f, 6.3f, 1.5f);
+        rot(b, Part.METAL, 9.9f, 5.95f, 0.9f, 0.9f, 45, 1.5f);
+        box(b, Part.BLADE, 7.0f, 6.3f, 8.9f, 12.6f, 0.6f);
+        rot(b, Part.BLADE, 7.95f, 12.7f, 1.35f, 1.35f, 45, 0.6f);
+        for (float y = 7.2f; y < 10.6f; y += 0.8f) rot(b, Part.METAL, 8.95f, y, 0.45f, 0.45f, 45, 0.62f);
+        box(b, Part.FULLER, 7.85f, 7.0f, 8.15f, 11.2f, 0.66f);
+        box(b, Part.EDGE, 7.0f, 6.3f, 7.25f, 12.6f, 0.7f);
+        return new Model("m9", "M9 Bayonet", Anim.TURN, List.copyOf(b));
+    }
+
+    /** Long, slim blade with a thin cross guard. */
+    private static Model stiletto() {
+        List<Box> b = new ArrayList<>();
+        box(b, Part.METAL, 7.4f, 0.2f, 8.6f, 0.8f, 1.4f);
+        box(b, Part.HANDLE, 7.4f, 0.8f, 8.6f, 5.4f, 1.3f);
+        box(b, Part.METAL, 7.3f, 5.4f, 8.7f, 5.9f, 1.4f);
+        box(b, Part.METAL, 6.4f, 5.9f, 9.6f, 6.3f, 1.0f);
+        box(b, Part.BLADE, 7.45f, 6.3f, 8.55f, 13.6f, 0.5f);
+        rot(b, Part.BLADE, 8.0f, 13.6f, 0.78f, 0.78f, 45, 0.5f);
+        box(b, Part.FULLER, 7.9f, 6.6f, 8.1f, 12.6f, 0.56f);
+        box(b, Part.EDGE, 7.45f, 6.3f, 7.65f, 13.6f, 0.6f);
+        return new Model("stiletto", "Stiletto", Anim.FLICK, List.copyOf(b));
+    }
+
+    /** Big survival knife: finger guard, sawback and a wide clipped blade. */
+    private static Model huntsman() {
+        List<Box> b = new ArrayList<>();
+        box(b, Part.METAL, 7.0f, 0.2f, 9.0f, 0.9f, 1.8f);
+        box(b, Part.HANDLE, 7.2f, 0.9f, 8.8f, 5.8f, 1.7f);
+        box(b, Part.METAL, 6.4f, 5.8f, 9.8f, 6.4f, 1.6f);
+        box(b, Part.METAL, 6.4f, 4.6f, 7.0f, 5.8f, 1.6f);
+        box(b, Part.BLADE, 7.0f, 6.4f, 9.4f, 12.8f, 0.6f);
+        rot(b, Part.BLADE, 8.2f, 12.9f, 1.7f, 1.7f, 45, 0.6f);
+        for (float y = 7.0f; y < 10.4f; y += 0.8f) rot(b, Part.METAL, 9.4f, y, 0.5f, 0.5f, 45, 0.62f);
+        box(b, Part.FULLER, 8.0f, 7.0f, 8.3f, 11.6f, 0.66f);
+        box(b, Part.EDGE, 7.0f, 6.4f, 7.25f, 12.8f, 0.7f);
+        return new Model("huntsman", "Huntsman", Anim.HEAVY, List.copyOf(b));
+    }
+
+    /** Push dagger: a T-grip in the fist and a short triangular blade. */
+    private static Model push() {
+        List<Box> b = new ArrayList<>();
+        box(b, Part.HANDLE, 5.6f, 2.2f, 10.4f, 3.6f, 1.6f);
+        box(b, Part.METAL, 5.4f, 2.0f, 5.9f, 3.8f, 1.7f);
+        box(b, Part.METAL, 10.1f, 2.0f, 10.6f, 3.8f, 1.7f);
+        box(b, Part.METAL, 7.4f, 3.6f, 8.6f, 4.4f, 1.4f);
+        box(b, Part.BLADE, 7.0f, 4.4f, 9.0f, 6.4f, 0.6f);
+        box(b, Part.BLADE, 7.3f, 6.4f, 8.7f, 8.0f, 0.6f);
+        box(b, Part.BLADE, 7.6f, 8.0f, 8.4f, 9.2f, 0.6f);
+        rot(b, Part.BLADE, 8.0f, 9.2f, 0.57f, 0.57f, 45, 0.6f);
+        box(b, Part.FULLER, 7.9f, 4.6f, 8.1f, 8.4f, 0.66f);
+        box(b, Part.EDGE, 7.0f, 4.4f, 7.2f, 6.4f, 0.7f);
+        box(b, Part.EDGE, 8.8f, 4.4f, 9.0f, 6.4f, 0.7f);
+        return new Model("push", "Push Dagger", Anim.PUSH, List.copyOf(b));
+    }
+
     private static Model butterfly() {
         List<Box> b = new ArrayList<>();
         box(b, Part.METAL, 6.7f, 0.2f, 9.3f, 0.9f, 1.6f);   // latch
@@ -126,6 +210,7 @@ public final class Knives {
         box(b, Part.METAL, 6.2f, 5.6f, 9.8f, 6.3f, 1.4f);   // guard
         box(b, Part.BLADE, 7.2f, 6.3f, 8.8f, 13.0f, 0.6f);
         rot(b, Part.BLADE, 8.0f, 13.0f, 1.13f, 1.13f, 45, 0.6f);
+        box(b, Part.FULLER, 7.85f, 7.0f, 8.15f, 11.6f, 0.66f);
         box(b, Part.EDGE, 7.2f, 6.3f, 7.45f, 13.0f, 0.7f);
         return new Model("bayonet", "Bayonet", Anim.TURN, List.copyOf(b));
     }
@@ -137,8 +222,9 @@ public final class Knives {
         box(b, Part.METAL, 8.8f, 6.0f, 9.5f, 6.9f, 0.8f);   // flipper
         box(b, Part.BLADE, 7.2f, 6.4f, 9.0f, 11.2f, 0.6f);
         rot(b, Part.BLADE, 8.1f, 11.3f, 1.27f, 1.27f, 45, 0.6f);
+        box(b, Part.FULLER, 7.95f, 7.0f, 8.25f, 10.2f, 0.66f);
         box(b, Part.EDGE, 7.2f, 6.4f, 7.45f, 11.3f, 0.7f);
-        return new Model("flip", "Flip Knife", Anim.TURN, List.copyOf(b));
+        return new Model("flip", "Flip Knife", Anim.FLICK, List.copyOf(b));
     }
 
     private static Model bowie() {
@@ -149,8 +235,9 @@ public final class Knives {
         box(b, Part.BLADE, 7.0f, 6.7f, 9.2f, 13.0f, 0.6f);
         rot(b, Part.BLADE, 8.1f, 13.1f, 1.55f, 1.55f, 45, 0.6f);
         for (float y = 8; y <= 11; y++) rot(b, Part.METAL, 9.2f, y, 0.5f, 0.5f, 45, 0.62f); // spine teeth
+        box(b, Part.FULLER, 7.9f, 7.3f, 8.25f, 12.0f, 0.66f);
         box(b, Part.EDGE, 7.0f, 6.7f, 7.25f, 13.0f, 0.7f);
-        return new Model("bowie", "Bowie", Anim.TURN, List.copyOf(b));
+        return new Model("bowie", "Bowie", Anim.HEAVY, List.copyOf(b));
     }
 
     private static Model gut() {
@@ -163,7 +250,7 @@ public final class Knives {
         rot(b, Part.EDGE, 8.95f, 10.6f, 0.25f, 0.8f, -22.5f, 0.7f);
         rot(b, Part.BLADE, 8.05f, 12.0f, 1.2f, 1.2f, 45, 0.6f);
         box(b, Part.EDGE, 7.2f, 6.8f, 7.45f, 12.0f, 0.7f);
-        return new Model("gut", "Gut Knife", Anim.TURN, List.copyOf(b));
+        return new Model("gut", "Gut Knife", Anim.TWIRL, List.copyOf(b));
     }
 
     // ================================================================ UVs and model JSON
@@ -179,8 +266,9 @@ public final class Knives {
         float u0, u1, v0, v1;
         switch (b.part) {
             case BLADE -> { u0 = map(ua, 6.5f, 9.5f, 0, 8); u1 = map(ub, 6.5f, 9.5f, 0, 8); v0 = map(vb, 15, 6, 0, 16); v1 = map(va, 15, 6, 0, 16); }
-            case HANDLE -> { u0 = map(ua, 6.5f, 9.5f, 8, 12); u1 = map(ub, 6.5f, 9.5f, 8, 12); v0 = map(vb, 8, 0, 0, 16); v1 = map(va, 8, 0, 0, 16); }
+            case HANDLE -> { u0 = map(ua, 6.5f, 9.5f, 8, 11); u1 = map(ub, 6.5f, 9.5f, 8, 11); v0 = map(vb, 8, 0, 0, 16); v1 = map(va, 8, 0, 0, 16); }
             case METAL -> { u0 = map(ua, 6, 10, 12, 16); u1 = map(ub, 6, 10, 12, 16); v0 = map(vb, 16, 0, 0, 8); v1 = map(va, 16, 0, 0, 8); }
+            case FULLER -> { u0 = 11.1f; u1 = 11.9f; v0 = map(vb, 15, 6, 0, 16); v1 = map(va, 15, 6, 0, 16); }
             default -> { u0 = map(ua, 6.5f, 9.5f, 12, 16); u1 = map(ub, 6.5f, 9.5f, 12, 16); v0 = map(vb, 15, 6, 8, 16); v1 = map(va, 15, 6, 8, 16); }
         }
         if (u1 - u0 < 0.05f) u1 = Math.min(16, u0 + 0.25f);
@@ -235,47 +323,99 @@ public final class Knives {
 
     // ================================================================ finishes
 
-    private interface Painter { int color(int part, float u, float v, Random r); }
+    /** Blade colour at (u, v) in 0..1 (v = 0 at the tip); {@code phase} 0..1 runs through the frames of an animated finish. */
+    private interface Painter { int color(int part, float u, float v, Random r, float phase); }
 
-    public record Finish(String id, String name, int handle, int metal, int edge, Painter blade) {}
+    /** {@code frames} above 1 makes an animated texture (the pack gets a .mcmeta for it). */
+    public record Finish(String id, String name, int handle, int metal, int edge, int frames, Painter blade) {
+        Finish(String id, String name, int handle, int metal, int edge, Painter blade) { this(id, name, handle, metal, edge, 1, blade); }
+    }
 
     private static final int P_BLADE = 0;
 
     public static final List<Finish> FINISHES = List.of(
-        new Finish("steel", "Steel", 0xFF1E1F24, 0xFF9AA2AA, 0xFFEAF2FA, (p, u, v, r) -> brushed(0xFFB8C0C8, 0xFF858D96, v, r)),
-        new Finish("sunset", "Sunset Fade", 0xFF15151A, 0xFFB7BDC4, 0xFFFFE6F2, (p, u, v, r) -> {
+        new Finish("steel", "Steel", 0xFF1E1F24, 0xFF9AA2AA, 0xFFEAF2FA, (p, u, v, r, ph) -> brushed(0xFFB8C0C8, 0xFF858D96, v, r)),
+        new Finish("sunset", "Sunset Fade", 0xFF15151A, 0xFFB7BDC4, 0xFFFFE6F2, (p, u, v, r, ph) -> {
             float t = (u * 0.6f + (1 - v) * 0.9f) / 1.5f;
             return t < 0.5f ? mix(0xFFFFD24A, 0xFFFF4FA0, t * 2) : mix(0xFFFF4FA0, 0xFF6A3CFF, (t - 0.5f) * 2);
         }),
-        new Finish("nebula", "Nebula", 0xFF101014, 0xFF8C8FA0, 0xFFF0E0FF, (p, u, v, r) -> {
+        new Finish("nebula", "Nebula", 0xFF101014, 0xFF8C8FA0, 0xFFF0E0FF, (p, u, v, r, ph) -> {
             double s = Math.sin(u * 9 + Math.sin(v * 7) * 2) * Math.cos(v * 11 - u * 3);
             int c = s > 0.35 ? mix(0xFF2A1450, 0xFFD24BFF, (float) s) : s < -0.4 ? mix(0xFF1A1440, 0xFF3A7BFF, (float) -s) : 0xFF1A0B2E;
             return r.nextInt(60) == 0 ? 0xFFFFFFFF : c;
         }),
-        new Finish("ruby", "Ruby", 0xFF120A0C, 0xFFC0A0A6, 0xFFFFD0DA, (p, u, v, r) -> gem(0xFF5E0614, 0xFFE0244A, u, v)),
-        new Finish("sapphire", "Sapphire", 0xFF0A0C14, 0xFFA0AAC8, 0xFFD6E6FF, (p, u, v, r) -> gem(0xFF071A5E, 0xFF2A7BFF, u, v)),
-        new Finish("emerald", "Emerald", 0xFF0A120C, 0xFFA0C0AA, 0xFFD6FFE6, (p, u, v, r) -> gem(0xFF04401E, 0xFF1FD27A, u, v)),
-        new Finish("tiger", "Tiger Stripe", 0xFF1A120A, 0xFFB09A80, 0xFFFFF0D6, (p, u, v, r) -> {
+        new Finish("ruby", "Ruby", 0xFF120A0C, 0xFFC0A0A6, 0xFFFFD0DA, (p, u, v, r, ph) -> gem(0xFF5E0614, 0xFFE0244A, u, v)),
+        new Finish("sapphire", "Sapphire", 0xFF0A0C14, 0xFFA0AAC8, 0xFFD6E6FF, (p, u, v, r, ph) -> gem(0xFF071A5E, 0xFF2A7BFF, u, v)),
+        new Finish("emerald", "Emerald", 0xFF0A120C, 0xFFA0C0AA, 0xFFD6FFE6, (p, u, v, r, ph) -> gem(0xFF04401E, 0xFF1FD27A, u, v)),
+        new Finish("tiger", "Tiger Stripe", 0xFF1A120A, 0xFFB09A80, 0xFFFFF0D6, (p, u, v, r, ph) -> {
             double w = Math.sin((u * 2 + v * 14) + Math.sin(v * 9) * 1.2);
             return w > 0.55 ? 0xFF1A0E06 : mix(0xFFF08A1C, 0xFFFFB347, (float) (w + 1) / 2);
         }),
-        new Finish("blued", "Blued Steel", 0xFF1A1A1E, 0xFFB09A50, 0xFFF5F0E0, (p, u, v, r) -> {
+        new Finish("blued", "Blued Steel", 0xFF1A1A1E, 0xFFB09A50, 0xFFF5F0E0, (p, u, v, r, ph) -> {
             double s = Math.sin(u * 6.3 + v * 4.1) + Math.sin(u * 2.1 - v * 8.7) * 0.8;
             return s > 0.9 ? 0xFFC9A43A : s > 0.1 ? 0xFF2C4BB0 : s > -0.7 ? 0xFF6A4CA0 : 0xFF8E9AA6;
         }),
-        new Finish("crimson_net", "Crimson Net", 0xFF140808, 0xFF9A8A8A, 0xFFFFD6D6, (p, u, v, r) -> {
+        new Finish("crimson_net", "Crimson Net", 0xFF140808, 0xFF9A8A8A, 0xFFFFD6D6, (p, u, v, r, ph) -> {
             double a = Math.atan2(v - 0.5, u - 0.2), d = Math.hypot(u - 0.2, v - 0.5);
             boolean line = Math.abs(Math.sin(a * 6)) < 0.12 || Math.abs(Math.sin(d * 28)) < 0.15;
             return line ? 0xFF140404 : mix(0xFF8A0C16, 0xFFD01A28, (float) Math.min(1, d * 1.4));
         }),
-        new Finish("night", "Night Ops", 0xFF16181C, 0xFF3A3E45, 0xFF8E96A0, (p, u, v, r) -> brushed(0xFF34373E, 0xFF24262B, v, r)),
-        new Finish("marble", "Marble Candy", 0xFF141418, 0xFFC8C8D0, 0xFFFFFFFF, (p, u, v, r) -> {
+        new Finish("night", "Night Ops", 0xFF16181C, 0xFF3A3E45, 0xFF8E96A0, (p, u, v, r, ph) -> brushed(0xFF34373E, 0xFF24262B, v, r)),
+        new Finish("marble", "Marble Candy", 0xFF141418, 0xFFC8C8D0, 0xFFFFFFFF, (p, u, v, r, ph) -> {
             double s = Math.sin(u * 7 + Math.sin(v * 6 + u * 3) * 3);
             return s > 0.6 ? 0xFFE8303C : s > 0.1 ? 0xFFF6F2EA : s > -0.4 ? 0xFF2E5BFF : 0xFFFFC83A;
         }),
-        new Finish("frost", "Frost", 0xFF1A2230, 0xFFCFE6FF, 0xFFFFFFFF, (p, u, v, r) -> {
+        new Finish("frost", "Frost", 0xFF1A2230, 0xFFCFE6FF, 0xFFFFFFFF, (p, u, v, r, ph) -> {
             int c = mix(0xFFEAF6FF, 0xFF7EC8FF, v);
             return r.nextInt(40) == 0 || Math.abs(Math.sin(u * 23 + v * 5)) < 0.04 ? 0xFFFFFFFF : c;
+        }),
+        new Finish("damascus", "Damascus", 0xFF2A1C14, 0xFF7E858C, 0xFFE8EEF4, (p, u, v, r, ph) -> {
+            double w = Math.sin(v * 38 + Math.sin(u * 9 + v * 6) * 2.4);
+            return mix(0xFF4A5058, 0xFFB4BCC4, (float) (w * 0.5 + 0.5));
+        }),
+        new Finish("gilded", "Gilded", 0xFF2A1408, 0xFFE0B040, 0xFFFFF4D0, (p, u, v, r, ph) -> {
+            int c = mix(0xFFFFE08A, 0xFFB07818, v * 0.8f + u * 0.3f);
+            boolean engraving = Math.abs(Math.sin(u * 18 + Math.sin(v * 12) * 2)) < 0.12 && v > 0.2f;
+            return engraving ? mix(c, 0xFF5A3A08, 0.6f) : c;
+        }),
+        new Finish("circuit", "Circuit", 0xFF0E0E10, 0xFF3A3A42, 0xFFFF6A6A, (p, u, v, r, ph) -> {
+            int gx = (int) (u * 8), gy = (int) (v * 22);
+            boolean line = (gx + gy * 3) % 5 == 0 && Math.abs(u * 8 - gx - 0.5f) < 0.18f || gy % 4 == 0 && (gx + gy) % 3 == 0;
+            return line ? 0xFFFF2A3A : mix(0xFF141418, 0xFF26262C, v);
+        }),
+        new Finish("forest", "Forest Camo", 0xFF1E2416, 0xFF5A6048, 0xFFD8E0C8, (p, u, v, r, ph) -> {
+            double n = Math.sin(u * 7 + Math.sin(v * 9) * 2) + Math.cos(v * 13 - u * 4);
+            return n > 1.0 ? 0xFF2E3A1E : n > 0.2 ? 0xFF55663A : n > -0.6 ? 0xFF7A6A44 : 0xFF3A2E20;
+        }),
+        new Finish("arctic", "Arctic Camo", 0xFF2A3038, 0xFFB8C4CC, 0xFFFFFFFF, (p, u, v, r, ph) -> {
+            double n = Math.sin(u * 8 + Math.sin(v * 10) * 2) + Math.cos(v * 12 - u * 5);
+            return n > 0.9 ? 0xFF6E7A86 : n > 0 ? 0xFFDCE4EA : n > -0.8 ? 0xFFA4B0BA : 0xFFF4F8FA;
+        }),
+        new Finish("black_pearl", "Black Pearl", 0xFF0A0A10, 0xFF6A6A80, 0xFFE0D8FF, (p, u, v, r, ph) -> {
+            double s = Math.sin(u * 6 + v * 9 + Math.sin(v * 5) * 2);
+            int c = mix(0xFF0E0C1E, 0xFF4A2A8A, (float) Math.max(0, s));
+            return mix(c, 0xFF3A6AB0, (float) Math.max(0, -s) * 0.6f);
+        }),
+        new Finish("toxic", "Toxic", 0xFF0A120A, 0xFF8AA08A, 0xFFEAFFD0, (p, u, v, r, ph) -> {
+            double s = Math.sin(u * 9 + Math.sin(v * 7) * 2) * Math.cos(v * 10 - u * 2);
+            int c = s > 0.3 ? mix(0xFF2A6A12, 0xFFB8FF3A, (float) s) : mix(0xFF0A2A12, 0xFF1A5A3A, (float) (s + 1) / 2);
+            return r.nextInt(70) == 0 ? 0xFFF0FFD0 : c;
+        }),
+        new Finish("butcher", "Butcher", 0xFF140606, 0xFF9A8888, 0xFFFFE6E6, (p, u, v, r, ph) -> {
+            double s = Math.sin(u * 5 + Math.sin(v * 8 + u * 4) * 2.5);
+            return s > 0.45 ? 0xFFF2E8E4 : s > -0.2 ? 0xFFC0182A : 0xFF7A0A16;
+        }),
+        new Finish("violet", "Violet", 0xFF120E18, 0xFF5A4A70, 0xFFE6D6FF, (p, u, v, r, ph) -> brushed(0xFF6A3AA8, 0xFF3A1E62, v, r)),
+        // animated finishes: 16 frames, the pack gets a .mcmeta so they move in game
+        new Finish("prism", "Prism (animated)", 0xFF101014, 0xFFD0D4E0, 0xFFFFFFFF, 16, (p, u, v, r, ph) -> {
+            float hue = (u * 0.35f + v * 0.9f + ph) % 1f;
+            return 0xFF000000 | java.awt.Color.HSBtoRGB(hue, 0.75f, 1f) & 0xFFFFFF;
+        }),
+        new Finish("neon", "Neon (animated)", 0xFF08080C, 0xFF2A2A34, 0xFFFFFFFF, 16, (p, u, v, r, ph) -> {
+            float pulse = (float) (0.5 + 0.5 * Math.sin((v * 2 - ph) * Math.PI * 2));
+            int c = mix(0xFF0E0820, 0xFF101830, u);
+            boolean stripe = Math.abs(Math.sin(v * 20 + u * 3)) < 0.18;
+            return stripe ? mix(0xFF00E5FF, 0xFFFF2AD4, pulse) : mix(c, 0xFF00E5FF, pulse * 0.25f);
         })
     );
 
@@ -306,18 +446,42 @@ public final class Knives {
         return FINISHES.getFirst();
     }
 
-    /** 64x64 knife texture of a finish. */
+    /** 64x64 knife texture of a finish (first frame of an animated one). */
     static BufferedImage texture(Finish f) {
+        return texture(f, 0);
+    }
+
+    static BufferedImage texture(Finish f, int frame) {
         BufferedImage img = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
         Random r = new Random(f.id.hashCode());
+        float phase = frame / (float) f.frames;
         for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) {
             int c;
-            if (x < 32) c = f.blade.color(P_BLADE, x / 31f, y / 63f, r);
-            else if (x < 48) c = (x + y) % 6 < 2 ? mix(f.handle, 0xFFFFFFFF, 0.12f) : f.handle;      // wrapped grip
-            else if (y < 32) c = mix(f.metal, 0xFF000000, (y % 8) / 40f);                              // machined metal
-            else c = f.edge;
+            float u = x / 31f, v = y / 63f;
+            if (x < 32) {
+                c = f.blade.color(P_BLADE, u, v, r, phase);
+                float sheen = Math.max(0, 1 - Math.abs(u + v - 0.75f) * 5) * 0.16f; // polished highlight
+                c = mix(c, 0xFFFFFFFF, sheen);
+            } else if (x < 44) {
+                c = (x + y) % 6 < 2 ? mix(f.handle, 0xFFFFFFFF, 0.12f) : f.handle;                    // wrapped grip
+            } else if (x < 48) {
+                c = mix(f.blade.color(P_BLADE, 0.5f, v, r, phase), 0xFF000000, 0.35f);                // fuller: darker groove
+            } else if (y < 32) {
+                c = mix(f.metal, 0xFF000000, (y % 8) / 40f);                                            // machined metal
+            } else {
+                c = mix(f.edge, 0xFFFFFFFF, (x - 48) / 40f);                                            // bright bevel
+            }
             img.setRGB(x, y, c);
         }
+        return img;
+    }
+
+    /** All frames of a finish stacked vertically, the layout Minecraft animates. */
+    static BufferedImage strip(Finish f) {
+        BufferedImage img = new BufferedImage(64, 64 * f.frames, BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g = img.createGraphics();
+        for (int i = 0; i < f.frames; i++) g.drawImage(texture(f, i), 0, 64 * i, null);
+        g.dispose();
         return img;
     }
 
@@ -334,8 +498,10 @@ public final class Knives {
         } else {
             for (Finish f : FINISHES) {
                 if (f == FINISHES.getFirst()) continue; // Steel is what "Vanilla" gives on a knife
-                out.add(new Style("finish:" + f.id, f.name, "Knife finish", false, false, null, 0,
-                    path -> path.equals(TEXTURE) ? Images.encode(texture(f)) : null));
+                byte[] meta = ("{\"animation\": {\"frametime\": 2, \"interpolate\": true}}").getBytes(StandardCharsets.UTF_8);
+                out.add(new Style("finish:" + f.id, f.name, f.frames > 1 ? "Animated knife finish" : "Knife finish", false, false, null, 0,
+                    path -> path.equals(TEXTURE) ? Images.encode(f.frames > 1 ? strip(f) : texture(f))
+                        : path.equals(TEXTURE + ".mcmeta") && f.frames > 1 ? meta : null));
             }
         }
         return out;

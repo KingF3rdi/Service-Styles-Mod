@@ -14,7 +14,7 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
   (`Upload` button, drag & drop a `.zip`, or packs already in `resourcepacks/`; old 1.8 PvP pack paths are understood)
 - 3D previews for blocks and the end crystal (as it stands in the world), sorting (For you, A–Z, Newest, Packs, Presets), search, favourites
 - **Apply** builds `resourcepacks/HugoService-Active` and reloads; **Save pack** writes a `.zip` to `resourcepacks/`
-- **Extras**: crosshair pixel painter, hit colour, hitbox colour (F3+B), block outline, cobweb outline,
+- **Extras**: hit colour, hitbox colour (F3+B), block outline, cobweb outline,
   player glow (only while the player is visible, not through walls), shield status (ready / disabled by axe),
   end crystal and shield opacity, name tag colour and size, inventory size, hide inventory model,
   name faker (own / enemy names, default skins, hide tier tags), grey world, grass colour,
@@ -22,9 +22,13 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
 - **Custom sky** (like Skyboxify): skyboxes from packs (OptiFine / MCPatcher `sky/world0` 3x2 layout) or your own
   images (upload or `config/hugoservice/skies`; 3:2 = cube layout, 2:1 = 360° panorama). Switches live, with
   options to rotate with time, keep sun/moon/stars, darken at night and a client-side time slider.
-- **Knives**: six own 3D knife models (Karambit, Butterfly, Bayonet, Flip, Bowie, Gut) that replace every sword,
-  combined with 12 finishes. Press **G** (changeable) to inspect; switching to the knife plays a draw move.
-  Only your view changes, others see your normal sword.
+- **Crosshair tab**: your own crosshair drawn by the mod (cross, dot, circle, T, X, square or pixel art) with length,
+  gap, thickness, outline, centre dot, colour and opacity, 12 presets, pixel art taken from your pack, and an
+  **entity indicator** (other colour plus a hit marker while you aim at a mob or player). Changes show at once.
+- **Knives**: eleven own 3D knife models (Karambit, Talon, Butterfly, Bayonet, M9 Bayonet, Flip, Stiletto, Bowie,
+  Huntsman, Gut, Push Dagger) that replace every sword, combined with 23 finishes (two of them animated).
+  Press **G** (changeable) to inspect: every knife type has its own keyframe animation (spins, flips, toss and catch,
+  jabs); switching to the knife plays a draw move. Only your view changes, others see your normal sword.
 - **Cosmetics** (based on Titus Cosmetics): capes, hats, bandanas, halos, back and face items, auras, skin overlays,
   pets, shields and accessories, plus 12 particle **trails** that follow your steps. Pick them under
   *Collections → Cosmetics* with a live 3D preview. Drop any `.png` into the Capes view for your **own cape**

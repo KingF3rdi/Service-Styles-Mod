@@ -97,6 +97,7 @@ public class StyleScreen extends Screen {
     private boolean extras, favOnly, dirty, busy, skipChar, waitingKey, painted;
     private String groupFilter; // null = all sub-groups
     private CosmeticCategory cosCat; // non-null = cosmetics view
+    private boolean crosshairView; // own crosshair tab
     private Cosmetic hoveredCos;
     private Pick hovered, zoomed;
     private double gridScroll, sideScroll, extrasScroll;
@@ -201,6 +202,7 @@ public class StyleScreen extends Screen {
 
     void showExtras(boolean on) {
         extras = on;
+        crosshairView = false;
         if (on) cosCat = null;
         search.visible = !on;
         if (on) search.setFocused(false);
@@ -243,7 +245,7 @@ public class StyleScreen extends Screen {
 
         drawHeader(ctx);
         drawSidebar(ctx);
-        if (extras) drawExtras(ctx); else if (cosCat != null) drawCosmetics(ctx); else drawGrid(ctx);
+        if (extras) drawExtras(ctx); else if (crosshairView) drawCrosshairTab(ctx); else if (cosCat != null) drawCosmetics(ctx); else drawGrid(ctx);
         if (insL < R) drawInspector(ctx);
         drawBottomBar(ctx);
 
@@ -266,7 +268,7 @@ public class StyleScreen extends Screen {
             int ix = x + i * 22;
             boolean custom = false;
             for (Group g : c.groups()) custom |= !cfg.styleOf(g.id()).equals(Styles.VANILLA_ID) || cfg.colorOf(g.id()) != null;
-            boolean on = c == cat && !extras && cosCat == null;
+            boolean on = c == cat && !extras && cosCat == null && !crosshairView;
             lens(ctx, ix, T + 7, 20, 20, 7, on ? ACCENT_SOFT : over(ix, T + 7, 20, 20) ? HOVER : PANEL);
             item(ctx, c, ix + 5, T + 12);
             if (custom) round(ctx, ix + 8, T + 29, 4, 2, 1, on ? ACCENT : GOOD);
@@ -288,6 +290,19 @@ public class StyleScreen extends Screen {
         sideScroll = clamp(sideScroll, 0, sideMax);
         ctx.enableScissor(x0, listTop, sideR, bottom);
         int ry = listTop - (int) sideScroll;
+        // own crosshair tab, pinned on top
+        boolean chSel = crosshairView && !extras;
+        boolean chHov = over(x0 + 4, ry, w - 8, rowH - 1) && mouseY >= listTop && mouseY < bottom;
+        if (chSel) lens(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
+        else if (chHov) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, 0x10FFFFFF);
+        if (chSel) round(ctx, x0 + 4, ry + 4, 2, rowH - 9, 1, ACCENT);
+        Crosshair.draw(ctx, CROSSHAIR_ICON, x0 + 16, ry + 9, chSel ? ACCENT & 0xFFFFFF : 0xE6F2FF, false, null);
+        String chState = cfg.chOn ? "On" : "Off";
+        text(ctx, "Crosshair", x0 + 26, ry + 5, chSel || chHov ? TEXT : MUTED);
+        text(ctx, chState, sideR - 10 - width(chState), ry + 5, cfg.chOn ? ACCENT : DIM);
+        int cy0 = Math.max(ry, listTop), cy1 = Math.min(ry + rowH, bottom);
+        if (cy1 > cy0) hit(x0 + 4, cy0, w - 8, cy1 - cy0, (a, b, btn) -> openCrosshair());
+        ry += rowH + 2;
         String section = null;
         for (Category c : Categories.ALL) {
             if (!c.section().equals(section)) {
@@ -295,7 +310,7 @@ public class StyleScreen extends Screen {
                 text(ctx, section.toUpperCase(Locale.ROOT), x0 + 10, ry + 4, DIM);
                 ry += 15;
             }
-            boolean sel = c == cat && !extras && cosCat == null;
+            boolean sel = c == cat && !extras && cosCat == null && !crosshairView;
             boolean hov = over(x0 + 4, ry, w - 8, rowH - 1) && mouseY >= listTop && mouseY < bottom;
             if (sel) lens(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
             else if (hov) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, 0x10FFFFFF);
@@ -472,9 +487,19 @@ public class StyleScreen extends Screen {
 
     // ================================================================ cosmetics (based on Titus Cosmetics)
 
+    void openCrosshair() {
+        showExtras(false);
+        cosCat = null;
+        crosshairView = true;
+        search.visible = false;
+        search.setFocused(false);
+        extrasScroll = 0;
+    }
+
     void openCosmetics(CosmeticCategory cc) {
         cosCat = cc;
         extras = false;
+        crosshairView = false;
         search.visible = true;
         gridScroll = 0;
     }
@@ -607,6 +632,7 @@ public class StyleScreen extends Screen {
     }
 
     private void drawInspector(DrawContext ctx) {
+        if (crosshairView && !extras) { drawCrosshairInspector(ctx); return; }
         if (cosCat != null && !extras) { drawCosmeticInspector(ctx); return; }
         int x = insL, top = T + 36, w = R - 8 - insL;
         glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
@@ -680,19 +706,21 @@ public class StyleScreen extends Screen {
     private interface BlockDrawer { void draw(DrawContext ctx, int x, int y, int w); }
     private record Block(int h, BlockDrawer drawer) {}
 
+    private int blockCols() { return Math.max(1, Math.min(3, (cx1 - cx0 + 8) / (170 + 8))); }
+
+    /** Inner width of a block in the Extras / Crosshair layout. */
+    private int blockInner() {
+        int cols = blockCols();
+        return (cx1 - cx0 - 8 * (cols - 1)) / cols - 16;
+    }
+
     private void drawExtras(DrawContext ctx) {
         bold(ctx, "Extras", cx0, T + 37, TEXT);
-        text(ctx, "Crosshair, combat colours, world and menu", cx0, T + 48, MUTED);
-
-        int areaW = cx1 - cx0, gap = 8;
-        int cols = Math.max(1, Math.min(3, (areaW + gap) / (170 + gap)));
-        int colW = (areaW - gap * (cols - 1)) / cols, inner = colW - 16;
-        int[] colY = new int[cols];
-
-        List<Block> blocks = List.of(
+        text(ctx, "Combat colours, world and menu", cx0, T + 48, MUTED);
+        int inner = blockInner();
+        layoutBlocks(ctx, List.of(
             new Block(102, this::drawMenuBlock),
             new Block(themeHeight(inner), this::drawThemes),
-            new Block(crosshairHeight(inner), this::drawCrosshairPainter),
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Hit colour", Fx.HIT, "Red flash when hit", Previews::hit)),
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Hitbox colour", Fx.HITBOX, "Shown with F3 + B", Previews::outline)),
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Block outline", Fx.OUTLINE, "Block you look at", Previews::outline)),
@@ -708,8 +736,14 @@ public class StyleScreen extends Screen {
             new Block(112, this::drawSkyOptions),
             new Block(greyWorldHeight(inner), this::drawGreyWorld),
             new Block(96, (c, x, y, w) -> drawColorBlock(c, grassGroup(), x, y, w))
-        );
+        ));
+    }
 
+    /** Glass blocks in 1-3 columns (each block goes to the shortest column), scrolled by extrasScroll. */
+    private void layoutBlocks(DrawContext ctx, List<Block> blocks) {
+        int areaW = cx1 - cx0, gap = 8, cols = blockCols();
+        int colW = (areaW - gap * (cols - 1)) / cols, inner = colW - 16;
+        int[] colY = new int[cols];
         ctx.enableScissor(cx0 - 2, bodyY - 2, cx1 + 2, bodyB);
         int base = bodyY - (int) extrasScroll;
         for (Block b : blocks) {
@@ -1009,8 +1043,148 @@ public class StyleScreen extends Screen {
 
     private int crosshairHeight(int w) { return 16 + 15 * cellSize(w) + 8 + 24 + 16; }
 
+    // ---- crosshair tab ----
+
+    private static final Crosshair.Spec CROSSHAIR_ICON = new Crosshair.Spec("cross", 3, 1, 1, 1, 0, 0xFFFFFF, 100);
+    private static final String[] CH_STYLE_NAMES = {"Cross", "Dot", "Circle", "T", "X", "Square", "Pixel art"};
+    private static final int CH_CARD = 44;
+
+    private void drawCrosshairTab(DrawContext ctx) {
+        bold(ctx, "Crosshair", cx0, T + 37, TEXT);
+        text(ctx, ellipsize("Your own crosshair, drawn by the mod  ·  changes show at once", cx1 - cx0), cx0, T + 48, MUTED);
+        int inner = blockInner();
+        boolean pixel = cfg.chStyle.equals("pixel");
+        layoutBlocks(ctx, List.of(
+            new Block(chMainHeight(inner), this::drawChMain),
+            new Block(chPresetsHeight(inner), this::drawChPresets),
+            pixel ? new Block(crosshairHeight(inner), this::drawCrosshairPainter) : new Block(150, this::drawChShape),
+            new Block(84, this::drawChColour),
+            new Block(104, this::drawChIndicator)
+        ));
+    }
+
+    private int chMainHeight(int w) {
+        int cx = 0, rows = 1;
+        for (String n : CH_STYLE_NAMES) {
+            int cw = width(n) + 14;
+            if (cx + cw > w) { rows++; cx = 0; }
+            cx += cw + 4;
+        }
+        return 50 + rows * 17;
+    }
+
+    private void drawChMain(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Crosshair", x, y);
+        toggleRow(ctx, x, y + 17, w, "Use my crosshair", cfg.chOn, () -> { cfg.chOn = !cfg.chOn; Config.save(); });
+        text(ctx, "Style", x, y + 35, MUTED);
+        int cx = 0, cy = y + 47;
+        for (int i = 0; i < CH_STYLE_NAMES.length; i++) {
+            String n = CH_STYLE_NAMES[i], id = Crosshair.STYLES.get(i);
+            int cw = width(n) + 14;
+            if (cx + cw > w) { cx = 0; cy += 17; }
+            int bx = x + cx;
+            boolean on = cfg.chStyle.equals(id), hov = over(bx, cy, cw, 14);
+            lens(ctx, bx, cy, cw, 14, 7, on ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
+            text(ctx, n, bx + 7, cy + 3, on ? ACCENT_HI : TEXT);
+            clipHit(bx, cy, cw, 14, (a, b, btn) -> { cfg.chStyle = id; cfg.chOn = true; fillEmptyPixelArt(); Config.save(); });
+            cx += cw + 4;
+        }
+    }
+
+    private int chPresetsHeight(int w) {
+        int cols = Math.max(1, (w + 4) / (CH_CARD + 4));
+        return 20 + (Crosshair.PRESETS.size() + cols - 1) / cols * (CH_CARD + 16);
+    }
+
+    /** Ready-made crosshairs: click one to take it over (you can tweak it afterwards). */
+    private void drawChPresets(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Presets", x, y);
+        int cols = Math.max(1, (w + 4) / (CH_CARD + 4)), gap = cols > 1 ? (w - cols * CH_CARD) / (cols - 1) : 0;
+        for (int i = 0; i < Crosshair.PRESETS.size(); i++) {
+            Crosshair.Preset p = Crosshair.PRESETS.get(i);
+            int bx = x + i % cols * (CH_CARD + gap), by = y + 18 + i / cols * (CH_CARD + 16);
+            boolean on = cfg.chOn && sameSpec(p.spec()), hov = over(bx, by, CH_CARD, CH_CARD + 12);
+            roundGradient(ctx, bx, by, CH_CARD, CH_CARD, 8, 0xFF3E6FA8, 0xFF2C4A33, true, true);
+            rim(ctx, bx, by, CH_CARD, CH_CARD, 8, hov ? 0xA0FFFFFF : 0x50FFFFFF);
+            if (on) roundOutline(ctx, bx - 1, by - 1, CH_CARD + 2, CH_CARD + 2, 9, ACCENT, 1f);
+            zoomed(ctx, bx + CH_CARD / 2f, by + CH_CARD / 2f, 1.5f,
+                () -> Crosshair.draw(ctx, p.spec(), bx + CH_CARD / 2f, by + CH_CARD / 2f, p.spec().color(), false, cfg.crosshair));
+            String n = ellipsize(p.name(), CH_CARD + gap - 2);
+            text(ctx, n, bx + (CH_CARD - width(n)) / 2, by + CH_CARD + 3, on ? ACCENT_HI : hov ? TEXT : MUTED);
+            clipHit(bx, by, CH_CARD, CH_CARD + 12, (a, b, btn) -> { Crosshair.apply(p.spec()); fillEmptyPixelArt(); status("Crosshair: " + p.name()); });
+        }
+    }
+
+    private boolean sameSpec(Crosshair.Spec s) {
+        if (!s.style().equals(cfg.chStyle)) return false;
+        if (s.style().equals("pixel")) return true;
+        return s.length() == cfg.chLength && s.gap() == cfg.chGap && s.thickness() == cfg.chThickness
+            && s.outline() == cfg.chOutline && s.dot() == cfg.chDot && s.color() == cfg.chColor && s.alpha() == cfg.chAlpha;
+    }
+
+    private void drawChShape(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Shape", x, y);
+        java.util.function.IntFunction<String> px = v -> v + " px";
+        sliderRow(ctx, x, y + 18, w, "Length", cfg.chLength, 0, 30, v -> cfg.chLength = v, px);
+        sliderRow(ctx, x, y + 44, w, "Gap", cfg.chGap, 0, 20, v -> cfg.chGap = v, px);
+        sliderRow(ctx, x, y + 70, w, "Thickness", cfg.chThickness, 1, 8, v -> cfg.chThickness = v, px);
+        sliderRow(ctx, x, y + 96, w, "Outline", cfg.chOutline, 0, 3, v -> cfg.chOutline = v, v -> v == 0 ? "Off" : v + " px");
+        sliderRow(ctx, x, y + 122, w, "Centre dot", cfg.chDot, 0, 8, v -> cfg.chDot = v, v -> v == 0 ? "Off" : v + " px");
+    }
+
+    private void drawChColour(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Colour", x, y);
+        colorPicker(ctx, x, y + 18, w, cfg.chColor, rgb -> { cfg.chColor = rgb; painted = true; });
+        sliderRow(ctx, x, y + 50, w, "Opacity", cfg.chAlpha, 10, 100, v -> cfg.chAlpha = v);
+    }
+
+    /** Entity indicator: other colour (and a marker) while the crosshair is on a mob or player. */
+    private void drawChIndicator(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Entity indicator", x, y);
+        toggleRow(ctx, x, y + 17, w, "Change on target", cfg.chEntity, () -> { cfg.chEntity = !cfg.chEntity; Config.save(); });
+        toggleRow(ctx, x, y + 33, w, "Only players", cfg.chEntityPlayers, () -> { cfg.chEntityPlayers = !cfg.chEntityPlayers; Config.save(); });
+        toggleRow(ctx, x, y + 49, w, "Hit marker", cfg.chEntityMarker, () -> { cfg.chEntityMarker = !cfg.chEntityMarker; Config.save(); });
+        colorPicker(ctx, x, y + 70, w, cfg.chEntityColor, rgb -> { cfg.chEntityColor = rgb; painted = true; });
+    }
+
+    /** Right panel: the crosshair on two sample scenes, normal and on a target. */
+    private void drawCrosshairInspector(DrawContext ctx) {
+        int x = insL, top = T + 36, w = R - 8 - insL, ix = x + 8, iw = w - 16;
+        glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
+        bold(ctx, "Preview", ix, top + 9, TEXT);
+        int bh = Math.max(40, Math.min(96, (B - 32 - top - 66) / 2));
+        Crosshair.Spec spec = Crosshair.Spec.of(cfg);
+        int y1 = top + 24, y2 = y1 + bh + 18;
+        chScene(ctx, ix, y1, iw, bh, "Aiming", spec, cfg.chColor, false);
+        boolean ind = cfg.chEntity;
+        chScene(ctx, ix, y2, iw, bh, ind ? (cfg.chEntityPlayers ? "On a player" : "On a target") : "Indicator off",
+            spec, ind ? cfg.chEntityColor : cfg.chColor, ind && cfg.chEntityMarker);
+        String hint = cfg.chOn ? "In use  ·  shown 2x, small one = real size" : "Turn on \"Use my crosshair\"";
+        text(ctx, ellipsize(hint, iw), ix, y2 + bh + 6, cfg.chOn ? GOOD : DIM);
+    }
+
+    private void chScene(DrawContext ctx, int x, int y, int w, int h, String label, Crosshair.Spec spec, int color, boolean marker) {
+        roundGradient(ctx, x, y, w, h, 8, 0xFF7FB2FF, 0xFF4E8A3E, true, true);
+        rim(ctx, x, y, w, h, 8, 0x50FFFFFF);
+        text(ctx, label, x + 6, y + 5, 0xFFF2F8FF);
+        boolean tint = color != cfg.chColor;
+        zoomed(ctx, x + w / 2f, y + h / 2f, 2, () -> Crosshair.draw(ctx, spec, x + w / 2f, y + h / 2f, color, marker, cfg.crosshair, tint));
+        Crosshair.draw(ctx, spec, x + w - 16, y + h - 16, color, marker, cfg.crosshair, tint); // real size
+    }
+
+    /** Runs a draw call scaled by {@code factor} around (cx, cy). */
+    private static void zoomed(DrawContext ctx, float cx, float cy, float factor, Runnable draw) {
+        Matrix3x2fStack m = ctx.getMatrices();
+        m.pushMatrix();
+        m.translate(cx, cy);
+        m.scale(factor, factor);
+        m.translate(-cx, -cy);
+        draw.run();
+        m.popMatrix();
+    }
+
     private void drawCrosshairPainter(DrawContext ctx, int x, int y, int w) {
-        section(ctx, "Crosshair painter", x, y);
+        section(ctx, "Pixel art", x, y);
         int cs = cellSize(w), G = 15 * cs, gx = x, gy = y + 16;
         round(ctx, gx - 3, gy - 3, G + 6, G + 6, 5, 0x70000000);
         // faint centre guides
@@ -1035,14 +1209,41 @@ public class StyleScreen extends Screen {
         });
 
         int bx = gx + G + 10, bw = w - G - 10;
-        boolean using = "painted".equals(cfg.loadout.get("crosshair"));
-        smallButton(ctx, bx, gy, bw, using ? "In use" : "Use it", !using, () -> { cfg.loadout.put("crosshair", "painted"); changed(); });
-        smallButton(ctx, bx, gy + 18, bw, "Clear", false, () -> { java.util.Arrays.fill(cfg.crosshair, 0); painted = true; });
-        smallButton(ctx, bx, gy + 36, bw, "Vanilla", false, this::loadVanillaCrosshair);
+        smallButton(ctx, bx, gy, bw, "From pack", false, this::loadPackCrosshair);
+        smallButton(ctx, bx, gy + 18, bw, "Vanilla", false, this::loadVanillaCrosshair);
+        smallButton(ctx, bx, gy + 36, bw, "Clear", false, () -> { java.util.Arrays.fill(cfg.crosshair, 0); painted = true; });
         text(ctx, "L paint", bx, gy + 58, DIM);
         text(ctx, "R erase", bx, gy + 69, DIM);
 
         colorPicker(ctx, x, gy + G + 8, w, cfg.paintColor, rgb -> cfg.paintColor = rgb);
+    }
+
+    /** Pixel art with an empty canvas starts from the vanilla crosshair, so it never shows nothing. */
+    private void fillEmptyPixelArt() {
+        if (!cfg.chStyle.equals("pixel")) return;
+        for (int p : cfg.crosshair) if (p >>> 24 != 0) return;
+        loadVanillaCrosshair();
+        Config.save();
+    }
+
+    /** Copies the crosshair of the style picked under HUD (or your active packs) into the pixel art, scaled to 15x15. */
+    private void loadPackCrosshair() {
+        String path = "textures/gui/sprites/hud/crosshair.png";
+        try {
+            byte[] png = null;
+            for (Group g : Categories.allGroups()) if (g.id().equals("crosshair")) png = Styles.find(g, cfg.styleOf(g.id())).read(path);
+            if (png == null) png = Styles.current(path);
+            if (png == null) { status("No pack crosshair found, pick one under HUD first"); return; }
+            java.awt.image.BufferedImage src = Images.decode(png), img = new java.awt.image.BufferedImage(15, 15, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            java.awt.Graphics2D g = img.createGraphics();
+            g.drawImage(src, 0, 0, 15, 15, null); // nearest neighbour by default
+            g.dispose();
+            img.getRGB(0, 0, 15, 15, cfg.crosshair, 0, 15);
+            painted = true;
+            status("Crosshair taken from your pack");
+        } catch (IOException e) {
+            HugoService.LOG.warn("Could not load pack crosshair", e);
+        }
     }
 
     private void loadVanillaCrosshair() {
@@ -1406,7 +1607,7 @@ public class StyleScreen extends Screen {
     public boolean mouseScrolled(double mx, double my, double h, double v) {
         double d = -v * 24;
         if (mx < sideR) sideScroll = clamp(sideScroll + d, 0, sideMax);
-        else if (extras) extrasScroll = clamp(extrasScroll + d, 0, extrasMax);
+        else if (extras || crosshairView) extrasScroll = clamp(extrasScroll + d, 0, extrasMax);
         else gridScroll = clamp(gridScroll + d, 0, gridMax);
         return true;
     }

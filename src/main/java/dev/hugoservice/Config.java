@@ -37,6 +37,12 @@ public final class Config {
     /** Painted crosshair, 15x15 ARGB, row by row; 0 = empty. */
     public int[] crosshair = new int[225];
     public int paintColor = 0xFFFFFF;
+    // Own crosshair (Crosshair tab), drawn by the mod; sizes in crosshair units
+    public boolean chOn = false;
+    public String chStyle = "cross";
+    public int chLength = 8, chGap = 4, chThickness = 2, chOutline = 1, chDot = 0, chColor = 0xFFFFFF, chAlpha = 100;
+    public boolean chEntity = true, chEntityPlayers = false, chEntityMarker = true;
+    public int chEntityColor = 0xFF3B3B;
     /** In-game effects: hit, hitbox, outline, cobweb, glow. */
     public Map<String, Integer> fxColor = new HashMap<>();
     public Set<String> fxOn = new HashSet<>();
@@ -126,6 +132,7 @@ public final class Config {
         if (presenceUrl == null) presenceUrl = "";
         if (spotifyClientId == null) spotifyClientId = "";
         if (spotifyRefresh == null) spotifyRefresh = "";
+        if (chStyle == null || !Crosshair.STYLES.contains(chStyle)) chStyle = "cross";
         if (crosshair == null || crosshair.length != 225) crosshair = new int[225];
         if (fxColor == null) fxColor = new HashMap<>();
         if (fxOn == null) fxOn = new HashSet<>();
