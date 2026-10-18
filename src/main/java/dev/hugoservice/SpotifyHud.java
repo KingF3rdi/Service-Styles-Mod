@@ -11,7 +11,6 @@ import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.text.StyleSpriteSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
 import org.joml.Matrix3x2fStack;
 import org.joml.Vector3f;
 
@@ -23,7 +22,8 @@ public final class SpotifyHud {
         .withFont(new StyleSpriteSource.Font(Identifier.of("hugoservice", "ui")));
     private static final net.minecraft.text.Style BOLD = net.minecraft.text.Style.EMPTY
         .withFont(new StyleSpriteSource.Font(Identifier.of("hugoservice", "bold")));
-    private static float skyYaw = Float.NaN;
+    /** Minecraft yaw of north, east, south, west (yaw 0 looks south). */
+    private static final float[] SIDE_YAW = {180, 270, 0, 90};
     private static int lastLine = -2;
     private static long lineAt;
 
@@ -80,20 +80,15 @@ public final class SpotifyHud {
 
     // ---- lyrics on the sky ----
 
-    /**
-     * The current line hangs in the sky ahead of you, 28° above the horizon. Its direction follows your view slowly,
-     * so it stays put while you look around and drifts back in front of you.
-     */
+    /** The current line hangs in the sky over the chosen side (north, east, south or west), 28° above the horizon. */
     private static void sky(DrawContext ctx, MinecraftClient mc, int line) {
         List<Spotify.Line> lyrics = Spotify.lyrics;
         if (line < 0 || line >= lyrics.size()) return;
         String text = lyrics.get(line).text();
         if (text.isEmpty()) return;
         Camera cam = mc.gameRenderer.getCamera();
-        float camYaw = cam.getYaw(), camPitch = cam.getPitch();
-        if (Float.isNaN(skyYaw)) skyYaw = camYaw;
-        skyYaw += MathHelper.wrapDegrees(camYaw - skyYaw) * 0.02f;
-        float[] screen = project(ctx, mc, skyYaw, -28, camYaw, camPitch);
+        float yaw = SIDE_YAW[Math.floorMod(Config.INSTANCE.spotifySkySide, 4)];
+        float[] screen = project(ctx, mc, yaw, -28, cam.getYaw(), cam.getPitch());
         if (screen == null) return;
         TextRenderer tr = mc.textRenderer;
         float fade = Math.min(1, (System.currentTimeMillis() - lineAt) / 400f);

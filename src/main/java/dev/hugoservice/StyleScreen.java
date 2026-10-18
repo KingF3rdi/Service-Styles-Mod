@@ -737,7 +737,7 @@ public class StyleScreen extends Screen {
             new Block(inventoryHeight(inner), this::drawInventoryTweaks),
             new Block(126, this::drawNameFaker),
             new Block(84, this::drawNameIcon),
-            new Block(178, this::drawSpotify),
+            new Block(196, this::drawSpotify),
             new Block(112, this::drawSkyOptions),
             new Block(greyWorldHeight(inner), this::drawGreyWorld),
             new Block(96, (c, x, y, w) -> drawColorBlock(c, grassGroup(), x, y, w))
@@ -911,6 +911,7 @@ public class StyleScreen extends Screen {
     }
 
     private static final String[] CORNERS = {"Top left", "Top right", "Bottom left", "Bottom right"};
+    private static final String[] SIDES = {"North", "East", "South", "West"};
 
     /** Spotify player: your own app's client id, login, where it shows, and play controls (Premium). */
     private void drawSpotify(DrawContext ctx, int x, int y, int w) {
@@ -956,19 +957,26 @@ public class StyleScreen extends Screen {
         toggleRow(ctx, x, y + 100, w, "Lyrics in the window", cfg.spotifyLyrics, () -> { cfg.spotifyLyrics = !cfg.spotifyLyrics; Config.save(); });
         toggleRow(ctx, x, y + 116, w, "Lyrics on the sky", cfg.spotifySky, () -> { cfg.spotifySky = !cfg.spotifySky; Config.save(); });
 
-        int cy = y + 134;
-        text(ctx, "Window", x, cy + 3, TEXT);
-        String corner = CORNERS[Math.floorMod(cfg.spotifyCorner, 4)];
-        int cw = width(corner) + 16, cx = x + w - cw;
-        lens(ctx, cx, cy, cw, 14, 7, over(cx, cy, cw, 14) ? HOVER : PANEL_HI);
-        text(ctx, corner, cx + 8, cy + 3, TEXT);
-        clipHit(cx, cy, cw, 14, (a, b, btn) -> { cfg.spotifyCorner = Math.floorMod(cfg.spotifyCorner + (btn == 1 ? -1 : 1), 4); Config.save(); });
+        chipRow(ctx, x, y + 134, w, "Window", CORNERS[Math.floorMod(cfg.spotifyCorner, 4)],
+            btn -> cfg.spotifyCorner = Math.floorMod(cfg.spotifyCorner + (btn == 1 ? -1 : 1), 4));
 
-        int ky = y + 154, kx = x;
+        chipRow(ctx, x, y + 152, w, "Sky lyrics side", SIDES[Math.floorMod(cfg.spotifySkySide, 4)],
+            btn -> cfg.spotifySkySide = Math.floorMod(cfg.spotifySkySide + (btn == 1 ? -1 : 1), 4));
+
+        int ky = y + 172, kx = x;
         if (ky + 17 > bodyB) return;
         kx += button(ctx, kx, ky, 0, "Previous", false, Spotify::previous) + 5;
         kx += button(ctx, kx, ky, 0, Spotify.playing ? "Pause" : "Play", false, Spotify::playPause) + 5;
         button(ctx, kx, ky, 0, "Next", false, Spotify::next);
+    }
+
+    /** Label on the left, a chip on the right that steps through values (right click goes back); saves. */
+    private void chipRow(DrawContext ctx, int x, int y, int w, String label, String value, java.util.function.IntConsumer step) {
+        text(ctx, label, x, y + 3, TEXT);
+        int cw = width(value) + 16, cx = x + w - cw;
+        lens(ctx, cx, y, cw, 14, 7, over(cx, y, cw, 14) ? HOVER : PANEL_HI);
+        text(ctx, value, cx + 8, y + 3, TEXT);
+        clipHit(cx, y, cw, 14, (a, b, btn) -> { step.accept(btn); Config.save(); });
     }
 
     private void drawSkyOptions(DrawContext ctx, int x, int y, int w) {

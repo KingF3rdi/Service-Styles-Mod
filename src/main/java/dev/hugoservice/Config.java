@@ -61,6 +61,7 @@ public final class Config {
     public String spotifyRefresh = "";
     public boolean spotifyWindow = true, spotifyLyrics = true, spotifySky = false;
     public int spotifyCorner = 1; // 0 top left, 1 top right, 2 bottom left, 3 bottom right
+    public int spotifySkySide = 0; // sky lyrics stay over one side: 0 north, 1 east, 2 south, 3 west
     public String spotifyMode = "auto"; // auto = read Windows media (no login), account = Spotify Web API
     public boolean spotifyAnyApp = false; // auto mode: also other players (browser, YouTube...)
     public boolean hideInventoryModel = false;
