@@ -102,6 +102,24 @@ public final class PackBuilder {
         }
     }
 
+    /**
+     * Up to 1.10 the knife lived in the active pack as block models over the swords; the mod draws it itself now.
+     * Removes those files once, before the first resource load, so swords stay swords when no knife is chosen.
+     */
+    static void dropOldKnifeFiles() {
+        Path dir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("resourcepacks").resolve(ACTIVE)
+            .resolve("assets/minecraft");
+        if (!Files.exists(dir.resolve("items/hugoservice_knife.json"))) return;
+        try (Stream<Path> s = Files.walk(dir)) {
+            for (Path p : s.filter(Files::isRegularFile).toList()) {
+                String name = p.getFileName().toString(), parent = p.getParent().getFileName().toString();
+                if (name.startsWith("hugoservice_") || parent.equals("item") && name.endsWith("_sword.json")) Files.delete(p);
+            }
+        } catch (IOException e) {
+            HugoService.LOG.warn("Could not remove the old knife files from the HugoService pack", e);
+        }
+    }
+
     public static void disableActive() {
         MinecraftClient mc = MinecraftClient.getInstance();
         ResourcePackManager m = mc.getResourcePackManager();

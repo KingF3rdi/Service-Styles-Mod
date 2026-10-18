@@ -15,9 +15,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Knife animations: an extra move of the first-person item right before it is drawn, and for butterfly tricks the
- * knife drawn in three parts with swinging handles. require = 0: if another mod rebuilds this method, only the
- * animations are skipped.
+ * Knife animations: an extra move of the first-person item right before it is drawn (the butterfly handles swing in
+ * KnifeRenderer). require = 0: if another mod rebuilds this method, only the animations are skipped.
  */
 @Mixin(HeldItemRenderer.class)
 public class HeldItemRendererMixin {
@@ -26,10 +25,7 @@ public class HeldItemRendererMixin {
     private void hugoservice$knife(HeldItemRenderer self, LivingEntity entity, ItemStack stack, ItemDisplayContext context,
                                    MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Operation<Void> original,
                                    @Local(argsOnly = true) Hand hand, @Local(argsOnly = true, ordinal = 3) float equipProgress) {
-        boolean main = hand == Hand.MAIN_HAND;
-        KnifeAnimations.apply(matrices, stack, main, equipProgress);
-        if (main && KnifeAnimations.renderButterfly(stack, context, matrices,
-            part -> original.call(self, entity, part, context, matrices, queue, light))) return;
+        KnifeAnimations.apply(matrices, stack, hand == Hand.MAIN_HAND, equipProgress);
         original.call(self, entity, stack, context, matrices, queue, light);
     }
 }

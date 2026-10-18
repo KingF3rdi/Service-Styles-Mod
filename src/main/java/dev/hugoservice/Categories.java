@@ -49,8 +49,8 @@ public final class Categories {
             group("hoes", "Hoes", Look.FLAT, null, "item/netherite_hoe", "item/diamond_hoe"),
             group("spears", "Spears", Look.FLAT, null, "item/netherite_spear", "item/diamond_spear")),
         cat("knives", "Knives", Items.IRON_SWORD,
-            new Group(Knives.MODEL_GROUP, "Knife", Knives.TEXTURE, Look.KNIFE, null, Knives.modelFiles()),
-            new Group(Knives.FINISH_GROUP, "Finish", Knives.TEXTURE, Look.KNIFE, null, List.of(Knives.TEXTURE))),
+            new Group(Knives.MODEL_GROUP, "Knife", "textures/item/iron_sword.png", Look.KNIFE, null, List.of()), // drawn by the mod, nothing in the pack
+            new Group(Knives.FINISH_GROUP, "Finish", "textures/item/iron_sword.png", Look.KNIFE, null, List.of())),
         cat("gaps", "Gaps & Pearls", Items.GOLDEN_APPLE,
             group("gaps", "Gaps", Look.FLAT, null, "item/golden_apple"),
             group("pearls", "Pearls", Look.FLAT, null, "item/ender_pearl"),

@@ -76,7 +76,8 @@ public class StyleScreen extends Screen {
         ACCENT_SOFT = 0x50000000 | t.accent();
         ACCENT_HI = lerp(ACCENT, 0xFFFFFFFF, 0.45f);
     }
-    private static final int[] SWATCHES = {0xB388FF, 0xFF5CC8, 0xFF4F4F, 0xFFAD42, 0x5CF07A, 0x6CD3FF, 0x4A86FF, 0xFFFFFF};
+    // the last two (grey, black) are for crosshair and outlines; the grass picker shows only the first eight
+    private static final int[] SWATCHES = {0xB388FF, 0xFF5CC8, 0xFF4F4F, 0xFFAD42, 0x5CF07A, 0x6CD3FF, 0x4A86FF, 0xFFFFFF, 0x7A7A7A, 0x000000};
     private static final StyleSpriteSource SMOOTH = new StyleSpriteSource.Font(Identifier.of("hugoservice", "ui"));
     private static final StyleSpriteSource SMOOTH_BOLD = new StyleSpriteSource.Font(Identifier.of("hugoservice", "bold"));
     private static final StyleSpriteSource PIXEL = new StyleSpriteSource.Font(Identifier.ofVanilla("uniform"));
@@ -725,7 +726,10 @@ public class StyleScreen extends Screen {
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Hit colour", Fx.HIT, "Red flash when hit", Previews::hit)),
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Hitbox colour", Fx.HITBOX, "Shown with F3 + B", Previews::outline)),
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Block outline", Fx.OUTLINE, "Block you look at", Previews::outline)),
-            new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Cobweb outline", Fx.COBWEB, "Webs near you", Previews::cobweb)),
+            new Block(FX_H + 28, (c, x, y, w) -> {
+                fxBlock(c, x, y, w, "Cobweb outline", Fx.COBWEB, "Webs near you", Previews::cobweb);
+                sliderRow(c, x, y + 80, w, "Thickness", cfg.cobwebWidth, 1, 10, v -> cfg.cobwebWidth = v, String::valueOf);
+            }),
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Player glow", Fx.GLOW, "Only while visible", Previews::glow)),
             new Block(SHIELD_H, this::drawShieldStatus),
             new Block(96, this::drawOpacity),
@@ -1029,17 +1033,18 @@ public class StyleScreen extends Screen {
         Config.save();
     }
 
-    /** 8 swatches and a hue bar; 24px tall. */
+    /** Swatches (incl. grey and black) and a hue bar; 24px tall. */
     private void colorPicker(DrawContext ctx, int x, int y, int w, Integer current, java.util.function.IntConsumer set) {
-        int sw = (w - 7 * 3) / 8;
-        for (int i = 0; i < SWATCHES.length; i++) {
-            int rgb = SWATCHES[i], bx = x + i * (sw + 3);
+        int n = SWATCHES.length, sw = (w - (n - 1) * 2) / n;
+        for (int i = 0; i < n; i++) {
+            int rgb = SWATCHES[i], bx = x + i * (sw + 2);
             if (current != null && rgb == current) roundOutline(ctx, bx - 1.5f, y - 1.5f, sw + 3, 13, 5.5f, 0xFFFFFFFF, 1f);
             else if (over(bx, y, sw, 10)) roundOutline(ctx, bx - 1.5f, y - 1.5f, sw + 3, 13, 5.5f, 0x80FFFFFF, 1f);
             round(ctx, bx, y, sw, 10, 4, 0xFF000000 | rgb);
+            if ((rgb >> 16 & 255) + (rgb >> 8 & 255) + (rgb & 255) < 300) rim(ctx, bx, y, sw, 10, 4, 0x70FFFFFF); // dark ones need an edge
             clipHit(bx, y, sw, 10, (a, b, btn) -> set.accept(rgb));
         }
-        int ry = y + 17, rw = sw * 8 + 21;
+        int ry = y + 17, rw = sw * n + (n - 1) * 2;
         ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Thumbs.rainbow(), x, ry, 0, 0, rw, 6, 128, 1, 128, 1);
         if (current != null) {
             float[] hsb = Color.RGBtoHSB(current >> 16 & 255, current >> 8 & 255, current & 255, null);
@@ -1388,7 +1393,7 @@ public class StyleScreen extends Screen {
 
         int sx = x + ps + 8, sw = (w - ps - 8 - 12) / 4;
         int current = color == null ? -1 : color;
-        for (int i = 0; i < SWATCHES.length; i++) {
+        for (int i = 0; i < 8; i++) {
             int rgb = SWATCHES[i];
             int bx = sx + (i % 4) * (sw + 4), by = py + (i / 4) * 14;
             if (rgb == current) roundOutline(ctx, bx - 1.5f, by - 1.5f, sw + 3, 13, 5.5f, 0xFFFFFFFF, 1f);

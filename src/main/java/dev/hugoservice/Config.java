@@ -48,6 +48,8 @@ public final class Config {
     /** In-game effects: hit, hitbox, outline, cobweb, glow. */
     public Map<String, Integer> fxColor = new HashMap<>();
     public Set<String> fxOn = new HashSet<>();
+    /** Cobweb outline thickness, 1..10 (3 = the old fixed width). */
+    public int cobwebWidth = 3;
     /** 10..100 percent. */
     public int crystalOpacity = 100, shieldOpacity = 100;
     /** Name tag size in percent (50..200). */

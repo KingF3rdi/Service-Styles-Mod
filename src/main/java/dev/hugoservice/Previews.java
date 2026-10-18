@@ -318,6 +318,10 @@ final class Previews {
 
     /** GUI sheets carry empty space; show only the part you see in game. */
     private static BufferedImage crop(String path, BufferedImage img) {
+        if (path.contains("entity/shield") && img.getWidth() >= 64) { // the front face, not the unfolded texture
+            int k = img.getWidth() / 64;
+            return img.getSubimage(k, k, 12 * k, 22 * k);
+        }
         if (!path.endsWith("gui/container/inventory.png") || img.getWidth() < 256) return img;
         int k = img.getWidth() / 256;
         return img.getSubimage(0, 0, Math.min(176 * k, img.getWidth()), Math.min(166 * k, img.getHeight()));

@@ -46,7 +46,7 @@ public final class Fx {
             Vec3d cam = ctx.worldState().cameraRenderState.pos;
             MatrixStack m = ctx.matrices();
             VertexConsumer lines = ctx.consumers().getBuffer(RenderLayers.lines());
-            float width = Math.max(2f, MinecraftClient.getInstance().getWindow().getMinimumLineWidth() * 1.5f);
+            float width = Math.max(1f, MinecraftClient.getInstance().getWindow().getMinimumLineWidth()) * Math.max(1, Config.INSTANCE.cobwebWidth) / 2f;
             for (BlockPos p : cobwebs) {
                 VertexRendering.drawOutline(m, lines, VoxelShapes.fullCube(), p.getX() - cam.x, p.getY() - cam.y, p.getZ() - cam.z,
                     0xFF000000 | color, width);

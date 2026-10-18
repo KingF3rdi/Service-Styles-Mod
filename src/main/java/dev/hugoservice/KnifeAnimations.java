@@ -3,11 +3,7 @@ package dev.hugoservice;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
-import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.util.math.RotationAxis;
-
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 
 import java.util.List;
 import java.util.Map;
@@ -249,22 +245,11 @@ public final class KnifeAnimations {
 
     // ================================================================ butterfly tricks
 
-    // first-person display of the knife models (see Knives DISPLAY): rotation [0, -90, -20], translation [1.13, 3.6, 1.13] px, scale 0.6
-    private static final Quaternionf FP_ROT = new Quaternionf().rotationXYZ(0, (float) Math.toRadians(-90), (float) Math.toRadians(-20));
-    private static final Vector3f FP_AXIS = FP_ROT.transform(new Vector3f(0, 0, 1)); // the knife's plane normal
-    private static final ItemStack[][] PART_STACKS = new ItemStack[2][3];
-
-    /** Model point (px) -> position in the space right before the item is drawn (undoes nothing, just maps it). */
-    private static Vector3f beforeDisplay(float px, float py) {
-        Vector3f p = new Vector3f(px / 16f - 0.5f, py / 16f - 0.5f, 0).mul(0.6f);
-        return FP_ROT.transform(p).add(1.13f / 16, 3.6f / 16, 1.13f / 16);
-    }
-
     /**
      * Angles (degrees) of the safe and bite handle around their pivots while a butterfly trick runs, else null.
      * 0 = open (handles down as you hold it), 180 = closed over the blade; whole turns are the classic flips.
      */
-    private static float[] butterflyHandles() {
+    static float[] butterflyHandles() {
         long now = System.currentTimeMillis();
         if (drawStart >= 0 && drawClip != DRAW_PLAIN) {
             float t = (now - drawStart) / (float) drawClip.ms();
@@ -285,46 +270,6 @@ public final class KnifeAnimations {
     /** {@code turns} full turns spread over [a, b] of the clip, eased. */
     private static float turn(float t, float a, float b, float turns) {
         return ease((t - a) / (b - a)) * 360 * turns;
-    }
-
-    /**
-     * Draws the butterfly in its three parts with the handles swung, in place of the one-piece knife, while a trick runs
-     * in your main hand. Returns false when the normal item should be drawn.
-     */
-    public static boolean renderButterfly(ItemStack stack, net.minecraft.item.ItemDisplayContext context, MatrixStack m,
-                                          java.util.function.Consumer<ItemStack> draw) {
-        Knives.Model knife = Knives.active();
-        if (knife == null || !knife.id().equals("butterfly") || !Knives.replaces(stack)
-            || context != net.minecraft.item.ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) return false;
-        float[] h = butterflyHandles();
-        if (h == null) return false;
-        int glint = stack.hasGlint() ? 1 : 0;
-        draw.accept(part(0, glint));
-        handle(m, Knives.BF_PIVOT_SAFE, h[0], () -> draw.accept(part(1, glint)));
-        handle(m, Knives.BF_PIVOT_BITE, h[1], () -> draw.accept(part(2, glint)));
-        return true;
-    }
-
-    private static void handle(MatrixStack m, float[] pivot, float degrees, Runnable draw) {
-        Vector3f p = beforeDisplay(pivot[0], pivot[1]);
-        m.push();
-        m.translate(p.x, p.y, p.z);
-        m.multiply(new Quaternionf().rotationAxis((float) Math.toRadians(degrees), FP_AXIS));
-        m.translate(-p.x, -p.y, -p.z);
-        draw.run();
-        m.pop();
-    }
-
-    /** A local-only stack that renders one butterfly part (never sent anywhere). */
-    private static ItemStack part(int i, int glint) {
-        ItemStack s = PART_STACKS[glint][i];
-        if (s == null) {
-            s = new ItemStack(net.minecraft.item.Items.STICK);
-            s.set(net.minecraft.component.DataComponentTypes.ITEM_MODEL, net.minecraft.util.Identifier.ofVanilla(Knives.BF_PARTS[i]));
-            s.set(net.minecraft.component.DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, glint == 1);
-            PART_STACKS[glint][i] = s;
-        }
-        return s;
     }
 
     /** The pose at time t (0..1), eased between the two keyframes around it. */

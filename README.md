@@ -14,19 +14,22 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
   (`Upload` button, drag & drop a `.zip`, or packs already in `resourcepacks/`; old 1.8 PvP pack paths are understood)
 - 3D previews for blocks and the end crystal (as it stands in the world), sorting (For you, A–Z, Newest, Packs, Presets), search, favourites
 - **Apply** builds `resourcepacks/HugoService-Active` and reloads; **Save pack** writes a `.zip` to `resourcepacks/`
-- **Extras**: hit colour, hitbox colour (F3+B), block outline, cobweb outline,
+- **Extras**: hit colour, hitbox colour (F3+B), block outline, cobweb outline (adjustable thickness),
   player glow (only while the player is visible, not through walls), shield status (ready / disabled by axe),
   end crystal and shield opacity, name tag colour and size, inventory size, hide inventory model,
   name faker (own / enemy names, default skins, hide tier tags), grey world, grass colour,
-  6 UI themes, smooth/pixel font, optional background blur. Every effect has a live preview in the menu.
+  6 UI themes, smooth/pixel font, optional background blur. Every effect has a live preview in the menu;
+  every colour picker also offers grey and black.
 - **Custom sky** (like Skyboxify): skyboxes from packs (OptiFine / MCPatcher `sky/world0` 3x2 layout) or your own
   images (upload or `config/hugoservice/skies`; 3:2 = cube layout, 2:1 = 360° panorama). Switches live, with
   options to rotate with time, keep sun/moon/stars, darken at night and a client-side time slider.
 - **Crosshair tab**: your own crosshair drawn by the mod (cross, dot, circle, T, X, square or pixel art) with length,
   gap, thickness, outline, centre dot, colour and opacity, 12 presets, pixel art taken from your pack, and an
   **entity indicator** (other colour plus a hit marker while you aim at a mob or player). Changes show at once.
-- **Knives**: eleven own 3D knife models (Karambit, Talon, Butterfly, Bayonet, M9 Bayonet, Flip, Stiletto, Bowie,
-  Huntsman, Gut, Push Dagger) that replace every sword, combined with 23 finishes (two of them animated).
+- **Knives**: eleven smooth 3D knives (Karambit, Talon, Butterfly, Bayonet, M9 Bayonet, Flip, Stiletto, Bowie,
+  Huntsman, Gut, Push Dagger) drawn by the mod itself, not blocky pack models: ground blades with a fuller and a
+  polished edge, rounded grips, guards and rings. They replace every sword in hand, hotbar, inventory and third
+  person, combined with 23 finishes (two of them animated).
   Press **G** (changeable) to inspect: every knife type has its own keyframe animation (spins, flips, toss and catch,
   jabs). Pulling a knife out plays a trick (two per type, in turn: ring spins, tosses, flick opens); the butterfly
   really flips: its handles swing open and around their pivots. Tricks and sway can be turned off under Extras.

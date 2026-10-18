@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "hugoservice:item/knife",
+    "model": {"type": "hugoservice:knife"}
+  }
+}

@@ -18,6 +18,8 @@ public class HugoService implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         Config.load();
+        KnifeRenderer.register();
+        PackBuilder.dropOldKnifeFiles();
         dev.hugoservice.cosmetics.CosmeticCatalog.loadOwnCapes(Config.CAPES);
         Fx.init();
         dev.hugoservice.cosmetics.CosmeticSync.init();
