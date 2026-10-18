@@ -2,21 +2,24 @@ package dev.hugoservice;
 
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.StyleSpriteSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import org.joml.Matrix3x2fStack;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.List;
 
-/** Spotify on screen: a glass "now playing" window in a corner and, optionally, the lyrics written on the sky. */
+/** Spotify on screen: a glass "now playing" window in a corner and, optionally, the lyrics as 3D text in the sky. */
 public final class SpotifyHud {
     private static final net.minecraft.text.Style UI = net.minecraft.text.Style.EMPTY
         .withFont(new StyleSpriteSource.Font(Identifier.of("hugoservice", "ui")));
@@ -29,6 +32,7 @@ public final class SpotifyHud {
 
     static void init() {
         HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.of("hugoservice", "spotify"), SpotifyHud::render);
+        WorldRenderEvents.AFTER_ENTITIES.register(SpotifyHud::sky);
     }
 
     private static void render(DrawContext ctx, RenderTickCounter tick) {
@@ -36,10 +40,7 @@ public final class SpotifyHud {
         Config cfg = Config.INSTANCE;
         Spotify.Track t = Spotify.track;
         if (mc.options.hudHidden || t == null || !Spotify.active()) return;
-        int line = Spotify.lineIndex();
-        if (line != lastLine) { lastLine = line; lineAt = System.currentTimeMillis(); }
-        if (cfg.spotifySky && mc.world != null) sky(ctx, mc, line);
-        if (cfg.spotifyWindow) window(ctx, mc, t, cfg.spotifyLyrics ? line : -1);
+        if (cfg.spotifyWindow) window(ctx, mc, t, cfg.spotifyLyrics ? currentLine() : -1);
         Shapes.flush();
     }
 
@@ -80,46 +81,45 @@ public final class SpotifyHud {
 
     // ---- lyrics on the sky ----
 
-    /** The current line hangs in the sky over the chosen side (north, east, south or west), 28° above the horizon. */
-    private static void sky(DrawContext ctx, MinecraftClient mc, int line) {
+    /**
+     * The current line hangs over the chosen side (north, east, south or west), 28° above the horizon, as real 3D
+     * text in the world: it stays put while you look around, is seen in perspective and blocks in front cover it.
+     */
+    private static void sky(WorldRenderContext ctx) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        Config cfg = Config.INSTANCE;
+        if (!cfg.spotifySky || mc.options.hudHidden || Spotify.track == null || !Spotify.active()) return;
+        int line = currentLine();
         List<Spotify.Line> lyrics = Spotify.lyrics;
-        if (line < 0 || line >= lyrics.size()) return;
-        String text = lyrics.get(line).text();
-        if (text.isEmpty()) return;
-        Camera cam = mc.gameRenderer.getCamera();
-        float yaw = SIDE_YAW[Math.floorMod(Config.INSTANCE.spotifySkySide, 4)];
-        float[] screen = project(ctx, mc, yaw, -28, cam.getYaw(), cam.getPitch());
-        if (screen == null) return;
+        if (line < 0 || line >= lyrics.size() || lyrics.get(line).text().isEmpty()) return;
+        float yaw = SIDE_YAW[Math.floorMod(cfg.spotifySkySide, 4)], pitch = -28;
+        // far enough to look like sky, near enough to stay inside the view distance and its fog
+        float dist = Math.max(48, Math.min(128, mc.options.getClampedViewDistance() * 8f)), scale = dist * 0.0105f;
+        Vector3f at = dir(yaw, pitch).mul(dist);
+        MatrixStack m = ctx.matrices();
+        m.push();
+        m.translate(at.x, at.y, at.z);
+        m.multiply(new Quaternionf().rotationYXZ((float) Math.PI - (float) Math.toRadians(yaw), (float) Math.toRadians(-pitch), 0)); // faces you, like a name tag would from there
+        m.scale(scale, -scale, scale);
         TextRenderer tr = mc.textRenderer;
         float fade = Math.min(1, (System.currentTimeMillis() - lineAt) / 400f);
-        Text big = Text.literal(text).setStyle(BOLD);
-        Matrix3x2fStack mat = ctx.getMatrices();
-        mat.pushMatrix();
-        mat.translate(screen[0], screen[1]);
-        mat.scale(2.4f, 2.4f);
-        int a = Math.round(235 * fade);
-        ctx.drawText(tr, big, -tr.getWidth(big) / 2, -4, a << 24 | 0xFFFFFF, true);
+        Text big = Text.literal(lyrics.get(line).text()).setStyle(BOLD);
+        tr.draw(big, -tr.getWidth(big) / 2f, -4, Math.max(26, Math.round(235 * fade)) << 24 | 0xFFFFFF, true,
+            m.peek().getPositionMatrix(), ctx.consumers(), TextRenderer.TextLayerType.NORMAL, 0, LightmapTextureManager.MAX_LIGHT_COORDINATE);
         if (line + 1 < lyrics.size() && !lyrics.get(line + 1).text().isEmpty()) {
             Text next = Text.literal(lyrics.get(line + 1).text()).setStyle(UI);
-            mat.scale(0.5f, 0.5f);
-            ctx.drawText(tr, next, -tr.getWidth(next) / 2, 14, Math.round(150 * fade) << 24 | 0xCFE8FF, true);
+            m.scale(0.5f, 0.5f, 0.5f);
+            tr.draw(next, -tr.getWidth(next) / 2f, 14, Math.max(26, Math.round(150 * fade)) << 24 | 0xCFE8FF, true,
+                m.peek().getPositionMatrix(), ctx.consumers(), TextRenderer.TextLayerType.NORMAL, 0, LightmapTextureManager.MAX_LIGHT_COORDINATE);
         }
-        mat.popMatrix();
+        m.pop();
     }
 
-    /** Screen position of a direction (yaw, pitch in Minecraft degrees) for the current camera, or null behind it. */
-    private static float[] project(DrawContext ctx, MinecraftClient mc, float yaw, float pitch, float camYaw, float camPitch) {
-        Vector3f d = dir(yaw, pitch), f = dir(camYaw, camPitch);
-        double cy = Math.toRadians(camYaw);
-        Vector3f r = new Vector3f((float) -Math.cos(cy), 0, (float) -Math.sin(cy));
-        Vector3f u = new Vector3f(r).cross(f);
-        float z = d.dot(f);
-        if (z < 0.15f) return null;
-        float tanV = (float) Math.tan(Math.toRadians(mc.options.getFov().getValue()) / 2);
-        float w = ctx.getScaledWindowWidth(), h = ctx.getScaledWindowHeight();
-        float tanH = tanV * w / h;
-        float nx = d.dot(r) / z / tanH, ny = d.dot(u) / z / tanV;
-        return new float[] {w / 2 * (1 + nx), h / 2 * (1 - ny)};
+    /** Line playing now; notes when it changed, for the fade in. */
+    private static int currentLine() {
+        int line = Spotify.lineIndex();
+        if (line != lastLine) { lastLine = line; lineAt = System.currentTimeMillis(); }
+        return line;
     }
 
     private static Vector3f dir(float yaw, float pitch) {
