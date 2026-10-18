@@ -6,6 +6,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.util.math.RotationAxis;
 
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
 import java.util.List;
 import java.util.Map;
 
@@ -87,10 +90,99 @@ public final class KnifeAnimations {
             k(1, 0, 0, 0, 0, 0, 0)))
     );
 
-    private static final Clip DRAW_SPIN = new Clip(600, List.of(
-        k(0, 0, -0.35f, 0, -360, 0, 0), k(0.75f, 0, 0.03f, 0, 10, 0, 0), k(1, 0, 0, 0, 0, 0, 0)));
-    private static final Clip DRAW = new Clip(550, List.of(
+    /** Tricks when you pull the knife out: two per type, played in turn. They start below the view. */
+    private static final Map<Knives.Anim, List<Clip>> DRAWS = Map.of(
+        Knives.Anim.SPIN, List.of(
+            // ring spin: two turns round the finger while it comes up, a look at the side, settle
+            new Clip(1300, List.of(k(0, 0, -0.35f, 0, 0, 0, 0),
+                k(0.5f, -0.2f, 0.3f, 0, 720, 0, 0),
+                k(0.72f, -0.2f, 0.32f, 0, 720, -55, -6),
+                k(1, 0, 0, 0, 720, 0, 0))),
+            // reverse spin with a flick at the end
+            new Clip(1250, List.of(k(0, 0, -0.35f, 0, 0, 0, 0),
+                k(0.35f, -0.18f, 0.3f, 0, -540, 0, 0),
+                k(0.55f, -0.2f, 0.34f, 0, -720, 0, 10),
+                k(0.72f, -0.2f, 0.32f, 0, -720, -40, 0),
+                k(1, 0, 0, 0, -720, 0, 0)))),
+        Knives.Anim.FLIP, List.of(
+            // balisong opening: flips over both axes in a row
+            new Clip(1300, List.of(k(0, 0, -0.35f, 0, 0, 0, 0),
+                k(0.2f, -0.18f, 0.2f, 0, 0, 180, 0),
+                k(0.38f, -0.2f, 0.3f, 0, 180, 360, 0),
+                k(0.56f, -0.2f, 0.32f, 0, 360, 540, 0),
+                k(0.74f, -0.2f, 0.32f, 0, 360, 720, 0),
+                k(1, 0, 0, 0, 360, 720, 0))),
+            // aerial: tossed up flipping, caught
+            new Clip(1300, List.of(k(0, 0, -0.35f, 0, 0, 0, 0),
+                k(0.25f, -0.18f, 0.28f, 0, 360, 0, 0),
+                k(0.45f, -0.2f, 0.52f, 0, 540, 180, 0),
+                k(0.62f, -0.2f, 0.32f, 0, 720, 360, 0),
+                k(1, 0, 0, 0, 720, 360, 0)))),
+        Knives.Anim.TURN, List.of(
+            // toss and catch: thrown up spinning backwards
+            new Clip(1300, List.of(k(0, 0, -0.35f, 0, 0, 0, 0),
+                k(0.3f, -0.2f, 0.52f, 0, -360, 0, 0),
+                k(0.5f, -0.2f, 0.34f, 0, -720, 0, 0),
+                k(0.7f, -0.2f, 0.34f, 0.02f, -720, 50, 0),
+                k(1, 0, 0, 0, -720, 0, 0))),
+            // comes up blade first and spins upright, then shows the side
+            new Clip(1200, List.of(k(0, 0, -0.35f, 0, -540, 0, 0),
+                k(0.45f, -0.22f, 0.32f, 0, 0, 0, 0),
+                k(0.68f, -0.22f, 0.34f, 0, 0, 70, 0),
+                k(1, 0, 0, 0, 0, 0, 0)))),
+        Knives.Anim.FLICK, List.of(
+            // flick open with an overshoot, then one fast spin
+            new Clip(1150, List.of(k(0, 0, -0.35f, 0, -200, 0, 0),
+                k(0.35f, -0.16f, 0.22f, 0, 20, 0, 0),
+                k(0.5f, -0.18f, 0.24f, 0, 0, 30, 0),
+                k(0.75f, -0.18f, 0.26f, 0, 360, 30, 0),
+                k(1, 0, 0, 0, 360, 0, 0))),
+            // double spin
+            new Clip(1100, List.of(k(0, 0, -0.35f, 0, 0, 0, 0),
+                k(0.55f, -0.18f, 0.28f, 0, 720, 0, 0),
+                k(0.75f, -0.18f, 0.28f, 0, 720, 40, 8),
+                k(1, 0, 0, 0, 720, 0, 0)))),
+        Knives.Anim.HEAVY, List.of(
+            // flipped over while it comes up, then a heavy turn
+            new Clip(1350, List.of(k(0, 0, -0.35f, 0, 0, 180, 0),
+                k(0.4f, -0.22f, 0.3f, 0, 360, 180, 0),
+                k(0.65f, -0.22f, 0.32f, 0, 360, 360, 0),
+                k(1, 0, 0, 0, 360, 360, 0))),
+            // high toss with two turns and a catch
+            new Clip(1400, List.of(k(0, 0, -0.35f, 0, 0, 0, 0),
+                k(0.25f, -0.2f, 0.3f, 0, 0, 0, 0),
+                k(0.45f, -0.2f, 0.6f, 0, 360, 0, 0),
+                k(0.6f, -0.2f, 0.34f, 0, 720, 0, 0),
+                k(0.8f, -0.2f, 0.32f, 0, 720, 60, 0),
+                k(1, 0, 0, 0, 720, 0, 0)))),
+        Knives.Anim.TWIRL, List.of(
+            new Clip(1250, List.of(k(0, 0, -0.35f, 0, 0, 0, 0),
+                k(0.45f, -0.2f, 0.3f, 0, 0, 0, 720),
+                k(0.7f, -0.2f, 0.32f, 0, 360, 0, 720),
+                k(1, 0, 0, 0, 360, 0, 720))),
+            new Clip(1150, List.of(k(0, 0, -0.35f, 0, -360, 0, 0),
+                k(0.5f, -0.2f, 0.3f, 0, 0, 0, 360),
+                k(1, 0, 0, 0, 0, 0, 360)))),
+        Knives.Anim.PUSH, List.of(
+            // punched out of the sleeve, a second jab
+            new Clip(1100, List.of(k(0, 0, -0.35f, 0.2f, 0, -90, 0),
+                k(0.35f, -0.14f, 0.2f, -0.22f, 0, 0, 0),
+                k(0.55f, -0.14f, 0.2f, 0, 0, 0, 0),
+                k(0.75f, -0.14f, 0.2f, -0.15f, 0, 0, 0),
+                k(1, 0, 0, 0, 0, 0, 0))),
+            // spun out and jabbed
+            new Clip(1150, List.of(k(0, 0, -0.35f, 0, 0, 0, 0),
+                k(0.5f, -0.16f, 0.25f, 0, 0, 360, 0),
+                k(0.7f, -0.16f, 0.25f, -0.18f, 0, 360, 0),
+                k(1, 0, 0, 0, 0, 360, 0))))
+    );
+
+    /** Short pull for when tricks are off. */
+    private static final Clip DRAW_PLAIN = new Clip(450, List.of(
         k(0, 0, -0.32f, 0, -85, 0, 0), k(0.7f, 0, 0.02f, 0, 8, 0, 0), k(1, 0, 0, 0, 0, 0, 0)));
+
+    private static Clip drawClip = DRAW_PLAIN;
+    private static int drawCount, drawVariant;
 
     // grip and middle of the knife in this space, worked out from the knife display transform
     private static final float GX = 0.07f, GY = 0.01f, GZ = 0f, CX = 0.07f, CY = 0.22f, CZ = 0.07f;
@@ -106,10 +198,21 @@ public final class KnifeAnimations {
     static void tick(MinecraftClient mc, boolean inspectPressed) {
         if (mc.player == null) { lastSlot = -1; return; }
         int slot = mc.player.getInventory().getSelectedSlot();
-        if (slot != lastSlot && lastSlot != -1 && holdingKnife(mc)) { drawStart = System.currentTimeMillis(); inspectStart = -1; }
+        if (slot != lastSlot && lastSlot != -1 && holdingKnife(mc)) startDraw();
         lastSlot = slot;
         if (inspectPressed && holdingKnife(mc)) startInspect();
         if (mc.player.handSwinging) inspectStart = -1; // attacking cancels the show
+    }
+
+    /** Pull-out move: the next trick of this knife type, or the short pull when tricks are off. */
+    public static void startDraw() {
+        Knives.Model knife = Knives.active();
+        if (knife == null) return;
+        List<Clip> tricks = DRAWS.get(knife.anim());
+        drawVariant = drawCount++ % 2;
+        drawClip = Config.INSTANCE.knifeTricks && tricks != null ? tricks.get(drawVariant % tricks.size()) : DRAW_PLAIN;
+        drawStart = System.currentTimeMillis();
+        inspectStart = -1;
     }
 
     public static void startInspect() {
@@ -118,20 +221,22 @@ public final class KnifeAnimations {
     }
 
     /** Extra movement for the main-hand item, applied right before it is drawn. */
-    public static void apply(MatrixStack m, ItemStack stack, boolean mainHand) {
+    public static void apply(MatrixStack m, ItemStack stack, boolean mainHand, float equipProgress) {
         Knives.Model knife = Knives.active();
         if (!mainHand || knife == null || !stack.isIn(ItemTags.SWORDS)) return;
         long now = System.currentTimeMillis();
         K pose = null;
         if (drawStart >= 0) {
-            Clip c = knife.anim() == Knives.Anim.SPIN || knife.anim() == Knives.Anim.FLIP ? DRAW_SPIN : DRAW;
-            float t = (now - drawStart) / (float) c.ms();
-            if (t >= 1) drawStart = -1; else pose = sample(c, t);
+            float t = (now - drawStart) / (float) drawClip.ms();
+            if (t >= 1) drawStart = -1; else pose = sample(drawClip, t);
+            // the trick brings the knife up itself, so undo vanilla's lowering while switching (applyEquipOffset)
+            if (pose != null && drawClip != DRAW_PLAIN) m.translate(0, equipProgress * 0.6f, 0);
         } else if (inspectStart >= 0) {
             Clip c = INSPECT.get(knife.anim());
             float t = (now - inspectStart) / (float) c.ms();
             if (t >= 1) inspectStart = -1; else pose = sample(c, t);
         }
+        if (pose == null && !Config.INSTANCE.knifeSway) return;
         if (pose == null) { // idle: the knife breathes a little in the hand
             double s = now / 1000.0;
             pose = k(0, 0, (float) Math.sin(s * 1.7) * 0.006f, 0, (float) Math.sin(s * 1.1) * 1.2f, 0, 0);
@@ -140,6 +245,86 @@ public final class KnifeAnimations {
         pivot(m, RotationAxis.POSITIVE_Y, pose.ry(), CX, CY, CZ);
         pivot(m, RotationAxis.POSITIVE_X, pose.rx(), GX, GY, GZ);
         pivot(m, RotationAxis.POSITIVE_Z, pose.rz(), CX, CY, CZ);
+    }
+
+    // ================================================================ butterfly tricks
+
+    // first-person display of the knife models (see Knives DISPLAY): rotation [0, -90, -20], translation [1.13, 3.6, 1.13] px, scale 0.6
+    private static final Quaternionf FP_ROT = new Quaternionf().rotationXYZ(0, (float) Math.toRadians(-90), (float) Math.toRadians(-20));
+    private static final Vector3f FP_AXIS = FP_ROT.transform(new Vector3f(0, 0, 1)); // the knife's plane normal
+    private static final ItemStack[][] PART_STACKS = new ItemStack[2][3];
+
+    /** Model point (px) -> position in the space right before the item is drawn (undoes nothing, just maps it). */
+    private static Vector3f beforeDisplay(float px, float py) {
+        Vector3f p = new Vector3f(px / 16f - 0.5f, py / 16f - 0.5f, 0).mul(0.6f);
+        return FP_ROT.transform(p).add(1.13f / 16, 3.6f / 16, 1.13f / 16);
+    }
+
+    /**
+     * Angles (degrees) of the safe and bite handle around their pivots while a butterfly trick runs, else null.
+     * 0 = open (handles down as you hold it), 180 = closed over the blade; whole turns are the classic flips.
+     */
+    private static float[] butterflyHandles() {
+        long now = System.currentTimeMillis();
+        if (drawStart >= 0 && drawClip != DRAW_PLAIN) {
+            float t = (now - drawStart) / (float) drawClip.ms();
+            if (drawVariant == 0) // opening: starts closed, swings each handle out, then a fan flip each
+                return new float[] {180 + turn(t, 0.15f, 0.35f, 0.5f) + turn(t, 0.6f, 0.8f, 1),
+                    -180 - turn(t, 0.35f, 0.55f, 0.5f) - turn(t, 0.7f, 0.9f, 1)};
+            return new float[] {180 + turn(t, 0.25f, 0.5f, 1) + turn(t, 0.62f, 0.85f, 0.5f),   // aerial
+                -180 - turn(t, 0.35f, 0.62f, 1) - turn(t, 0.7f, 0.9f, 0.5f)};
+        }
+        if (inspectStart >= 0) {
+            float t = (now - inspectStart) / (float) INSPECT.get(Knives.Anim.FLIP).ms();
+            return new float[] {turn(t, 0.12f, 0.3f, 1) + turn(t, 0.46f, 0.62f, 1) + turn(t, 0.8f, 0.92f, 1),
+                -turn(t, 0.28f, 0.46f, 1) - turn(t, 0.62f, 0.8f, 1)};
+        }
+        return null;
+    }
+
+    /** {@code turns} full turns spread over [a, b] of the clip, eased. */
+    private static float turn(float t, float a, float b, float turns) {
+        return ease((t - a) / (b - a)) * 360 * turns;
+    }
+
+    /**
+     * Draws the butterfly in its three parts with the handles swung, in place of the one-piece knife, while a trick runs
+     * in your main hand. Returns false when the normal item should be drawn.
+     */
+    public static boolean renderButterfly(ItemStack stack, net.minecraft.item.ItemDisplayContext context, MatrixStack m,
+                                          java.util.function.Consumer<ItemStack> draw) {
+        Knives.Model knife = Knives.active();
+        if (knife == null || !knife.id().equals("butterfly") || !stack.isIn(ItemTags.SWORDS)
+            || context != net.minecraft.item.ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) return false;
+        float[] h = butterflyHandles();
+        if (h == null) return false;
+        int glint = stack.hasGlint() ? 1 : 0;
+        draw.accept(part(0, glint));
+        handle(m, Knives.BF_PIVOT_SAFE, h[0], () -> draw.accept(part(1, glint)));
+        handle(m, Knives.BF_PIVOT_BITE, h[1], () -> draw.accept(part(2, glint)));
+        return true;
+    }
+
+    private static void handle(MatrixStack m, float[] pivot, float degrees, Runnable draw) {
+        Vector3f p = beforeDisplay(pivot[0], pivot[1]);
+        m.push();
+        m.translate(p.x, p.y, p.z);
+        m.multiply(new Quaternionf().rotationAxis((float) Math.toRadians(degrees), FP_AXIS));
+        m.translate(-p.x, -p.y, -p.z);
+        draw.run();
+        m.pop();
+    }
+
+    /** A local-only stack that renders one butterfly part (never sent anywhere). */
+    private static ItemStack part(int i, int glint) {
+        ItemStack s = PART_STACKS[glint][i];
+        if (s == null) {
+            s = new ItemStack(net.minecraft.item.Items.STICK);
+            s.set(net.minecraft.component.DataComponentTypes.ITEM_MODEL, net.minecraft.util.Identifier.ofVanilla(Knives.BF_PARTS[i]));
+            s.set(net.minecraft.component.DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, glint == 1);
+            PART_STACKS[glint][i] = s;
+        }
+        return s;
     }
 
     /** The pose at time t (0..1), eased between the two keyframes around it. */

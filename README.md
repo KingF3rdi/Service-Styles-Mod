@@ -28,7 +28,9 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
 - **Knives**: eleven own 3D knife models (Karambit, Talon, Butterfly, Bayonet, M9 Bayonet, Flip, Stiletto, Bowie,
   Huntsman, Gut, Push Dagger) that replace every sword, combined with 23 finishes (two of them animated).
   Press **G** (changeable) to inspect: every knife type has its own keyframe animation (spins, flips, toss and catch,
-  jabs); switching to the knife plays a draw move. Only your view changes, others see your normal sword.
+  jabs). Pulling a knife out plays a trick (two per type, in turn: ring spins, tosses, flick opens); the butterfly
+  really flips: its handles swing open and around their pivots. Tricks and sway can be turned off under Extras.
+  Only your view changes, others see your normal sword.
 - **Cosmetics** (based on Titus Cosmetics): capes, hats, bandanas, halos, back and face items, auras, skin overlays,
   pets, shields and accessories, plus 12 particle **trails** that follow your steps. Pick them under
   *Collections → Cosmetics* with a live 3D preview. Drop any `.png` into the Capes view for your **own cape**

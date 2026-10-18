@@ -43,6 +43,8 @@ public final class Config {
     public int chLength = 8, chGap = 4, chThickness = 2, chOutline = 1, chDot = 0, chColor = 0xFFFFFF, chAlpha = 100;
     public boolean chEntity = true, chEntityPlayers = false, chEntityMarker = true;
     public int chEntityColor = 0xFF3B3B;
+    // Knives: tricks when you pull one out, slight sway while holding it
+    public boolean knifeTricks = true, knifeSway = true;
     /** In-game effects: hit, hitbox, outline, cobweb, glow. */
     public Map<String, Integer> fxColor = new HashMap<>();
     public Set<String> fxOn = new HashSet<>();

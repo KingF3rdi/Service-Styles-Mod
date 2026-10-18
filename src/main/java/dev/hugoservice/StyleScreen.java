@@ -720,6 +720,7 @@ public class StyleScreen extends Screen {
         int inner = blockInner();
         layoutBlocks(ctx, List.of(
             new Block(102, this::drawMenuBlock),
+            new Block(76, this::drawKnifeOptions),
             new Block(themeHeight(inner), this::drawThemes),
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Hit colour", Fx.HIT, "Red flash when hit", Previews::hit)),
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Hitbox colour", Fx.HITBOX, "Shown with F3 + B", Previews::outline)),
@@ -1265,6 +1266,15 @@ public class StyleScreen extends Screen {
         String l = ellipsize(label, w - 6);
         text(ctx, l, x + (w - width(l)) / 2, y + 3, primary ? INK : TEXT);
         clipHit(x, y, w, 14, (a, b, btn) -> r.run());
+    }
+
+    /** Knife animations: tricks on pull-out, idle sway, and which key inspects. */
+    private void drawKnifeOptions(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Knives", x, y);
+        toggleRow(ctx, x, y + 17, w, "Tricks when pulling out", cfg.knifeTricks, () -> { cfg.knifeTricks = !cfg.knifeTricks; Config.save(); });
+        toggleRow(ctx, x, y + 33, w, "Sway while holding", cfg.knifeSway, () -> { cfg.knifeSway = !cfg.knifeSway; Config.save(); });
+        String key = HugoService.INSPECT.getBoundKeyLocalizedText().getString();
+        text(ctx, ellipsize("Inspect key: " + key + "  ·  change it in Controls", w), x, y + 52, DIM);
     }
 
     private void drawMenuBlock(DrawContext ctx, int x, int y, int w) {

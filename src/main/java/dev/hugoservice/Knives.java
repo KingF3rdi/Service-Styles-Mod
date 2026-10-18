@@ -31,6 +31,7 @@ public final class Knives {
         List<String> out = new ArrayList<>();
         for (String s : SWORDS) out.add("models/item/" + s + "_sword.json");
         out.add(TEXTURE);
+        for (String p : BF_PARTS) { out.add("items/" + p + ".json"); out.add("models/item/" + p + ".json"); } // butterfly tricks
         return out;
     }
 
@@ -187,18 +188,47 @@ public final class Knives {
         return new Model("push", "Push Dagger", Anim.PUSH, List.copyOf(b));
     }
 
+    // Butterfly parts: blade (with the pivot pins) and the two handles, so tricks can swing the handles.
+    static List<Box> BF_BLADE, BF_SAFE, BF_BITE;
+    /** Pivot of each handle in model units: they swing around these, in the knife's plane. */
+    public static final float[] BF_PIVOT_SAFE = {7.2f, 7.3f}, BF_PIVOT_BITE = {8.8f, 7.3f};
+
     private static Model butterfly() {
-        List<Box> b = new ArrayList<>();
-        box(b, Part.METAL, 6.7f, 0.2f, 9.3f, 0.9f, 1.6f);   // latch
-        box(b, Part.HANDLE, 6.7f, 0.9f, 7.7f, 7.0f, 1.4f);  // two handle halves
-        box(b, Part.HANDLE, 8.3f, 0.9f, 9.3f, 7.0f, 1.4f);
-        box(b, Part.METAL, 7.0f, 1.6f, 7.4f, 6.4f, 1.5f);   // channel inserts
-        box(b, Part.METAL, 8.6f, 1.6f, 9.0f, 6.4f, 1.5f);
-        box(b, Part.METAL, 6.6f, 7.0f, 9.4f, 7.6f, 1.7f);   // pivot
-        box(b, Part.BLADE, 7.3f, 7.6f, 8.7f, 12.6f, 0.6f);
-        rot(b, Part.BLADE, 8.0f, 12.6f, 1.0f, 1.0f, 45, 0.6f);
-        box(b, Part.EDGE, 7.3f, 7.6f, 7.55f, 12.6f, 0.7f);
-        return new Model("butterfly", "Butterfly", Anim.FLIP, List.copyOf(b));
+        List<Box> blade = new ArrayList<>(), safe = new ArrayList<>(), bite = new ArrayList<>();
+        box(blade, Part.METAL, 6.6f, 7.0f, 9.4f, 7.6f, 1.7f);   // pivot pins
+        box(blade, Part.BLADE, 7.3f, 7.6f, 8.7f, 12.6f, 0.6f);
+        rot(blade, Part.BLADE, 8.0f, 12.6f, 1.0f, 1.0f, 45, 0.6f);
+        box(blade, Part.FULLER, 7.85f, 8.0f, 8.15f, 11.8f, 0.66f);
+        box(blade, Part.EDGE, 7.3f, 7.6f, 7.55f, 12.6f, 0.7f);
+        box(safe, Part.HANDLE, 6.7f, 0.9f, 7.7f, 7.0f, 1.4f);   // safe handle
+        box(safe, Part.METAL, 7.0f, 1.6f, 7.4f, 6.4f, 1.5f);    // its channel insert
+        box(bite, Part.HANDLE, 8.3f, 0.9f, 9.3f, 7.0f, 1.4f);   // bite handle
+        box(bite, Part.METAL, 8.6f, 1.6f, 9.0f, 6.4f, 1.5f);
+        box(bite, Part.METAL, 8.3f, 0.2f, 9.3f, 0.9f, 1.6f);    // latch
+        box(safe, Part.METAL, 6.7f, 0.2f, 7.7f, 0.9f, 1.6f);
+        BF_BLADE = List.copyOf(blade);
+        BF_SAFE = List.copyOf(safe);
+        BF_BITE = List.copyOf(bite);
+        List<Box> all = new ArrayList<>(blade);
+        all.addAll(safe);
+        all.addAll(bite);
+        return new Model("butterfly", "Butterfly", Anim.FLIP, List.copyOf(all));
+    }
+
+    /** Item ids of the three butterfly parts (minecraft namespace, written into the pack with the butterfly). */
+    public static final String[] BF_PARTS = {"hugoservice_bfly_blade", "hugoservice_bfly_safe", "hugoservice_bfly_bite"};
+
+    /** items/ and models/ files of the parts: each part keeps the knife's display, so together they are the knife. */
+    private static java.util.Map<String, byte[]> butterflyFiles() {
+        java.util.Map<String, byte[]> out = new java.util.HashMap<>();
+        List<List<Box>> parts = List.of(BF_BLADE, BF_SAFE, BF_BITE);
+        for (int i = 0; i < 3; i++) {
+            String id = BF_PARTS[i];
+            out.put("items/" + id + ".json", ("{\"model\": {\"type\": \"minecraft:model\", \"model\": \"minecraft:item/" + id + "\"}}")
+                .getBytes(StandardCharsets.UTF_8));
+            out.put("models/item/" + id + ".json", json(new Model(id, id, Anim.FLIP, parts.get(i))).getBytes(StandardCharsets.UTF_8));
+        }
+        return out;
     }
 
     private static Model bayonet() {
@@ -492,8 +522,9 @@ public final class Knives {
         if (g.id().equals(MODEL_GROUP)) {
             for (Model m : MODELS) {
                 byte[] model = json(m).getBytes(StandardCharsets.UTF_8);
+                java.util.Map<String, byte[]> parts = m.id.equals("butterfly") ? butterflyFiles() : java.util.Map.of();
                 out.add(new Style("knife:" + m.id, m.name, "Knife · replaces every sword", false, false, null, 0,
-                    path -> path.equals(TEXTURE) ? Images.encode(texture(FINISHES.getFirst())) : path.endsWith("_sword.json") ? model : null));
+                    path -> path.equals(TEXTURE) ? Images.encode(texture(FINISHES.getFirst())) : path.endsWith("_sword.json") ? model : parts.get(path)));
             }
         } else {
             for (Finish f : FINISHES) {
