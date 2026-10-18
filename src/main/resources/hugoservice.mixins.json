@@ -13,6 +13,7 @@
     "HeldItemRendererMixin",
     "InGameHudMixin",
     "InventoryScreenMixin",
+    "ItemModelManagerMixin",
     "LabelCommandsMixin",
     "MinecraftClientMixin",
     "OverlayTextureAccessor",

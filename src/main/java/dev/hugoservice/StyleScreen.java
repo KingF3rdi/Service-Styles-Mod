@@ -911,25 +911,42 @@ public class StyleScreen extends Screen {
     /** Spotify player: your own app's client id, login, where it shows, and play controls (Premium). */
     private void drawSpotify(DrawContext ctx, int x, int y, int w) {
         section(ctx, "Spotify player", x, y);
-        text(ctx, ellipsize("Client ID of your app on developer.spotify.com", w), x, y + 17, DIM);
-        int fy = y + 29;
-        round(ctx, x, fy, w, 15, 7.5f, FIELD);
-        if (spotifyField.isFocused()) roundOutline(ctx, x, fy, w, 15, 7.5f, ACCENT, 0); else rim(ctx, x, fy, w, 15, 7.5f, 0x60FFFFFF);
-        spotifyField.setX(x + 7);
-        spotifyField.setY(fy + 3);
-        spotifyField.setWidth(w - 14);
-        spotifyField.visible = fy >= bodyY && fy + 15 <= bodyB;
-        text(ctx, ellipsize("Redirect URI: " + Spotify.REDIRECT, w), x, y + 48, DIM);
+        // mode: automatic (Windows media, no login) or your own Spotify app
+        boolean auto = Spotify.auto();
+        int half = w / 2;
+        round(ctx, x, y + 15, w, 15, 7.5f, FIELD);
+        lens(ctx, auto ? x : x + half, y + 15, auto ? half : w - half, 15, 7.5f, ACCENT_SOFT);
+        segment(ctx, x, y + 15, half, "Automatic", auto, () -> { cfg.spotifyMode = "auto"; Spotify.track = null; Config.save(); });
+        segment(ctx, x + half, y + 15, w - half, "Spotify account", !auto, () -> { cfg.spotifyMode = "account"; Spotify.track = null; Config.save(); });
 
         int by = y + 61;
-        // buttons register plain hits, so only draw them while fully inside the scroll area
-        if (by < bodyY || by + 17 > bodyB) return;
-        int bw = button(ctx, x, by, 0, Spotify.connected() ? "Disconnect" : "Connect", !Spotify.connected(),
-            () -> { Config.save(); if (Spotify.connected()) Spotify.disconnect(); else Spotify.connect(); });
         Spotify.Track tr = Spotify.track;
-        String state = !Spotify.status.isEmpty() ? Spotify.status : Spotify.connected() ? "Connected" : "Not connected";
-        if (tr != null) state = (Spotify.playing ? "Playing: " : "Paused: ") + tr.name();
-        text(ctx, ellipsize(state, w - bw - 8), x + bw + 8, by + 5, tr != null ? GOOD : MUTED);
+        if (auto) {
+            spotifyField.visible = false;
+            String hint = !MediaWatcher.problem.isEmpty() ? MediaWatcher.problem
+                : "Finds what plays in Spotify by itself, no login";
+            text(ctx, ellipsize(hint, w), x, y + 36, MediaWatcher.problem.isEmpty() ? DIM : GOLD);
+            toggleRow(ctx, x, y + 48, w, "Any music app (browser, YouTube)", cfg.spotifyAnyApp, () -> { cfg.spotifyAnyApp = !cfg.spotifyAnyApp; Config.save(); });
+            String state = tr != null ? (Spotify.playing ? "Playing: " : "Paused: ") + tr.name() + "  ·  " + tr.artists()
+                : MediaWatcher.running() ? "Start a song in Spotify" : "Turn on the window or the sky lyrics";
+            text(ctx, ellipsize(state, w), x, by + 5, tr != null ? GOOD : MUTED);
+        } else {
+            text(ctx, ellipsize("Client ID of your app on developer.spotify.com", w), x, y + 33, DIM);
+            int fy = y + 43;
+            round(ctx, x, fy, w, 15, 7.5f, FIELD);
+            if (spotifyField.isFocused()) roundOutline(ctx, x, fy, w, 15, 7.5f, ACCENT, 0); else rim(ctx, x, fy, w, 15, 7.5f, 0x60FFFFFF);
+            spotifyField.setX(x + 7);
+            spotifyField.setY(fy + 3);
+            spotifyField.setWidth(w - 14);
+            spotifyField.visible = fy >= bodyY && fy + 15 <= bodyB;
+            // buttons register plain hits, so only draw them while fully inside the scroll area
+            if (by < bodyY || by + 17 > bodyB) return;
+            int bw = button(ctx, x, by, 0, Spotify.connected() ? "Disconnect" : "Connect", !Spotify.connected(),
+                () -> { Config.save(); if (Spotify.connected()) Spotify.disconnect(); else Spotify.connect(); });
+            String state = !Spotify.status.isEmpty() ? Spotify.status : Spotify.connected() ? "Connected" : "Redirect URI: " + Spotify.REDIRECT;
+            if (tr != null) state = (Spotify.playing ? "Playing: " : "Paused: ") + tr.name();
+            text(ctx, ellipsize(state, w - bw - 8), x + bw + 8, by + 5, tr != null ? GOOD : MUTED);
+        }
 
         toggleRow(ctx, x, y + 84, w, "Player window", cfg.spotifyWindow, () -> { cfg.spotifyWindow = !cfg.spotifyWindow; Config.save(); });
         toggleRow(ctx, x, y + 100, w, "Lyrics in the window", cfg.spotifyLyrics, () -> { cfg.spotifyLyrics = !cfg.spotifyLyrics; Config.save(); });
@@ -1414,6 +1431,11 @@ public class StyleScreen extends Screen {
 
     private void pick(Group g, Style s) {
         if (s.vanilla) cfg.loadout.remove(g.id()); else cfg.loadout.put(g.id(), s.id);
+        // a finish needs a knife to sit on: pick one when only the finish was chosen
+        if (g.id().equals(Knives.FINISH_GROUP) && !s.vanilla && Knives.active() == null) {
+            cfg.loadout.put(Knives.MODEL_GROUP, "knife:" + Knives.MODELS.getFirst().id());
+            status("Finish needs a knife: " + Knives.MODELS.getFirst().name() + " picked, change it under Knife");
+        }
         if (g.look() == Categories.Look.SKY) {
             Config.save(); // the skybox switches live, no pack rebuild needed
             status(s.vanilla ? "Vanilla sky" : "Skybox: " + s.name);

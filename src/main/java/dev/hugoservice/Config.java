@@ -59,6 +59,8 @@ public final class Config {
     public String spotifyRefresh = "";
     public boolean spotifyWindow = true, spotifyLyrics = true, spotifySky = false;
     public int spotifyCorner = 1; // 0 top left, 1 top right, 2 bottom left, 3 bottom right
+    public String spotifyMode = "auto"; // auto = read Windows media (no login), account = Spotify Web API
+    public boolean spotifyAnyApp = false; // auto mode: also other players (browser, YouTube...)
     public boolean hideInventoryModel = false;
     /** Name faker. */
     public boolean fakeOwn = false, fakeEnemies = false, fakeOwnSkin = false, fakeEnemySkin = false, hideTier = false;
@@ -134,6 +136,7 @@ public final class Config {
         if (presenceUrl == null) presenceUrl = "";
         if (spotifyClientId == null) spotifyClientId = "";
         if (spotifyRefresh == null) spotifyRefresh = "";
+        if (spotifyMode == null) spotifyMode = "auto";
         if (chStyle == null || !Crosshair.STYLES.contains(chStyle)) chStyle = "cross";
         if (crosshair == null || crosshair.length != 225) crosshair = new int[225];
         if (fxColor == null) fxColor = new HashMap<>();

@@ -30,14 +30,17 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
   Press **G** (changeable) to inspect: every knife type has its own keyframe animation (spins, flips, toss and catch,
   jabs). Pulling a knife out plays a trick (two per type, in turn: ring spins, tosses, flick opens); the butterfly
   really flips: its handles swing open and around their pivots. Tricks and sway can be turned off under Extras.
+  The knife is swapped in at render time, so it also wins over server resource packs that re-skin swords
+  (server items with their own model keep their look).
   Only your view changes, others see your normal sword.
 - **Cosmetics** (based on Titus Cosmetics): capes, hats, bandanas, halos, back and face items, auras, skin overlays,
   pets, shields and accessories, plus 12 particle **trails** that follow your steps. Pick them under
   *Collections → Cosmetics* with a live 3D preview. Drop any `.png` into the Capes view for your **own cape**
   (a 64x32 cape texture, or any picture); own capes are only visible to you.
 - **Spotify player**: a glass "now playing" window in a corner and time-synced lyrics (from LRCLIB) in the window or
-  written on the sky. Needs your own app on developer.spotify.com (redirect URI `http://127.0.0.1:43219/callback`);
-  play / pause / skip need Spotify Premium. The login token stays in your config.
+  written on the sky. **Automatic** (default, Windows): finds what plays in Spotify through the Windows media controls,
+  no login, works with Spotify Free, play / pause / skip included (optionally any music app). **Spotify account**:
+  your own app on developer.spotify.com (redirect URI `http://127.0.0.1:43219/callback`), controls need Premium.
 - **Name icon & sharing** (opt-in): players who use the mod get an icon in front of their name and see each
   other's cosmetics. Needs the small Cloudflare Worker in [`server/`](server/README.md); only Minecraft UUIDs
   and cosmetic ids are sent to it.

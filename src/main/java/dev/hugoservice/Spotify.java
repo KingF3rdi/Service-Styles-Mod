@@ -171,9 +171,21 @@ public final class Spotify {
     // ================================================================ polling
 
     /** Called every client tick; asks Spotify what plays every 2.5 s while the player is shown. */
+    /** True when the player has a source: automatic detection, or a connected Spotify account. */
+    public static boolean active() { return auto() || connected(); }
+
+    /** Automatic mode: read what plays from Windows (no login). */
+    public static boolean auto() { return !"account".equals(Config.INSTANCE.spotifyMode); }
+
     static void tick() {
         Config cfg = Config.INSTANCE;
-        if (!connected() || !(cfg.spotifyWindow || cfg.spotifySky) || busy) return;
+        boolean shown = cfg.spotifyWindow || cfg.spotifySky;
+        if (auto()) {
+            if (shown) MediaWatcher.ensure(cfg.spotifyAnyApp); else { MediaWatcher.stop(); track = null; }
+            return;
+        }
+        MediaWatcher.stop();
+        if (!connected() || !shown || busy) return;
         long now = System.currentTimeMillis();
         if (now - lastPoll < 2500) return;
         lastPoll = now;
@@ -269,23 +281,66 @@ public final class Spotify {
         return List.copyOf(out);
     }
 
+    /** One update from the Windows media watcher (automatic mode). Called on its reader thread. */
+    static void fromSystem(JsonObject j) {
+        if (!auto()) return;
+        String title = str(j, "title");
+        if (title == null || title.isBlank()) { track = null; playing = false; return; }
+        String artist = String.valueOf(str(j, "artist")), album = str(j, "album");
+        long dur = j.has("dur") ? j.get("dur").getAsLong() : 0;
+        long pos = j.has("pos") ? j.get("pos").getAsLong() : 0;
+        boolean play = j.has("playing") && j.get("playing").getAsBoolean();
+        // the player stamps its position only now and then: move it on to the moment of this sample
+        long upd = j.has("upd") ? j.get("upd").getAsLong() : 0, sample = j.has("now") ? j.get("now").getAsLong() : upd;
+        long position = pos + (play && upd > 0 ? Math.max(0, sample - upd) : 0);
+        String id = artist + "|" + title;
+        progressMs = dur > 0 ? Math.min(position, dur) : position;
+        progressAt = System.currentTimeMillis();
+        playing = play;
+        Track t = new Track(id, title, artist, album == null ? "" : album, dur, null);
+        boolean changed = track == null || !track.id().equals(id);
+        track = t;
+        if (!id.equals(lyricsFor)) {
+            lyricsFor = id;
+            lyrics = List.of();
+            if (changed) coverReady = false;
+            Thread.ofVirtual().start(() -> {
+                List<Line> found = fetchLyrics(t);
+                if (id.equals(lyricsFor)) lyrics = found;
+            });
+        }
+        String cover = str(j, "cover");
+        if (cover != null && !cover.isEmpty()) {
+            try {
+                BufferedImage img = ImageIO.read(java.nio.file.Path.of(cover).toFile());
+                if (img != null) showCover(Images.encode(img));
+            } catch (Exception e) {
+                HugoService.LOG.debug("Cover file failed", e);
+            }
+        }
+    }
+
+    /** Registers PNG bytes as the cover texture (render thread). */
+    private static void showCover(byte[] png) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        mc.execute(() -> {
+            try {
+                NativeImage image = NativeImage.read(new ByteArrayInputStream(png));
+                mc.getTextureManager().registerTexture(COVER, new NativeImageBackedTexture(() -> "spotify cover", image));
+                coverReady = true;
+            } catch (Exception e) {
+                HugoService.LOG.debug("Cover failed", e);
+            }
+        });
+    }
+
     private static void loadCover(String url) {
         try {
             HttpResponse<byte[]> res = HTTP.send(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(8)).GET().build(),
                 HttpResponse.BodyHandlers.ofByteArray());
             BufferedImage img = res.statusCode() == 200 ? ImageIO.read(new ByteArrayInputStream(res.body())) : null;
             if (img == null) return;
-            byte[] png = Images.encode(img); // covers are JPEG, NativeImage reads PNG
-            MinecraftClient mc = MinecraftClient.getInstance();
-            mc.execute(() -> {
-                try {
-                    NativeImage image = NativeImage.read(new ByteArrayInputStream(png));
-                    mc.getTextureManager().registerTexture(COVER, new NativeImageBackedTexture(() -> "spotify cover", image));
-                    coverReady = true;
-                } catch (Exception e) {
-                    HugoService.LOG.debug("Cover failed", e);
-                }
-            });
+            showCover(Images.encode(img)); // covers are JPEG, NativeImage reads PNG
         } catch (Exception e) {
             HugoService.LOG.debug("Cover download failed", e);
         }
@@ -294,13 +349,13 @@ public final class Spotify {
     // ================================================================ controls (Spotify Premium)
 
     public static void playPause() {
-        control("PUT", playing ? "pause" : "play");
+        if (auto()) MediaWatcher.command("toggle"); else control("PUT", playing ? "pause" : "play");
         progressMs = progress();
         progressAt = System.currentTimeMillis();
         playing = !playing;
     }
-    public static void next() { control("POST", "next"); }
-    public static void previous() { control("POST", "previous"); }
+    public static void next() { if (auto()) MediaWatcher.command("next"); else control("POST", "next"); }
+    public static void previous() { if (auto()) MediaWatcher.command("prev"); else control("POST", "previous"); }
 
     private static void control(String method, String what) {
         if (!connected()) return;

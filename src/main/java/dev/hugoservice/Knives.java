@@ -31,6 +31,8 @@ public final class Knives {
         List<String> out = new ArrayList<>();
         for (String s : SWORDS) out.add("models/item/" + s + "_sword.json");
         out.add(TEXTURE);
+        out.add("items/hugoservice_knife.json");         // the knife under its own name, see swap()
+        out.add("models/item/hugoservice_knife.json");
         for (String p : BF_PARTS) { out.add("items/" + p + ".json"); out.add("models/item/" + p + ".json"); } // butterfly tricks
         return out;
     }
@@ -63,6 +65,29 @@ public final class Knives {
     public static Model active() {
         String id = Config.INSTANCE.styleOf(MODEL_GROUP);
         return id.startsWith("knife:") ? model(id.substring(6)) : null;
+    }
+
+    /** The knife's own item model id; server packs that re-skin swords do not know it, so they cannot cover it. */
+    public static final net.minecraft.util.Identifier KNIFE_ID = net.minecraft.util.Identifier.ofVanilla("hugoservice_knife");
+    private static final net.minecraft.util.Identifier NO_MODEL = net.minecraft.util.Identifier.of("hugoservice", "no_such_model");
+    private static final byte[] KNIFE_ITEM = "{\"model\": {\"type\": \"minecraft:model\", \"model\": \"minecraft:item/hugoservice_knife\"}}"
+        .getBytes(StandardCharsets.UTF_8);
+
+    /** True when this stack is a normal sword that is drawn as the chosen knife (custom server items keep their look). */
+    public static boolean replaces(net.minecraft.item.ItemStack stack) {
+        if (active() == null || !stack.isIn(net.minecraft.registry.tag.ItemTags.SWORDS)) return false;
+        net.minecraft.util.Identifier model = stack.get(net.minecraft.component.DataComponentTypes.ITEM_MODEL);
+        return model != null && model.equals(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()));
+    }
+
+    /**
+     * Item model to draw for a stack: the chosen knife for every normal sword, so it wins even over server resource
+     * packs (they sit above every local pack). Only once the knife is loaded, else the sword stays.
+     */
+    public static net.minecraft.util.Identifier swap(net.minecraft.item.ItemStack stack, net.minecraft.util.Identifier id) {
+        if (id == null || !replaces(stack)) return id;
+        var models = net.minecraft.client.MinecraftClient.getInstance().getBakedModelManager();
+        return models.getItemModel(KNIFE_ID) != models.getItemModel(NO_MODEL) ? KNIFE_ID : id;
     }
 
     private static void box(List<Box> b, Part p, float x0, float y0, float x1, float y1, float depth) {
@@ -524,7 +549,9 @@ public final class Knives {
                 byte[] model = json(m).getBytes(StandardCharsets.UTF_8);
                 java.util.Map<String, byte[]> parts = m.id.equals("butterfly") ? butterflyFiles() : java.util.Map.of();
                 out.add(new Style("knife:" + m.id, m.name, "Knife · replaces every sword", false, false, null, 0,
-                    path -> path.equals(TEXTURE) ? Images.encode(texture(FINISHES.getFirst())) : path.endsWith("_sword.json") ? model : parts.get(path)));
+                    path -> path.equals(TEXTURE) ? Images.encode(texture(FINISHES.getFirst()))
+                        : path.endsWith("_sword.json") || path.equals("models/item/hugoservice_knife.json") ? model
+                        : path.equals("items/hugoservice_knife.json") ? KNIFE_ITEM : parts.get(path)));
             }
         } else {
             for (Finish f : FINISHES) {

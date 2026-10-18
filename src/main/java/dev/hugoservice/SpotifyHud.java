@@ -35,7 +35,7 @@ public final class SpotifyHud {
         MinecraftClient mc = MinecraftClient.getInstance();
         Config cfg = Config.INSTANCE;
         Spotify.Track t = Spotify.track;
-        if (mc.options.hudHidden || t == null || !Spotify.connected()) return;
+        if (mc.options.hudHidden || t == null || !Spotify.active()) return;
         int line = Spotify.lineIndex();
         if (line != lastLine) { lastLine = line; lineAt = System.currentTimeMillis(); }
         if (cfg.spotifySky && mc.world != null) sky(ctx, mc, line);

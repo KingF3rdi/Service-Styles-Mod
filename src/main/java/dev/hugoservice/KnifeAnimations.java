@@ -191,7 +191,7 @@ public final class KnifeAnimations {
     private static int lastSlot = -1;
 
     static boolean holdingKnife(MinecraftClient mc) {
-        return mc.player != null && Knives.active() != null && mc.player.getMainHandStack().isIn(ItemTags.SWORDS);
+        return mc.player != null && Knives.replaces(mc.player.getMainHandStack());
     }
 
     /** Called every client tick with whether the inspect key was pressed. */
@@ -223,7 +223,7 @@ public final class KnifeAnimations {
     /** Extra movement for the main-hand item, applied right before it is drawn. */
     public static void apply(MatrixStack m, ItemStack stack, boolean mainHand, float equipProgress) {
         Knives.Model knife = Knives.active();
-        if (!mainHand || knife == null || !stack.isIn(ItemTags.SWORDS)) return;
+        if (!mainHand || knife == null || !Knives.replaces(stack)) return;
         long now = System.currentTimeMillis();
         K pose = null;
         if (drawStart >= 0) {
@@ -294,7 +294,7 @@ public final class KnifeAnimations {
     public static boolean renderButterfly(ItemStack stack, net.minecraft.item.ItemDisplayContext context, MatrixStack m,
                                           java.util.function.Consumer<ItemStack> draw) {
         Knives.Model knife = Knives.active();
-        if (knife == null || !knife.id().equals("butterfly") || !stack.isIn(ItemTags.SWORDS)
+        if (knife == null || !knife.id().equals("butterfly") || !Knives.replaces(stack)
             || context != net.minecraft.item.ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) return false;
         float[] h = butterflyHandles();
         if (h == null) return false;

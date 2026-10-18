@@ -29,6 +29,7 @@ public class HugoService implements ClientModInitializer {
         INSPECT = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.inspect", InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_G, category));
         // index resource packs once in the background so the first menu open is fast
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> MediaWatcher.stop());
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             Thread t = new Thread(Styles::rescan, "HugoService-Scan");
             t.setDaemon(true);
