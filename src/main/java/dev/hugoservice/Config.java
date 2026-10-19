@@ -50,6 +50,36 @@ public final class Config {
     public Set<String> fxOn = new HashSet<>();
     /** Cobweb outline thickness, 1..10 (3 = the old fixed width). */
     public int cobwebWidth = 3;
+    /** Player outline: yourself in third person, rainbow, thickness (outline blur radius, 2 = vanilla; on Apply). */
+    public boolean glowSelf = false, glowRainbow = false;
+    public int glowWidth = 2;
+    /** End crystal spin in percent (0 = still) and core colour (null = as the texture). */
+    public int crystalSpin = 100;
+    public Integer crystalCore = null;
+    /** First-person fire height in percent (100 = vanilla); no distance fog in the open air. */
+    public int fireHeight = 100;
+    public boolean noFog = false;
+    /** Hit flash strength in percent (vanilla 70) and block outline thickness (1 = vanilla). */
+    public int hitStrength = 70, outlineWidth = 1;
+    /** Shield and totem size in your hand and the totem pop size, percent (100 = vanilla). */
+    public int shieldSize = 100, totemSize = 100, popSize = 100;
+    /** Enchant glint: 0 vanilla, 1 own colour, 2 gradient, 3 rainbow. */
+    public int glintMode = 0, glintColor = 0xB388FF, glintColor2 = 0x6CD3FF;
+    /** Respawn anchor (on Apply): own charge colour (null = as the texture), full look from 1 charge, glowing charge pixels. */
+    public Integer anchorGlow = null;
+    public boolean anchorFullAtOne = false, anchorGlowPixels = false;
+    /** Crosshair arms fade to a second colour. */
+    public boolean chGradient = false;
+    public int chColor2 = 0x4A86FF;
+    /** Kill effect (index into KillEffects.NAMES, 0 = off), only for players you hit. */
+    public int killEffect = 0;
+    public boolean killOnlyMine = true;
+    /** Spotify window size in percent; only show it for a moment when a song starts. */
+    public int spotifyScale = 100;
+    public boolean spotifyPeek = false;
+    /** Social badge next to the recipe book in your inventory (empty name = your own). */
+    public boolean badgeOn = false;
+    public String badgeName = "";
     /** 10..100 percent. */
     public int crystalOpacity = 100, shieldOpacity = 100;
     /** Name tag size in percent (50..200). */
@@ -144,6 +174,7 @@ public final class Config {
         if (theme == null) theme = "Ice";
         if (fakeName == null || fakeName.isBlank()) fakeName = "Player";
         if (fakeEnemyName == null) fakeEnemyName = "";
+        if (badgeName == null) badgeName = "";
         if (presenceUrl == null) presenceUrl = "";
         if (spotifyClientId == null) spotifyClientId = "";
         if (spotifyRefresh == null) spotifyRefresh = "";

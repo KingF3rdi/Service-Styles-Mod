@@ -60,6 +60,7 @@ public final class Fx {
 
         if (Config.INSTANCE.fx(GLOW) != null) {
             Vec3d eye = mc.player.getCameraPosVec(1f);
+            if (Config.INSTANCE.glowSelf && !mc.options.getPerspective().isFirstPerson()) VISIBLE.add(mc.player.getId()); // yourself in F5
             for (AbstractClientPlayerEntity p : mc.world.getPlayers()) {
                 if (p == mc.player || p.isInvisible() || p.squaredDistanceTo(mc.player) > 96 * 96) continue;
                 if (clear(mc, eye, p.getEyePos()) || clear(mc, eye, p.getBoundingBox().getCenter())) VISIBLE.add(p.getId());
@@ -93,6 +94,13 @@ public final class Fx {
         return 0xFF000000 | cfg.fxColorOf(disabled ? SHIELD_OFF : SHIELD);
     }
 
+    /** Outline colour of glowing players: yours, or running through the rainbow. */
+    public static int glowColor() {
+        Config cfg = Config.INSTANCE;
+        if (!cfg.glowRainbow) return cfg.fxColorOf(GLOW);
+        return java.awt.Color.HSBtoRGB(System.currentTimeMillis() % 3000 / 3000f, 0.75f, 1f) & 0xFFFFFF;
+    }
+
     public static boolean glowing(int entityId) {
         return Config.INSTANCE.fx(GLOW) != null && VISIBLE.contains(entityId);
     }
@@ -102,7 +110,8 @@ public final class Fx {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.gameRenderer == null) return;
         Integer c = Config.INSTANCE.fx(HIT);
-        int argb = 0xB2000000 | (c == null ? 0xFF0000 : c); // vanilla: 0xB2FF0000
+        int alpha = Math.round(Math.max(5, Math.min(100, Config.INSTANCE.hitStrength)) * 2.55f); // vanilla: 0xB2 = 70 %
+        int argb = alpha << 24 | (c == null ? 0xFF0000 : c);
         NativeImageBackedTexture tex = ((OverlayTextureAccessor) mc.gameRenderer.getOverlayTexture()).hugoservice$texture();
         NativeImage img = tex.getImage();
         if (img == null) return;

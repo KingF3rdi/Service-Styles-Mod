@@ -72,6 +72,7 @@ public final class Crosshair {
         int scale = StyleScreen.scale();
         int unit = Math.max(1, scale / 2);
         int a = Math.round(255 * Math.max(0, Math.min(100, s.alpha())) / 100f);
+        fade = Config.INSTANCE.chGradient ? a << 24 | Config.INSTANCE.chColor2 & 0xFFFFFF : 0;
         int col = a << 24 | color & 0xFFFFFF, black = Math.round(a * 0.85f) << 24;
         Matrix3x2fStack m = ctx.getMatrices();
         m.pushMatrix();
@@ -131,10 +132,29 @@ public final class Crosshair {
     private static void bars(DrawContext ctx, int x, int y, int len, int gap, int t, int o, int col, int black, boolean top) {
         if (len <= 0) return;
         int h = t / 2;
-        if (top) box(ctx, x - h, y - gap - len, t, len, o, col, black);
-        box(ctx, x - h, y + gap + (t % 2), t, len, o, col, black);
-        box(ctx, x - gap - len, y - h, len, t, o, col, black);
-        box(ctx, x + gap + (t % 2), y - h, len, t, o, col, black);
+        if (top) arm(ctx, x - h, y - gap - len, t, len, o, col, black, 0);
+        arm(ctx, x - h, y + gap + (t % 2), t, len, o, col, black, 1);
+        arm(ctx, x - gap - len, y - h, len, t, o, col, black, 2);
+        arm(ctx, x + gap + (t % 2), y - h, len, t, o, col, black, 3);
+    }
+
+    /** Second colour of the gradient for the crosshair being drawn (0 = none). */
+    private static int fade;
+
+    /** One arm; with a gradient it fades from the centre colour to the far one (dir: 0 up, 1 down, 2 left, 3 right). */
+    private static void arm(DrawContext ctx, int x, int y, int w, int h, int o, int col, int black, int dir) {
+        if (fade == 0) { box(ctx, x, y, w, h, o, col, black); return; }
+        if (o > 0) ctx.fill(x - o, y - o, x + w + o, y + h + o, black);
+        switch (dir) {
+            case 0 -> ctx.fillGradient(x, y, x + w, y + h, fade, col);
+            case 1 -> ctx.fillGradient(x, y, x + w, y + h, col, fade);
+            default -> {
+                for (int i = 0; i < w; i++) {
+                    float f = (dir == 2 ? w - 1 - i : i) / (float) Math.max(1, w - 1);
+                    ctx.fill(x + i, y, x + i + 1, y + h, Knives.mix(col, fade, f));
+                }
+            }
+        }
     }
 
     private static void box(DrawContext ctx, int x, int y, int w, int h, int o, int col, int black) {

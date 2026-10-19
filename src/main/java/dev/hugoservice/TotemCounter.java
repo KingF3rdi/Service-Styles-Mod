@@ -38,6 +38,16 @@ public final class TotemCounter {
             .append(Text.literal(" popped " + n + (n == 1 ? " totem" : " totems")).withColor(popColor(n))));
     }
 
+    /** Plays the pop on your screen (animation, particles, sound), to try the pop size. */
+    public static void testPop() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null || mc.world == null) return;
+        mc.gameRenderer.showFloatingItem(TOTEM);
+        mc.particleManager.addEmitter(mc.player, net.minecraft.particle.ParticleTypes.TOTEM_OF_UNDYING, 30);
+        mc.world.playSoundClient(mc.player.getX(), mc.player.getY(), mc.player.getZ(), net.minecraft.sound.SoundEvents.ITEM_TOTEM_USE,
+            net.minecraft.sound.SoundCategory.PLAYERS, 1f, 1f, false);
+    }
+
     /** Counts start over when a player dies or leaves. */
     private static void tick(MinecraftClient mc) {
         if (mc.world == null || mc.getNetworkHandler() == null) { POPS.clear(); return; }

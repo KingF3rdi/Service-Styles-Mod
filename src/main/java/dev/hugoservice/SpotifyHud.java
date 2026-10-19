@@ -15,6 +15,7 @@ import net.minecraft.text.StyleSpriteSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
+import org.joml.Matrix3x2fStack;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -29,6 +30,8 @@ public final class SpotifyHud {
     /** Minecraft yaw of north, east, south, west (yaw 0 looks south). */
     private static final float[] SIDE_YAW = {180, 270, 0, 90};
     private static int lastLine = -2, skyLine = -2;
+    private static String peekTrack = "";
+    private static long peekAt;
     private static float skyYaw = Float.NaN;
     private static long lineAt;
 
@@ -49,14 +52,29 @@ public final class SpotifyHud {
     // ---- corner window ----
 
     private static void window(DrawContext ctx, MinecraftClient mc, Spotify.Track t, int line) {
+        Config cfg = Config.INSTANCE;
+        if (!t.id().equals(peekTrack)) { peekTrack = t.id(); peekAt = System.currentTimeMillis(); }
+        float slide = 0;
+        if (cfg.spotifyPeek) { // only for a moment when a song starts: slides in, stays, slides out
+            long since = System.currentTimeMillis() - peekAt;
+            if (since > 6000) return;
+            slide = since < 300 ? 1 - since / 300f : since > 5600 ? (since - 5600) / 400f : 0;
+        }
         TextRenderer tr = mc.textRenderer;
         List<Spotify.Line> lyrics = Spotify.lyrics;
         String lyric = line >= 0 && line < lyrics.size() ? lyrics.get(line).text() : null;
         int w = 176, h = lyric != null && !lyric.isEmpty() ? 58 : 46, m = 6;
+        float k = Math.max(50, Math.min(200, cfg.spotifyScale)) / 100f;
         int sw = ctx.getScaledWindowWidth(), sh = ctx.getScaledWindowHeight();
-        int corner = Config.INSTANCE.spotifyCorner;
-        int x = corner % 2 == 0 ? m : sw - w - m;
-        int y = corner < 2 ? m : sh - h - m - (corner == 2 ? 40 : 0); // bottom left: above the chat line
+        int corner = cfg.spotifyCorner;
+        float px = corner % 2 == 0 ? m : sw - w * k - m;
+        float py = corner < 2 ? m : sh - h * k - m - (corner == 2 ? 40 : 0); // bottom left: above the chat line
+        px += (corner % 2 == 0 ? -1 : 1) * slide * (w * k + m);
+        Matrix3x2fStack mat = ctx.getMatrices();
+        mat.pushMatrix();
+        mat.translate(px, py);
+        mat.scale(k, k);
+        int x = 0, y = 0;
         StyleScreen.glass(ctx, x, y, w, h, 10, 0xB00B1522, 0x9CFFFFFF);
         int c = 34;
         if (Spotify.coverReady) {
@@ -79,6 +97,7 @@ public final class SpotifyHud {
             int col = (Math.round(255 * fade) << 24) | 0x8AD6FF;
             ctx.drawText(tr, Text.literal(cut(tr, lyric, w - 12, UI)).setStyle(UI), x + 6, y + 45, col, false);
         }
+        mat.popMatrix();
     }
 
     // ---- lyrics on the sky ----

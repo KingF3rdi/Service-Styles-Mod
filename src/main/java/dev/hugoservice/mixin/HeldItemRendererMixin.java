@@ -3,7 +3,9 @@ package dev.hugoservice.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
+import dev.hugoservice.Config;
 import dev.hugoservice.KnifeAnimations;
+import net.minecraft.item.Items;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.item.HeldItemRenderer;
 import net.minecraft.client.util.math.MatrixStack;
@@ -26,6 +28,14 @@ public class HeldItemRendererMixin {
                                    MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Operation<Void> original,
                                    @Local(argsOnly = true) Hand hand, @Local(argsOnly = true, ordinal = 3) float equipProgress) {
         KnifeAnimations.apply(matrices, stack, hand == Hand.MAIN_HAND, equipProgress);
+        int size = stack.isOf(Items.SHIELD) ? Config.INSTANCE.shieldSize : stack.isOf(Items.TOTEM_OF_UNDYING) ? Config.INSTANCE.totemSize : 100;
+        if (size == 100) {
+            original.call(self, entity, stack, context, matrices, queue, light);
+            return;
+        }
+        matrices.push(); // shield / totem size in your hand
+        matrices.scale(size / 100f, size / 100f, size / 100f);
         original.call(self, entity, stack, context, matrices, queue, light);
+        matrices.pop();
     }
 }

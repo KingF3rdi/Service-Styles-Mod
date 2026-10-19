@@ -9,13 +9,20 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
 ## Features
 
 - **Collections** in sections (PvP, World, Interface) with sub-groups per object, e.g. Anchor → Anchors / Glowstone,
-  Tools → Swords / Axes / Pickaxes / Shovels / Hoes / Spears (quick-access bar on top)
+  Tools → Swords / Axes / Pickaxes / Shovels / Hoes / Spears. The sidebar shows what you picked in each collection,
+  the **Loadout** bar on top shows it as previews, the right panel has **Inspector** and **Themes** tabs, and every
+  item glows in its own colour behind its preview
 - **Styles**: Vanilla, *Current* (your active resource packs), 10 built-in colour presets and every pack you upload
   (`Upload` button, drag & drop a `.zip`, or packs already in `resourcepacks/`; old 1.8 PvP pack paths are understood)
 - 3D previews for blocks and the end crystal (as it stands in the world), sorting (For you, A–Z, Newest, Packs, Presets), search, favourites
 - **Apply** builds `resourcepacks/HugoService-Active` and reloads; **Save pack** writes a `.zip` to `resourcepacks/`
-- **Extras**: hit colour, hitbox colour (F3+B), block outline, cobweb outline (adjustable thickness),
-  player glow (only while the player is visible, not through walls), shield status (ready / disabled by axe),
+- **Extras**: hit colour (with strength), hitbox colour (F3+B), block outline (colour and thickness), cobweb outline
+  (adjustable thickness), player glow (only while the player is visible, not through walls; also yourself in F5,
+  rainbow, thickness), shield status (ready / disabled by axe), end crystal spin speed (or stopped) and core colour,
+  low fire, no fog (open air only), shield and totem size in your hand, totem pop size with a test pop, enchant glint
+  in your colour / a gradient / a rainbow, respawn anchor charges (own glow colour, full look from one charge, charge
+  lights that glow in the dark), crosshair gradient, kill effects (lightning, shockwave, light pillar, kill popup,
+  shatter, soul rise; optionally only your kills), a social badge next to the recipe book,
   totem counter (pops over heads, your totems beside the hotbar, optional chat line per pop),
   end crystal and shield opacity, name tag colour and size, inventory size, hide inventory model,
   name faker (own / enemy names; a real account name brings its skin and its MCTiers tier, else a default skin; hide tier tags), grey world, grass colour,
@@ -42,7 +49,7 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
   *Collections → Cosmetics* with a live 3D preview. Drop any `.png` into the Capes view for your **own cape**
   (a 64x32 cape texture, or any picture); own capes are only visible to you.
 - **Spotify player**: a glass "now playing" window in a corner and time-synced lyrics (from LRCLIB) in the window or
-  written on the sky as 3D text, seen in perspective: it moves to where you look once a line is over (or stays over a
+  written on the sky as 3D text, seen in perspective (window size adjustable, or shown only when a song starts): it moves to where you look once a line is over (or stays over a
   fixed side). Lyrics are also found when Spotify names a song differently ("Song - Remix"), and asked again when LRCLIB is busy. **Automatic** (default, Windows): finds what plays in Spotify through the Windows media controls,
   no login, works with Spotify Free, play / pause / skip included (optionally any music app). **Spotify account**:
   your own app on developer.spotify.com (redirect URI `http://127.0.0.1:43219/callback`), controls need Premium.

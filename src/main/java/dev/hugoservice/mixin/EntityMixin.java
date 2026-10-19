@@ -15,6 +15,6 @@ public class EntityMixin {
     @Inject(method = "getTeamColorValue", at = @At("HEAD"), cancellable = true)
     private void hugoservice$glowColor(CallbackInfoReturnable<Integer> cir) {
         Entity self = (Entity) (Object) this;
-        if (self instanceof PlayerEntity && Fx.glowing(self.getId())) cir.setReturnValue(Config.INSTANCE.fx(Fx.GLOW));
+        if (self instanceof PlayerEntity && Fx.glowing(self.getId())) cir.setReturnValue(Fx.glowColor());
     }
 }

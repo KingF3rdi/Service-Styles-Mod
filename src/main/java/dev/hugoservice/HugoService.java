@@ -26,6 +26,10 @@ public class HugoService implements ClientModInitializer {
         dev.hugoservice.cosmetics.CosmeticRendering.init();
         SpotifyHud.init();
         TotemCounter.init();
+        KillEffects.init();
+        // glowing anchor pixels are an extra layer with see-through parts, which needs the cutout layer
+        net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap.putBlock(net.minecraft.block.Blocks.RESPAWN_ANCHOR,
+            net.minecraft.client.render.BlockRenderLayer.CUTOUT);
         KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("hugoservice", "main"));
         OPEN = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.open", InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_RIGHT_SHIFT, category));
@@ -46,6 +50,7 @@ public class HugoService implements ClientModInitializer {
             while (INSPECT.wasPressed()) inspect = true;
             KnifeAnimations.tick(client, inspect);
             Spotify.tick();
+            Glint.tick(client);
         });
     }
 }

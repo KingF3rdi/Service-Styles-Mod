@@ -95,7 +95,7 @@ public class StyleScreen extends Screen {
     private final Map<String, List<Style>> lists = new HashMap<>();
     private Hit dragging;
     private Category cat = Categories.byId(cfg.lastCategory);
-    private boolean extras, favOnly, dirty, busy, skipChar, waitingKey, painted;
+    private boolean extras, favOnly, dirty, busy, skipChar, waitingKey, painted, themesTab;
     private String groupFilter; // null = all sub-groups
     private CosmeticCategory cosCat; // non-null = cosmetics view
     private boolean crosshairView; // own crosshair tab
@@ -105,7 +105,7 @@ public class StyleScreen extends Screen {
     private int gridMax, sideMax, extrasMax;
     private String status;
     private long statusUntil;
-    private TextFieldWidget search, packName, fakeField, enemyField, urlField, spotifyField;
+    private TextFieldWidget search, packName, fakeField, enemyField, badgeField, urlField, spotifyField;
     private int mouseX, mouseY;
 
     // layout
@@ -123,7 +123,7 @@ public class StyleScreen extends Screen {
         TEXT_CACHE.clear();
         BOLD_CACHE.clear();
         L = 10; T = 10; R = width - 10; B = height - 10;
-        sideR = L + 118;
+        sideR = L + 132;
         insL = width >= 500 ? R - 130 : R;
         cx0 = sideR + 10;
         cx1 = insL < R ? insL - 10 : R - 10;
@@ -165,6 +165,15 @@ public class StyleScreen extends Screen {
         enemyField.setChangedListener(s -> cfg.fakeEnemyName = s.trim());
         enemyField.visible = false;
         addDrawableChild(enemyField);
+
+        badgeField = new TextFieldWidget(textRenderer, 0, 0, 80, 10, Text.literal("Badge name"));
+        styleField(badgeField);
+        badgeField.setMaxLength(24);
+        badgeField.setText(cfg.badgeName);
+        badgeField.setPlaceholder(Text.literal("Your name").withColor(0xFF6D829B));
+        badgeField.setChangedListener(s -> cfg.badgeName = s.trim());
+        badgeField.visible = false;
+        addDrawableChild(badgeField);
 
         urlField = new TextFieldWidget(textRenderer, 0, 0, 80, 10, Text.literal("Server URL"));
         styleField(urlField);
@@ -249,6 +258,7 @@ public class StyleScreen extends Screen {
         hoveredCos = null;
         fakeField.visible = false; // the name faker block shows it when on screen
         enemyField.visible = false;
+        badgeField.visible = false;
         urlField.visible = false;
         spotifyField.visible = false;
 
@@ -270,21 +280,60 @@ public class StyleScreen extends Screen {
         bold(ctx, "HugoService", L + 34, T + 8, TEXT);
         text(ctx, "Style Archive", L + 34, T + 18, MUTED);
 
+        // loadout: what you wear in each collection; click one to open it
         int n = Categories.ALL.size();
-        int room = R - 12 - (L + 150);
+        int room = R - 12 - (L + 150) - width("LOADOUT") - 10;
         int shown = Math.max(0, Math.min(n, (room + 2) / 22));
         int x = R - 12 - shown * 22 + 2;
+        if (shown > 0) text(ctx, "LOADOUT", x - 8 - width("LOADOUT"), T + 13, DIM);
         for (int i = 0; i < shown; i++) {
             Category c = Categories.ALL.get(i);
             int ix = x + i * 22;
-            boolean custom = false;
-            for (Group g : c.groups()) custom |= !cfg.styleOf(g.id()).equals(Styles.VANILLA_ID) || cfg.colorOf(g.id()) != null;
             boolean on = c == cat && !extras && cosCat == null && !crosshairView;
             lens(ctx, ix, T + 7, 20, 20, 7, on ? ACCENT_SOFT : over(ix, T + 7, 20, 20) ? HOVER : PANEL);
-            item(ctx, c, ix + 5, T + 12);
-            if (custom) round(ctx, ix + 8, T + 29, 4, 2, 1, on ? ACCENT : GOOD);
+            if (on) roundOutline(ctx, ix, T + 7, 20, 20, 7, ACCENT, 0);
+            collectionIcon(ctx, c, ix + 2, T + 9, 16);
             hit(ix, T + 7, 20, 20, (a, b, btn) -> selectCategory(c));
         }
+    }
+
+    /** What you wear in a collection: its preview, or the collection's item while it is all vanilla. */
+    private void collectionIcon(DrawContext ctx, Category c, int x, int y, int size) {
+        for (Group g : c.groups()) {
+            Style s = selected(g);
+            Integer tint = cfg.colorOf(g.id());
+            if (!s.vanilla || tint != null) { drawThumb(ctx, g, s, tint, x, y, size, size, 0, false); return; }
+        }
+        item(ctx, c, x + (size - 10) / 2, y + (size - 10) / 2);
+    }
+
+    /** The styles picked in a collection, for the line under its name. */
+    private String wornNames(Category c) {
+        StringBuilder sb = new StringBuilder();
+        for (Group g : c.groups()) {
+            Style s = selected(g);
+            if (!s.vanilla) sb.append(sb.isEmpty() ? "" : " / ").append(s.name);
+        }
+        return sb.isEmpty() ? "Vanilla" : sb.toString();
+    }
+
+    private static final int ROW_H = 26;
+
+    /** Sidebar row: icon box, the name with what you picked under it, a count on the right. */
+    private void sideRow(DrawContext ctx, int x0, int w, int ry, int listTop, int bottom, boolean sel, String name, String sub,
+                         boolean picked, String right, java.util.function.BiConsumer<Integer, Integer> icon, Runnable open) {
+        boolean hov = over(x0 + 4, ry, w - 8, ROW_H - 1) && mouseY >= listTop && mouseY < bottom;
+        if (sel) lens(ctx, x0 + 4, ry, w - 8, ROW_H - 1, 7, PANEL_HI);
+        else if (hov) round(ctx, x0 + 4, ry, w - 8, ROW_H - 1, 7, 0x10FFFFFF);
+        if (sel) round(ctx, x0 + 4, ry + 7, 2, ROW_H - 15, 1, ACCENT);
+        round(ctx, x0 + 9, ry + 3, 20, 20, 6, 0x50060E18);
+        icon.accept(x0 + 11, ry + 5);
+        int tx = x0 + 34, tw = sideR - 10 - tx - (right.isEmpty() ? 0 : width(right) + 4);
+        text(ctx, ellipsize(name, tw), tx, ry + 4, sel || hov ? TEXT : MUTED);
+        text(ctx, ellipsize(sub, tw), tx, ry + 14, picked ? (sel ? ACCENT_HI : MUTED) : DIM);
+        if (!right.isEmpty()) text(ctx, right, sideR - 10 - width(right), ry + 9, sel ? ACCENT : DIM);
+        int y0 = Math.max(ry, listTop), y1 = Math.min(ry + ROW_H, bottom);
+        if (y1 > y0) hit(x0 + 4, y0, w - 8, y1 - y0, (a, b, btn) -> open.run());
     }
 
     private void drawSidebar(DrawContext ctx) {
@@ -297,23 +346,15 @@ public class StyleScreen extends Screen {
         segment(ctx, sx, sy, half, "Collections", !extras, () -> showExtras(false));
         segment(ctx, sx + half, sy, sw - half, "Extras", extras, () -> showExtras(true));
 
-        int listTop = sy + 22, bottom = B - 36, rowH = 19;
+        int listTop = sy + 22, bottom = B - 36;
         sideScroll = clamp(sideScroll, 0, sideMax);
         ctx.enableScissor(x0, listTop, sideR, bottom);
         int ry = listTop - (int) sideScroll;
         // own crosshair tab, pinned on top
         boolean chSel = crosshairView && !extras;
-        boolean chHov = over(x0 + 4, ry, w - 8, rowH - 1) && mouseY >= listTop && mouseY < bottom;
-        if (chSel) lens(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
-        else if (chHov) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, 0x10FFFFFF);
-        if (chSel) round(ctx, x0 + 4, ry + 4, 2, rowH - 9, 1, ACCENT);
-        Crosshair.draw(ctx, CROSSHAIR_ICON, x0 + 16, ry + 9, chSel ? ACCENT & 0xFFFFFF : 0xE6F2FF, false, null);
-        String chState = cfg.chOn ? "On" : "Off";
-        text(ctx, "Crosshair", x0 + 26, ry + 5, chSel || chHov ? TEXT : MUTED);
-        text(ctx, chState, sideR - 10 - width(chState), ry + 5, cfg.chOn ? ACCENT : DIM);
-        int cy0 = Math.max(ry, listTop), cy1 = Math.min(ry + rowH, bottom);
-        if (cy1 > cy0) hit(x0 + 4, cy0, w - 8, cy1 - cy0, (a, b, btn) -> openCrosshair());
-        ry += rowH + 2;
+        sideRow(ctx, x0, w, ry, listTop, bottom, chSel, "Crosshair", cfg.chOn ? "On  ·  " + cfg.chStyle : "Off", cfg.chOn, "",
+            (ix, iy) -> Crosshair.draw(ctx, CROSSHAIR_ICON, ix + 8, iy + 8, chSel ? ACCENT & 0xFFFFFF : 0xE6F2FF, false, null), this::openCrosshair);
+        ry += ROW_H + 2;
         String section = null;
         for (Category c : Categories.ALL) {
             if (!c.section().equals(section)) {
@@ -322,35 +363,23 @@ public class StyleScreen extends Screen {
                 ry += 15;
             }
             boolean sel = c == cat && !extras && cosCat == null && !crosshairView;
-            boolean hov = over(x0 + 4, ry, w - 8, rowH - 1) && mouseY >= listTop && mouseY < bottom;
-            if (sel) lens(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
-            else if (hov) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, 0x10FFFFFF);
-            if (sel) round(ctx, x0 + 4, ry + 4, 2, rowH - 9, 1, ACCENT);
-            item(ctx, c, x0 + 11, ry + 4);
-            String cnt = String.valueOf(count(c));
-            text(ctx, ellipsize(c.name(), sideR - 16 - width(cnt) - (x0 + 26)), x0 + 26, ry + 5, sel || hov ? TEXT : MUTED);
-            text(ctx, cnt, sideR - 10 - width(cnt), ry + 5, sel ? ACCENT : DIM);
-            int y0 = Math.max(ry, listTop), y1 = Math.min(ry + rowH, bottom);
-            if (y1 > y0) hit(x0 + 4, y0, w - 8, y1 - y0, (a, b, btn) -> selectCategory(c));
-            ry += rowH;
+            String worn = wornNames(c);
+            sideRow(ctx, x0, w, ry, listTop, bottom, sel, c.name(), worn, !worn.equals("Vanilla"), String.valueOf(count(c)),
+                (ix, iy) -> collectionIcon(ctx, c, ix, iy, 16), () -> selectCategory(c));
+            ry += ROW_H;
         }
         // cosmetics (based on Titus Cosmetics): one entry per category
         text(ctx, "COSMETICS", x0 + 10, ry + 4, DIM);
         ry += 15;
+        Loadout lo = CosmeticSync.local();
         for (CosmeticCategory cc : CosmeticCategory.values()) {
             List<Cosmetic> items = CosmeticCatalog.ofCategory(cc);
-            boolean sel = cc == cosCat && !extras;
-            boolean hov = over(x0 + 4, ry, w - 8, rowH - 1) && mouseY >= listTop && mouseY < bottom;
-            if (sel) lens(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, PANEL_HI);
-            else if (hov) round(ctx, x0 + 4, ry, w - 8, rowH - 1, 6, 0x10FFFFFF);
-            if (sel) round(ctx, x0 + 4, ry + 4, 2, rowH - 9, 1, ACCENT);
-            if (!items.isEmpty()) cosmeticIcon(ctx, items.getFirst(), x0 + 9, ry + 2, 14);
-            String cnt = String.valueOf(items.size());
-            text(ctx, ellipsize(cc.label(), sideR - 16 - width(cnt) - (x0 + 26)), x0 + 26, ry + 5, sel || hov ? TEXT : MUTED);
-            text(ctx, cnt, sideR - 10 - width(cnt), ry + 5, sel ? ACCENT : DIM);
-            int y0 = Math.max(ry, listTop), y1 = Math.min(ry + rowH, bottom);
-            if (y1 > y0) hit(x0 + 4, y0, w - 8, y1 - y0, (a, b, btn) -> openCosmetics(cc));
-            ry += rowH;
+            Cosmetic worn = lo.get(cc);
+            Cosmetic shown = worn != null ? worn : items.isEmpty() ? null : items.getFirst();
+            sideRow(ctx, x0, w, ry, listTop, bottom, cc == cosCat && !extras, cc.label(), worn == null ? "Nothing worn" : worn.name(),
+                worn != null, String.valueOf(items.size()), (ix, iy) -> { if (shown != null) cosmeticIcon(ctx, shown, ix, iy, 16); },
+                () -> openCosmetics(cc));
+            ry += ROW_H;
         }
         ctx.disableScissor();
         sideMax = Math.max(0, (int) (ry + sideScroll) - listTop - (bottom - listTop));
@@ -584,7 +613,7 @@ public class StyleScreen extends Screen {
     private void drawCosmeticInspector(DrawContext ctx) {
         int x = insL, top = T + 36, w = R - 8 - insL, ix = x + 8, iw = w - 16;
         glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
-        bold(ctx, "Preview", ix, top + 9, TEXT);
+        inspectorTabs(ctx, ix, top + 5, iw, "Preview");
         Loadout lo = CosmeticSync.local();
         List<Cosmetic> items = CosmeticCatalog.ofCategory(cosCat);
         Cosmetic shown = hoveredCos != null ? hoveredCos : lo.get(cosCat) != null ? lo.get(cosCat) : items.isEmpty() ? null : items.getFirst();
@@ -642,19 +671,37 @@ public class StyleScreen extends Screen {
         return lines;
     }
 
+    /** Top of the right panel: its own view, or the themes and menu settings. */
+    private void inspectorTabs(DrawContext ctx, int x, int y, int w, String label) {
+        int half = w / 2;
+        round(ctx, x, y, w, 16, 8, FIELD);
+        lens(ctx, themesTab ? x + half : x, y, themesTab ? w - half : half, 16, 8, ACCENT_SOFT);
+        segment(ctx, x, y, half, label, !themesTab, () -> themesTab = false);
+        segment(ctx, x + half, y, w - half, "Themes", themesTab, () -> themesTab = true);
+    }
+
+    private void drawThemesPanel(DrawContext ctx) {
+        int x = insL, top = T + 36, w = R - 8 - insL, ix = x + 8, iw = w - 16;
+        glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
+        inspectorTabs(ctx, ix, top + 5, iw, extras ? "Extras" : crosshairView || cosCat != null ? "Preview" : "Inspector");
+        drawThemes(ctx, ix, top + 28, iw);
+        drawMenuBlock(ctx, ix, top + 34 + themeHeight(iw), iw);
+    }
+
     private void drawInspector(DrawContext ctx) {
+        if (themesTab) { drawThemesPanel(ctx); return; }
         if (crosshairView && !extras) { drawCrosshairInspector(ctx); return; }
         if (cosCat != null && !extras) { drawCosmeticInspector(ctx); return; }
         int x = insL, top = T + 36, w = R - 8 - insL;
         glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
         int ix = x + 8, iw = w - 16;
         if (extras) {
-            bold(ctx, "Extras", ix, top + 9, TEXT);
-            String[] lines = {"Own colour tints the", "style you picked.", "", "Grey world removes", "colour from all blocks", "you don't keep.", "", "Font switches the", "menu between smooth", "and pixel text."};
+            inspectorTabs(ctx, ix, top + 5, iw, "Extras");
+            String[] lines = {"Own colour tints the", "style you picked.", "", "Grey world removes", "colour from all blocks", "you don't keep.", "", "Theme, font and blur:", "the Themes tab above."};
             for (int i = 0; i < lines.length; i++) text(ctx, lines[i], ix, top + 26 + i * 11, MUTED);
             return;
         }
-        bold(ctx, "Inspector", ix, top + 9, TEXT);
+        inspectorTabs(ctx, ix, top + 5, iw, "Inspector");
 
         Group fallback = cat.groups().getFirst();
         Pick p = hovered != null ? hovered : zoomed != null ? zoomed : new Pick(fallback, selected(fallback));
@@ -730,17 +777,33 @@ public class StyleScreen extends Screen {
         text(ctx, "Combat colours, world and menu", cx0, T + 48, MUTED);
         int inner = blockInner();
         layoutBlocks(ctx, List.of(
-            new Block(102, this::drawMenuBlock),
             new Block(76, this::drawKnifeOptions),
-            new Block(themeHeight(inner), this::drawThemes),
-            new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Hit colour", Fx.HIT, "Red flash when hit", Previews::hit)),
+            new Block(FX_H + 28, (c, x, y, w) -> {
+                fxBlock(c, x, y, w, "Hit colour", Fx.HIT, "Red flash when hit", Previews::hit);
+                sliderRow(c, x, y + 80, w, "Strength", cfg.hitStrength, 5, 100, v -> { cfg.hitStrength = v; Fx.applyHitColor(); });
+            }),
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Hitbox colour", Fx.HITBOX, "Shown with F3 + B", Previews::outline)),
-            new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Block outline", Fx.OUTLINE, "Block you look at", Previews::outline)),
+            new Block(FX_H + 28, (c, x, y, w) -> {
+                fxBlock(c, x, y, w, "Block outline", Fx.OUTLINE, "Block you look at", Previews::outline);
+                sliderRow(c, x, y + 80, w, "Thickness", cfg.outlineWidth, 1, 10, v -> cfg.outlineWidth = v, String::valueOf);
+            }),
             new Block(FX_H + 28, (c, x, y, w) -> {
                 fxBlock(c, x, y, w, "Cobweb outline", Fx.COBWEB, "Webs near you", Previews::cobweb);
                 sliderRow(c, x, y + 80, w, "Thickness", cfg.cobwebWidth, 1, 10, v -> cfg.cobwebWidth = v, String::valueOf);
             }),
-            new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Player glow", Fx.GLOW, "Only while visible", Previews::glow)),
+            new Block(FX_H + 56, (c, x, y, w) -> {
+                fxBlock(c, x, y, w, "Player glow", Fx.GLOW, "Only while visible", Previews::glow);
+                toggleRow(c, x, y + 80, w, "Myself (F5)", cfg.glowSelf, () -> { cfg.glowSelf = !cfg.glowSelf; Config.save(); });
+                toggleRow(c, x, y + 96, w, "Rainbow", cfg.glowRainbow, () -> { cfg.glowRainbow = !cfg.glowRainbow; Config.save(); });
+                sliderRow(c, x, y + 114, w, "Thickness (on Apply)", cfg.glowWidth, 1, 8, v -> { cfg.glowWidth = v; dirty = true; }, String::valueOf);
+            }),
+            new Block(116, this::drawCrystalOptions),
+            new Block(84, this::drawFireFog),
+            new Block(130, this::drawShieldTotem),
+            new Block(84, this::drawKillEffect),
+            new Block(74, this::drawSocialBadge),
+            new Block(cfg.glintMode == 2 ? 106 : cfg.glintMode == 1 ? 76 : 48, this::drawGlint),
+            new Block(cfg.anchorGlow != null ? 108 : 84, this::drawAnchorCharge),
             new Block(SHIELD_H, this::drawShieldStatus),
             new Block(86, this::drawTotemCounter),
             new Block(96, this::drawOpacity),
@@ -748,7 +811,7 @@ public class StyleScreen extends Screen {
             new Block(inventoryHeight(inner), this::drawInventoryTweaks),
             new Block(160, this::drawNameFaker),
             new Block(84, this::drawNameIcon),
-            new Block(196, this::drawSpotify),
+            new Block(236, this::drawSpotify),
             new Block(112, this::drawSkyOptions),
             new Block(greyWorldHeight(inner), this::drawGreyWorld),
             new Block(96, (c, x, y, w) -> drawColorBlock(c, grassGroup(), x, y, w))
@@ -983,7 +1046,10 @@ public class StyleScreen extends Screen {
             if (next > 0) cfg.spotifySkySide = next - 1;
         });
 
-        int ky = y + 172, kx = x;
+        toggleRow(ctx, x, y + 170, w, "Only when a song starts", cfg.spotifyPeek, () -> { cfg.spotifyPeek = !cfg.spotifyPeek; Config.save(); });
+        sliderRow(ctx, x, y + 186, w, "Window size", cfg.spotifyScale, 50, 200, v -> cfg.spotifyScale = v);
+
+        int ky = y + 214, kx = x;
         if (ky + 17 > bodyB) return;
         kx += button(ctx, kx, ky, 0, "Previous", false, Spotify::previous) + 5;
         kx += button(ctx, kx, ky, 0, Spotify.playing ? "Pause" : "Play", false, Spotify::playPause) + 5;
@@ -1036,6 +1102,91 @@ public class StyleScreen extends Screen {
             set.accept(Math.round(min + t * (max - min)));
             painted = true; // saved on mouse release
         });
+    }
+
+    /** End crystal: spin speed (with stop) and an own colour for the core. */
+    private void drawCrystalOptions(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Crystal", x, y);
+        sliderRow(ctx, x, y + 18, w, "Spin speed", cfg.crystalSpin, 0, 1000, v -> cfg.crystalSpin = v, v -> v == 0 ? "Stopped" : v + "%");
+        int by = y + 46;
+        if (by >= bodyY && by + 17 <= bodyB) { // buttons register plain hits, so only while fully inside the scroll area
+            int bx = x + button(ctx, x, by, 0, "Stop", false, () -> { cfg.crystalSpin = 0; Config.save(); }) + 5;
+            button(ctx, bx, by, 0, "Reset", false, () -> { cfg.crystalSpin = 100; Config.save(); });
+        }
+        toggleRow(ctx, x, y + 68, w, "Own core colour", cfg.crystalCore != null, () -> {
+            cfg.crystalCore = cfg.crystalCore == null ? 0xFF5CC8 : null;
+            Config.save();
+        });
+        if (cfg.crystalCore != null) colorPicker(ctx, x, y + 84, w, cfg.crystalCore, rgb -> { cfg.crystalCore = rgb; Config.save(); });
+        else text(ctx, ellipsize("The core inside the glass", w), x, y + 86, DIM);
+    }
+
+    /** Low fire and no fog. */
+    private void drawFireFog(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Fire & fog", x, y);
+        sliderRow(ctx, x, y + 18, w, "Fire height", cfg.fireHeight, 10, 100, v -> cfg.fireHeight = v);
+        toggleRow(ctx, x, y + 48, w, "No fog", cfg.noFog, () -> { cfg.noFog = !cfg.noFog; Config.save(); });
+        text(ctx, ellipsize("Open air; water, lava and blindness keep theirs", w), x, y + 64, DIM);
+    }
+
+    /** Shield and totem size in your hand, the size of the totem pop, and a test pop. */
+    private void drawShieldTotem(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Shield & totem", x, y);
+        sliderRow(ctx, x, y + 18, w, "Shield size in hand", cfg.shieldSize, 30, 150, v -> cfg.shieldSize = v);
+        sliderRow(ctx, x, y + 46, w, "Totem size in hand", cfg.totemSize, 30, 150, v -> cfg.totemSize = v);
+        sliderRow(ctx, x, y + 74, w, "Pop size", cfg.popSize, 20, 200, v -> cfg.popSize = v);
+        int by = y + 104;
+        if (by >= bodyY && by + 17 <= bodyB) {
+            int bx = x + button(ctx, x, by, 0, "Test pop", false, TotemCounter::testPop) + 5;
+            button(ctx, bx, by, 0, "Reset", false, () -> { cfg.shieldSize = cfg.totemSize = cfg.popSize = 100; Config.save(); });
+        }
+    }
+
+    /** Enchant glint: vanilla, your colour, a gradient or a rainbow. */
+    private void drawGlint(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Enchant glint", x, y);
+        chipRow(ctx, x, y + 18, w, "Glint", Glint.MODES[Math.floorMod(cfg.glintMode, 4)],
+            btn -> cfg.glintMode = Math.floorMod(cfg.glintMode + (btn == 1 ? -1 : 1), 4));
+        if (cfg.glintMode == 1 || cfg.glintMode == 2) colorPicker(ctx, x, y + 40, w, cfg.glintColor, rgb -> { cfg.glintColor = rgb; Config.save(); });
+        if (cfg.glintMode == 2) {
+            text(ctx, "Fades to", x, y + 68, MUTED);
+            colorPicker(ctx, x, y + 78, w, cfg.glintColor2, rgb -> { cfg.glintColor2 = rgb; Config.save(); });
+        }
+    }
+
+    /** Respawn anchor charges (written into the pack, so they need Apply). */
+    private void drawAnchorCharge(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Anchor charge", x, y);
+        toggleRow(ctx, x, y + 17, w, "Own glow colour", cfg.anchorGlow != null, () -> { cfg.anchorGlow = cfg.anchorGlow == null ? 0xB388FF : null; changed(); });
+        int ry = y + 33;
+        if (cfg.anchorGlow != null) {
+            colorPicker(ctx, x, ry, w, cfg.anchorGlow, rgb -> { cfg.anchorGlow = rgb; changed(); });
+            ry += 24;
+        }
+        toggleRow(ctx, x, ry, w, "Look full at 1 charge", cfg.anchorFullAtOne, () -> { cfg.anchorFullAtOne = !cfg.anchorFullAtOne; changed(); });
+        toggleRow(ctx, x, ry + 16, w, "Glowing pixels", cfg.anchorGlowPixels, () -> { cfg.anchorGlowPixels = !cfg.anchorGlowPixels; changed(); });
+        text(ctx, ellipsize("Charge lights glow in the dark  ·  on Apply", w), x, ry + 33, DIM);
+    }
+
+    /** Kill effect: what happens where a player dies. */
+    private void drawKillEffect(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Kill effect", x, y);
+        int n = KillEffects.NAMES.length;
+        chipRow(ctx, x, y + 18, w, "Effect", KillEffects.NAMES[Math.floorMod(cfg.killEffect, n)],
+            btn -> cfg.killEffect = Math.floorMod(cfg.killEffect + (btn == 1 ? -1 : 1), n));
+        toggleRow(ctx, x, y + 38, w, "Only my kills", cfg.killOnlyMine, () -> { cfg.killOnlyMine = !cfg.killOnlyMine; Config.save(); });
+        int by = y + 58;
+        var player = client == null ? null : client.player;
+        if (by >= bodyY && by + 17 <= bodyB && player != null && cfg.killEffect > 0) button(ctx, x, by, 0, "Try it", false, () ->
+            KillEffects.play(cfg.killEffect, player.getEntityPos().add(player.getRotationVector().multiply(5, 0, 5)), player.getDisplayName()));
+    }
+
+    /** Social badge: a name next to the recipe book in your inventory. */
+    private void drawSocialBadge(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Social badge", x, y);
+        toggleRow(ctx, x, y + 17, w, "Show badge", cfg.badgeOn, () -> { cfg.badgeOn = !cfg.badgeOn; Config.save(); });
+        nameField(ctx, badgeField, x, y + 33, w);
+        text(ctx, ellipsize("Next to the recipe book in your inventory", w), x, y + 54, DIM);
     }
 
     /** Totem counter: pops per player and your own totems. */
@@ -1118,7 +1269,7 @@ public class StyleScreen extends Screen {
             new Block(chMainHeight(inner), this::drawChMain),
             new Block(chPresetsHeight(inner), this::drawChPresets),
             pixel ? new Block(crosshairHeight(inner), this::drawCrosshairPainter) : new Block(150, this::drawChShape),
-            new Block(84, this::drawChColour),
+            new Block(cfg.chGradient ? 130 : 100, this::drawChColour),
             new Block(104, this::drawChIndicator)
         ));
     }
@@ -1196,6 +1347,11 @@ public class StyleScreen extends Screen {
         section(ctx, "Colour", x, y);
         colorPicker(ctx, x, y + 18, w, cfg.chColor, rgb -> { cfg.chColor = rgb; painted = true; });
         sliderRow(ctx, x, y + 50, w, "Opacity", cfg.chAlpha, 10, 100, v -> cfg.chAlpha = v);
+        toggleRow(ctx, x, y + 78, w, "Gradient", cfg.chGradient, () -> { cfg.chGradient = !cfg.chGradient; Config.save(); });
+        if (cfg.chGradient) {
+            text(ctx, "Fades to", x, y + 94, MUTED);
+            colorPicker(ctx, x, y + 104, w, cfg.chColor2, rgb -> { cfg.chColor2 = rgb; painted = true; });
+        }
     }
 
     /** Entity indicator: other colour (and a marker) while the crosshair is on a mob or player. */
@@ -1211,7 +1367,7 @@ public class StyleScreen extends Screen {
     private void drawCrosshairInspector(DrawContext ctx) {
         int x = insL, top = T + 36, w = R - 8 - insL, ix = x + 8, iw = w - 16;
         glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
-        bold(ctx, "Preview", ix, top + 9, TEXT);
+        inspectorTabs(ctx, ix, top + 5, iw, "Preview");
         int bh = Math.max(40, Math.min(96, (B - 32 - top - 66) / 2));
         Crosshair.Spec spec = Crosshair.Spec.of(cfg);
         int y1 = top + 24, y2 = y1 + bh + 18;
@@ -1698,7 +1854,7 @@ public class StyleScreen extends Screen {
             }
             return true;
         }
-        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || enemyField.isFocused() || urlField.isFocused() || spotifyField.isFocused();
+        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || enemyField.isFocused() || badgeField.isFocused() || urlField.isFocused() || spotifyField.isFocused();
         if (!typing) {
             if (input.key() == GLFW.GLFW_KEY_SLASH && !extras) {
                 setFocused(search);
@@ -1744,11 +1900,14 @@ public class StyleScreen extends Screen {
             if (Thumbs.known(key)) { String q = "?"; text(ctx, q, x + (w - width(q)) / 2, y + h / 2 - 4, DIM); }
             return;
         }
-        if (glow) {
-            int gw = w * 9 / 10, gh = h * 9 / 10;
+        if (glow) { // a wide soft halo and a brighter core in the item's own colour (grey items glow in the accent)
+            int color = (th.avg() == 0 ? ACCENT : th.avg()) & 0xFFFFFF;
             Shapes.Sprite gs = Shapes.glow();
-            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Shapes.ID, x + (w - gw) / 2, y + (h - gh) / 2, gs.u(), gs.v(), gw, gh, 64, 64,
-                Shapes.SIZE, Shapes.SIZE, 0xA0000000 | th.avg());
+            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Shapes.ID, x, y, gs.u(), gs.v(), w, h, 64, 64,
+                Shapes.SIZE, Shapes.SIZE, 0x8C000000 | color);
+            int cw = w * 3 / 5, ch = h * 3 / 5;
+            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Shapes.ID, x + (w - cw) / 2, y + (h - ch) / 2, gs.u(), gs.v(), cw, ch, 64, 64,
+                Shapes.SIZE, Shapes.SIZE, 0x66000000 | color);
         }
         int sf = scale();
         float bw = (w - pad * 2f) * sf, bh = (h - pad * 2f) * sf;
@@ -1854,6 +2013,14 @@ public class StyleScreen extends Screen {
     /** Liquid-glass panel: clear tinted body with a light sheen at the top and a specular rim. */
     private void glass(DrawContext ctx, float x, float y, float w, float h, float r, int fill) {
         glass(ctx, x, y, w, h, r, fill, 0x8CFFFFFF);
+    }
+
+    /** Social badge in the inventory: the name on a small glass pill. */
+    public static void badgePill(DrawContext ctx, int x, int y, String name) {
+        var tr = net.minecraft.client.MinecraftClient.getInstance().textRenderer;
+        glass(ctx, x, y, tr.getWidth(name) + 12, 13, 6.5f, 0xD00B1522, 0x9CFFFFFF);
+        ctx.drawText(tr, name, x + 6, y + 3, 0xFFF2F8FF, false);
+        Shapes.flush();
     }
 
     static void glass(DrawContext ctx, float x, float y, float w, float h, float r, int fill, int rimColor) {

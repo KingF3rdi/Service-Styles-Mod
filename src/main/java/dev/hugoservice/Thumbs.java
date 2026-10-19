@@ -23,7 +23,7 @@ final class Thumbs {
     static final int SIZE = 2048, MAX = 128;
     static final Identifier ATLAS = Identifier.of("hugoservice", "thumbs");
 
-    /** Region in the atlas; avg = average colour of the visible pixels (for the glow). */
+    /** Region in the atlas; avg = the vivid colour of the visible pixels for the glow behind it, 0 when it is grey. */
     record Thumb(int u, int v, int w, int h, int avg) {}
 
     interface Source { BufferedImage get() throws Exception; }
@@ -98,13 +98,21 @@ final class Thumbs {
         shelfH = Math.max(shelfH, h);
 
         int[] px = img.getRGB(0, 0, w, h, null, 0, w);
-        long r = 0, g = 0, b = 0, n = 0;
+        // colourful pixels count more, so a pink crystal on black glows pink, not dark grey
+        double r = 0, g = 0, b = 0, n = 0, sat = 0, seen = 0;
         for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
             int c = px[y * w + x];
             atlas.setColorArgb(u + x, v + y, c);
-            if (c >>> 24 > 128) { r += c >> 16 & 255; g += c >> 8 & 255; b += c & 255; n++; }
+            if (c >>> 24 <= 128) continue;
+            int cr = c >> 16 & 255, cg = c >> 8 & 255, cb = c & 255, max = Math.max(cr, Math.max(cg, cb)), min = Math.min(cr, Math.min(cg, cb));
+            double s = max == 0 ? 0 : (max - min) / (double) max, wgt = 0.02 + s * s * max / 255.0;
+            r += cr * wgt; g += cg * wgt; b += cb * wgt; n += wgt; sat += s; seen++;
         }
-        int avg = n == 0 ? 0x6CC4F0 : (int) (r / n) << 16 | (int) (g / n) << 8 | (int) (b / n);
+        int avg = 0;
+        if (n > 0 && seen > 0 && sat / seen > 0.08) {
+            float[] hsb = java.awt.Color.RGBtoHSB((int) (r / n), (int) (g / n), (int) (b / n), null);
+            avg = java.awt.Color.HSBtoRGB(hsb[0], Math.max(0.55f, hsb[1]), 1f) & 0xFFFFFF;
+        }
         return new Thumb(u, v, w, h, avg);
     }
 
