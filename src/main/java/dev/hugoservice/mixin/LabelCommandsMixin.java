@@ -25,7 +25,7 @@ public class LabelCommandsMixin {
     @ModifyVariable(method = "add", at = @At("HEAD"), argsOnly = true)
     private Text hugoservice$color(Text text) {
         Integer c = Config.INSTANCE.fx(Fx.NAMETAG);
-        text = dev.hugoservice.NameFaker.apply(text);
+        text = dev.hugoservice.NameFaker.apply(text, true);
         return c == null ? text : Text.literal(text.getString()).withColor(c);
     }
 }

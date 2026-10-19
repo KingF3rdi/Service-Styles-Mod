@@ -105,7 +105,7 @@ public class StyleScreen extends Screen {
     private int gridMax, sideMax, extrasMax;
     private String status;
     private long statusUntil;
-    private TextFieldWidget search, packName, fakeField, urlField, spotifyField;
+    private TextFieldWidget search, packName, fakeField, enemyField, urlField, spotifyField;
     private int mouseX, mouseY;
 
     // layout
@@ -156,6 +156,15 @@ public class StyleScreen extends Screen {
         fakeField.setChangedListener(s -> { if (!s.isBlank()) cfg.fakeName = s.trim(); });
         fakeField.visible = false;
         addDrawableChild(fakeField);
+
+        enemyField = new TextFieldWidget(textRenderer, 0, 0, 80, 10, Text.literal("Enemy name"));
+        styleField(enemyField);
+        enemyField.setMaxLength(16);
+        enemyField.setText(cfg.fakeEnemyName);
+        enemyField.setPlaceholder(Text.literal("Enemy1234").withColor(0xFF6D829B));
+        enemyField.setChangedListener(s -> cfg.fakeEnemyName = s.trim());
+        enemyField.visible = false;
+        addDrawableChild(enemyField);
 
         urlField = new TextFieldWidget(textRenderer, 0, 0, 80, 10, Text.literal("Server URL"));
         styleField(urlField);
@@ -239,6 +248,7 @@ public class StyleScreen extends Screen {
         hovered = null;
         hoveredCos = null;
         fakeField.visible = false; // the name faker block shows it when on screen
+        enemyField.visible = false;
         urlField.visible = false;
         spotifyField.visible = false;
 
@@ -735,7 +745,7 @@ public class StyleScreen extends Screen {
             new Block(96, this::drawOpacity),
             new Block(104, this::drawNametags),
             new Block(inventoryHeight(inner), this::drawInventoryTweaks),
-            new Block(126, this::drawNameFaker),
+            new Block(160, this::drawNameFaker),
             new Block(84, this::drawNameIcon),
             new Block(196, this::drawSpotify),
             new Block(112, this::drawSkyOptions),
@@ -883,18 +893,23 @@ public class StyleScreen extends Screen {
     private void drawNameFaker(DrawContext ctx, int x, int y, int w) {
         section(ctx, "Name faker", x, y);
         toggleRow(ctx, x, y + 17, w, "Fake my name", cfg.fakeOwn, () -> { cfg.fakeOwn = !cfg.fakeOwn; Config.save(); });
-        // name input lives in a real text field, moved here every frame
-        int fy = y + 31;
-        round(ctx, x, fy, w, 15, 7.5f, FIELD);
-        if (fakeField.isFocused()) roundOutline(ctx, x, fy, w, 15, 7.5f, ACCENT, 0); else rim(ctx, x, fy, w, 15, 7.5f, 0x60FFFFFF);
-        fakeField.setX(x + 7);
-        fakeField.setY(fy + 3);
-        fakeField.setWidth(w - 14);
-        fakeField.visible = fy >= bodyY && fy + 15 <= bodyB;
-        toggleRow(ctx, x, y + 51, w, "Default skin (me)", cfg.fakeOwnSkin, () -> { cfg.fakeOwnSkin = !cfg.fakeOwnSkin; Config.save(); });
+        nameField(ctx, fakeField, x, y + 31, w);
+        toggleRow(ctx, x, y + 51, w, "Skin of that name (me)", cfg.fakeOwnSkin, () -> { cfg.fakeOwnSkin = !cfg.fakeOwnSkin; Config.save(); });
         toggleRow(ctx, x, y + 67, w, "Fake enemy names", cfg.fakeEnemies, () -> { cfg.fakeEnemies = !cfg.fakeEnemies; Config.save(); });
-        toggleRow(ctx, x, y + 83, w, "Default skin (enemies)", cfg.fakeEnemySkin, () -> { cfg.fakeEnemySkin = !cfg.fakeEnemySkin; Config.save(); });
-        toggleRow(ctx, x, y + 99, w, "Hide tier tags", cfg.hideTier, () -> { cfg.hideTier = !cfg.hideTier; Config.save(); });
+        nameField(ctx, enemyField, x, y + 81, w);
+        toggleRow(ctx, x, y + 101, w, "Skin of that name (enemies)", cfg.fakeEnemySkin, () -> { cfg.fakeEnemySkin = !cfg.fakeEnemySkin; Config.save(); });
+        toggleRow(ctx, x, y + 117, w, "Tier of that name", cfg.fakeTier, () -> { cfg.fakeTier = !cfg.fakeTier; Config.save(); });
+        toggleRow(ctx, x, y + 133, w, "Hide tier tags", cfg.hideTier, () -> { cfg.hideTier = !cfg.hideTier; Config.save(); });
+    }
+
+    /** A name input: a real text field, moved here every frame; a real account name brings its skin and tier. */
+    private void nameField(DrawContext ctx, TextFieldWidget field, int x, int fy, int w) {
+        round(ctx, x, fy, w, 15, 7.5f, FIELD);
+        if (field.isFocused()) roundOutline(ctx, x, fy, w, 15, 7.5f, ACCENT, 0); else rim(ctx, x, fy, w, 15, 7.5f, 0x60FFFFFF);
+        field.setX(x + 7);
+        field.setY(fy + 3);
+        field.setWidth(w - 14);
+        field.visible = fy >= bodyY && fy + 15 <= bodyB;
     }
 
     private void drawNameIcon(DrawContext ctx, int x, int y, int w) {
@@ -1669,7 +1684,7 @@ public class StyleScreen extends Screen {
             }
             return true;
         }
-        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || urlField.isFocused() || spotifyField.isFocused();
+        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || enemyField.isFocused() || urlField.isFocused() || spotifyField.isFocused();
         if (!typing) {
             if (input.key() == GLFW.GLFW_KEY_SLASH && !extras) {
                 setFocused(search);

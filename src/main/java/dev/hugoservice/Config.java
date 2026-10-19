@@ -68,6 +68,10 @@ public final class Config {
     /** Name faker. */
     public boolean fakeOwn = false, fakeEnemies = false, fakeOwnSkin = false, fakeEnemySkin = false, hideTier = false;
     public String fakeName = "Player";
+    /** Name for all enemies; empty = numbered "Enemy1234" names. */
+    public String fakeEnemyName = "";
+    /** Tier tags next to a faked name show that name's MCTiers tier. */
+    public boolean fakeTier = true;
     /** Name icon via the presence server (opt-in). */
     public boolean nameIcon = false;
     public String presenceUrl = "";
@@ -136,6 +140,7 @@ public final class Config {
         if (lastCategory == null) lastCategory = "crystal";
         if (theme == null) theme = "Ice";
         if (fakeName == null || fakeName.isBlank()) fakeName = "Player";
+        if (fakeEnemyName == null) fakeEnemyName = "";
         if (presenceUrl == null) presenceUrl = "";
         if (spotifyClientId == null) spotifyClientId = "";
         if (spotifyRefresh == null) spotifyRefresh = "";

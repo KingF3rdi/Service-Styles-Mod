@@ -14,6 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class PlayerListHudMixin {
     @Inject(method = "getPlayerName", at = @At("RETURN"), cancellable = true)
     private void hugoservice$fake(PlayerListEntry entry, CallbackInfoReturnable<Text> cir) {
-        cir.setReturnValue(dev.hugoservice.Presence.decorate(entry.getProfile().id(), NameFaker.apply(cir.getReturnValue())));
+        cir.setReturnValue(dev.hugoservice.Presence.decorate(entry.getProfile().id(), NameFaker.apply(cir.getReturnValue(), true)));
     }
 }

@@ -17,7 +17,7 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
 - **Extras**: hit colour, hitbox colour (F3+B), block outline, cobweb outline (adjustable thickness),
   player glow (only while the player is visible, not through walls), shield status (ready / disabled by axe),
   end crystal and shield opacity, name tag colour and size, inventory size, hide inventory model,
-  name faker (own / enemy names, default skins, hide tier tags), grey world, grass colour,
+  name faker (own / enemy names; a real account name brings its skin and its MCTiers tier, else a default skin; hide tier tags), grey world, grass colour,
   6 UI themes, smooth/pixel font, optional background blur. Every effect has a live preview in the menu;
   every colour picker also offers grey and black.
 - **Custom sky** (like Skyboxify): skyboxes from packs (OptiFine / MCPatcher `sky/world0` 3x2 layout) or your own
