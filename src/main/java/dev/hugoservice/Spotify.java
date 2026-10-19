@@ -231,7 +231,10 @@ public final class Spotify {
         if (!t.id().equals(lyricsFor)) {
             lyricsFor = t.id();
             lyrics = List.of();
-            lyrics = fetchLyrics(t);
+            Thread.ofVirtual().start(() -> {
+                List<Line> found = fetchLyrics(t);
+                if (t.id().equals(lyricsFor)) lyrics = found;
+            });
         }
         if (t.coverUrl() != null && !t.coverUrl().equals(coverFor)) {
             coverFor = t.coverUrl();
@@ -239,29 +242,66 @@ public final class Spotify {
         }
     }
 
-    /** Synced lyrics from LRCLIB (free, no account), empty when the song has none. */
-    private static List<Line> fetchLyrics(Track t) {
-        try {
-            String q = "?track_name=" + enc(t.name()) + "&artist_name=" + enc(t.artists().split(",")[0].trim())
-                + "&album_name=" + enc(t.album()) + "&duration=" + Math.round(t.durationMs() / 1000.0);
-            HttpResponse<String> res = HTTP.send(HttpRequest.newBuilder(URI.create("https://lrclib.net/api/get" + q))
-                .timeout(Duration.ofSeconds(8)).header("User-Agent", UA).GET().build(), HttpResponse.BodyHandlers.ofString());
-            String synced = null;
-            if (res.statusCode() == 200) synced = str(GSON.fromJson(res.body(), JsonObject.class), "syncedLyrics");
-            if (synced == null) { // fall back to a search, first hit with timings
-                String sq = "?track_name=" + enc(t.name()) + "&artist_name=" + enc(t.artists().split(",")[0].trim());
-                HttpResponse<String> s = HTTP.send(HttpRequest.newBuilder(URI.create("https://lrclib.net/api/search" + sq))
-                    .timeout(Duration.ofSeconds(8)).header("User-Agent", UA).GET().build(), HttpResponse.BodyHandlers.ofString());
-                if (s.statusCode() == 200) for (JsonElement e : GSON.fromJson(s.body(), JsonArray.class)) {
-                    synced = str(e.getAsJsonObject(), "syncedLyrics");
-                    if (synced != null) break;
-                }
+    /** Synced lyrics from LRCLIB (free, no account), empty when the song has none; asks again while LRCLIB is busy. */
+    static List<Line> fetchLyrics(Track t) {
+        for (int attempt = 0; attempt < 4; attempt++) {
+            if (attempt > 0) {
+                try { Thread.sleep(4000L * attempt); } catch (InterruptedException e) { return List.of(); }
+                if (!t.id().equals(lyricsFor) && !lyricsFor.isEmpty()) return List.of(); // song changed meanwhile
             }
-            return synced == null ? List.of() : parseLrc(synced);
-        } catch (Exception e) {
-            HugoService.LOG.debug("No lyrics for {}", t.name(), e);
-            return List.of();
+            try {
+                String synced = findLyrics(t);
+                return synced == null ? List.of() : parseLrc(synced);
+            } catch (java.io.IOException e) {
+                HugoService.LOG.debug("LRCLIB busy or offline for {}, trying again", t.name(), e);
+            } catch (Exception e) {
+                HugoService.LOG.debug("No lyrics for {}", t.name(), e);
+                return List.of();
+            }
         }
+        return List.of();
+    }
+
+    /**
+     * Exact match first; then a free search, because Spotify writes "Song - Artist Remix" where LRCLIB has
+     * "Song (Artist Remix)"; then the bare title. Searches only take a version of the same length, else lines run off.
+     */
+    private static String findLyrics(Track t) throws Exception {
+        String artist = t.artists().split(",")[0].trim();
+        long dur = Math.round(t.durationMs() / 1000.0);
+        HttpResponse<String> exact = lrclib("/api/get?track_name=" + enc(t.name()) + "&artist_name=" + enc(artist)
+            + "&album_name=" + enc(t.album()) + "&duration=" + dur);
+        if (exact.statusCode() == 200) {
+            String s = str(GSON.fromJson(exact.body(), JsonObject.class), "syncedLyrics");
+            if (s != null) return s;
+        }
+        String s = closest(lrclib("/api/search?q=" + enc(artist + " " + t.name().replaceAll("[()\\[\\]]|\\s-\\s", " "))), dur);
+        if (s != null) return s;
+        String bare = t.name().replaceAll("\\s*[(\\[].*?[)\\]]", "").replaceAll("\\s+-\\s.*$", "").trim();
+        return closest(lrclib("/api/search?track_name=" + enc(bare) + "&artist_name=" + enc(artist)), dur);
+    }
+
+    /** One LRCLIB request; a busy or failing server becomes an IOException so the caller tries again later. */
+    private static HttpResponse<String> lrclib(String path) throws Exception {
+        HttpResponse<String> res = HTTP.send(HttpRequest.newBuilder(URI.create("https://lrclib.net" + path))
+            .timeout(Duration.ofSeconds(8)).header("User-Agent", UA).GET().build(), HttpResponse.BodyHandlers.ofString());
+        if (res.statusCode() == 429 || res.statusCode() >= 500) throw new java.io.IOException("LRCLIB " + res.statusCode());
+        return res;
+    }
+
+    /** Synced lyrics of the search hit whose length is closest to the song (within 8 s), or null. */
+    static String closest(HttpResponse<String> res, long dur) {
+        if (res.statusCode() != 200) return null;
+        String best = null;
+        double bestDiff = 8.5;
+        for (JsonElement e : GSON.fromJson(res.body(), JsonArray.class)) {
+            JsonObject o = e.getAsJsonObject();
+            String s = str(o, "syncedLyrics");
+            if (s == null || !o.has("duration") || o.get("duration").isJsonNull()) continue;
+            double diff = dur <= 0 ? 0 : Math.abs(o.get("duration").getAsDouble() - dur);
+            if (diff < bestDiff) { bestDiff = diff; best = s; }
+        }
+        return best;
     }
 
     static List<Line> parseLrc(String lrc) {

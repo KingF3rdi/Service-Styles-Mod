@@ -16,6 +16,7 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
 - **Apply** builds `resourcepacks/HugoService-Active` and reloads; **Save pack** writes a `.zip` to `resourcepacks/`
 - **Extras**: hit colour, hitbox colour (F3+B), block outline, cobweb outline (adjustable thickness),
   player glow (only while the player is visible, not through walls), shield status (ready / disabled by axe),
+  totem counter (pops over heads, your totems beside the hotbar, optional chat line per pop),
   end crystal and shield opacity, name tag colour and size, inventory size, hide inventory model,
   name faker (own / enemy names; a real account name brings its skin and its MCTiers tier, else a default skin; hide tier tags), grey world, grass colour,
   6 UI themes, smooth/pixel font, optional background blur. Every effect has a live preview in the menu;
@@ -41,7 +42,8 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
   *Collections → Cosmetics* with a live 3D preview. Drop any `.png` into the Capes view for your **own cape**
   (a 64x32 cape texture, or any picture); own capes are only visible to you.
 - **Spotify player**: a glass "now playing" window in a corner and time-synced lyrics (from LRCLIB) in the window or
-  written on the sky as 3D text, fixed over one side (north, east, south or west) and seen in perspective. **Automatic** (default, Windows): finds what plays in Spotify through the Windows media controls,
+  written on the sky as 3D text, seen in perspective: it moves to where you look once a line is over (or stays over a
+  fixed side). Lyrics are also found when Spotify names a song differently ("Song - Remix"), and asked again when LRCLIB is busy. **Automatic** (default, Windows): finds what plays in Spotify through the Windows media controls,
   no login, works with Spotify Free, play / pause / skip included (optionally any music app). **Spotify account**:
   your own app on developer.spotify.com (redirect URI `http://127.0.0.1:43219/callback`), controls need Premium.
 - **Name icon & sharing** (opt-in): players who use the mod get an icon in front of their name and see each

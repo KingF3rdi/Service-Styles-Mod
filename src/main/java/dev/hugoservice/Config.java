@@ -62,6 +62,7 @@ public final class Config {
     public boolean spotifyWindow = true, spotifyLyrics = true, spotifySky = false;
     public int spotifyCorner = 1; // 0 top left, 1 top right, 2 bottom left, 3 bottom right
     public int spotifySkySide = 0; // sky lyrics stay over one side: 0 north, 1 east, 2 south, 3 west
+    public boolean spotifySkyFollow = true; // sky lyrics move to where you look, but only when a new line starts
     public String spotifyMode = "auto"; // auto = read Windows media (no login), account = Spotify Web API
     public boolean spotifyAnyApp = false; // auto mode: also other players (browser, YouTube...)
     public boolean hideInventoryModel = false;
@@ -72,6 +73,8 @@ public final class Config {
     public String fakeEnemyName = "";
     /** Tier tags next to a faked name show that name's MCTiers tier. */
     public boolean fakeTier = true;
+    /** Totem counter: pops over heads, your totems beside the hotbar, a chat line per pop. */
+    public boolean totemPops = true, totemHud = true, totemChat = false;
     /** Name icon via the presence server (opt-in). */
     public boolean nameIcon = false;
     public String presenceUrl = "";

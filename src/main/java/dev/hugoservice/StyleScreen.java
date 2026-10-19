@@ -742,6 +742,7 @@ public class StyleScreen extends Screen {
             }),
             new Block(FX_H, (c, x, y, w) -> fxBlock(c, x, y, w, "Player glow", Fx.GLOW, "Only while visible", Previews::glow)),
             new Block(SHIELD_H, this::drawShieldStatus),
+            new Block(86, this::drawTotemCounter),
             new Block(96, this::drawOpacity),
             new Block(104, this::drawNametags),
             new Block(inventoryHeight(inner), this::drawInventoryTweaks),
@@ -975,8 +976,12 @@ public class StyleScreen extends Screen {
         chipRow(ctx, x, y + 134, w, "Window", CORNERS[Math.floorMod(cfg.spotifyCorner, 4)],
             btn -> cfg.spotifyCorner = Math.floorMod(cfg.spotifyCorner + (btn == 1 ? -1 : 1), 4));
 
-        chipRow(ctx, x, y + 152, w, "Sky lyrics side", SIDES[Math.floorMod(cfg.spotifySkySide, 4)],
-            btn -> cfg.spotifySkySide = Math.floorMod(cfg.spotifySkySide + (btn == 1 ? -1 : 1), 4));
+        // "Follow view", then the four fixed sides
+        chipRow(ctx, x, y + 152, w, "Sky lyrics side", cfg.spotifySkyFollow ? "Follow view" : SIDES[Math.floorMod(cfg.spotifySkySide, 4)], btn -> {
+            int next = Math.floorMod((cfg.spotifySkyFollow ? 0 : Math.floorMod(cfg.spotifySkySide, 4) + 1) + (btn == 1 ? -1 : 1), 5);
+            cfg.spotifySkyFollow = next == 0;
+            if (next > 0) cfg.spotifySkySide = next - 1;
+        });
 
         int ky = y + 172, kx = x;
         if (ky + 17 > bodyB) return;
@@ -1031,6 +1036,15 @@ public class StyleScreen extends Screen {
             set.accept(Math.round(min + t * (max - min)));
             painted = true; // saved on mouse release
         });
+    }
+
+    /** Totem counter: pops per player and your own totems. */
+    private void drawTotemCounter(DrawContext ctx, int x, int y, int w) {
+        section(ctx, "Totem counter", x, y);
+        toggleRow(ctx, x, y + 17, w, "Pops over heads", cfg.totemPops, () -> { cfg.totemPops = !cfg.totemPops; Config.save(); });
+        toggleRow(ctx, x, y + 33, w, "My totems by the hotbar", cfg.totemHud, () -> { cfg.totemHud = !cfg.totemHud; Config.save(); });
+        toggleRow(ctx, x, y + 49, w, "Chat line per pop", cfg.totemChat, () -> { cfg.totemChat = !cfg.totemChat; Config.save(); });
+        text(ctx, ellipsize("Pops count again after a death", w), x, y + 66, DIM);
     }
 
     /** Shield status: tint while ready and while an axe disabled it. */

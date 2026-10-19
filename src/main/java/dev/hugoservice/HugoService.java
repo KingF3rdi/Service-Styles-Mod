@@ -25,6 +25,7 @@ public class HugoService implements ClientModInitializer {
         dev.hugoservice.cosmetics.CosmeticSync.init();
         dev.hugoservice.cosmetics.CosmeticRendering.init();
         SpotifyHud.init();
+        TotemCounter.init();
         KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("hugoservice", "main"));
         OPEN = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.open", InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_RIGHT_SHIFT, category));

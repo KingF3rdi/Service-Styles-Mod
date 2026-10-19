@@ -14,6 +14,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.StyleSpriteSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -27,7 +28,8 @@ public final class SpotifyHud {
         .withFont(new StyleSpriteSource.Font(Identifier.of("hugoservice", "bold")));
     /** Minecraft yaw of north, east, south, west (yaw 0 looks south). */
     private static final float[] SIDE_YAW = {180, 270, 0, 90};
-    private static int lastLine = -2;
+    private static int lastLine = -2, skyLine = -2;
+    private static float skyYaw = Float.NaN;
     private static long lineAt;
 
     static void init() {
@@ -82,8 +84,9 @@ public final class SpotifyHud {
     // ---- lyrics on the sky ----
 
     /**
-     * The current line hangs over the chosen side (north, east, south or west), 28° above the horizon, as real 3D
-     * text in the world: it stays put while you look around, is seen in perspective and blocks in front cover it.
+     * The current line hangs 28° above the horizon, as real 3D text in the world: over a fixed side, or (follow view)
+     * moving to where you look once a line is over. It stays put while you look around, is seen in perspective and
+     * blocks in front cover it.
      */
     private static void sky(WorldRenderContext ctx) {
         MinecraftClient mc = MinecraftClient.getInstance();
@@ -92,7 +95,18 @@ public final class SpotifyHud {
         int line = currentLine();
         List<Spotify.Line> lyrics = Spotify.lyrics;
         if (line < 0 || line >= lyrics.size() || lyrics.get(line).text().isEmpty()) return;
-        float yaw = SIDE_YAW[Math.floorMod(cfg.spotifySkySide, 4)], pitch = -28;
+        float yaw, pitch = -28;
+        if (cfg.spotifySkyFollow) {
+            // moves to where you look, but only once the line is over, and only when you look elsewhere
+            float look = mc.gameRenderer.getCamera().getYaw();
+            if (line != skyLine) {
+                skyLine = line;
+                if (Float.isNaN(skyYaw) || Math.abs(MathHelper.wrapDegrees(look - skyYaw)) > 40) skyYaw = look;
+            }
+            yaw = skyYaw;
+        } else {
+            yaw = SIDE_YAW[Math.floorMod(cfg.spotifySkySide, 4)];
+        }
         // far enough to look like sky, near enough to stay inside the view distance and its fog
         float dist = Math.max(48, Math.min(128, mc.options.getClampedViewDistance() * 8f)), scale = dist * 0.0105f;
         Vector3f at = dir(yaw, pitch).mul(dist);
