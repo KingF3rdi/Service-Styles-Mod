@@ -1178,7 +1178,7 @@ public class StyleScreen extends Screen {
         int by = y + 58;
         var player = client == null ? null : client.player;
         if (by >= bodyY && by + 17 <= bodyB && player != null && cfg.killEffect > 0) button(ctx, x, by, 0, "Try it", false, () ->
-            KillEffects.play(cfg.killEffect, player.getEntityPos().add(player.getRotationVector().multiply(5, 0, 5)), player.getDisplayName()));
+            KillEffects.play(cfg.killEffect, player.getEntityPos().add(player.getRotationVector().multiply(5, 0, 5)), player));
     }
 
     /** Social badge: a name next to the recipe book in your inventory. */

@@ -14,14 +14,14 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
   item glows in its own colour behind its preview
 - **Styles**: Vanilla, *Current* (your active resource packs), 10 built-in colour presets and every pack you upload
   (`Upload` button, drag & drop a `.zip`, or packs already in `resourcepacks/`; old 1.8 PvP pack paths are understood)
-- 3D previews for blocks and the end crystal (as it stands in the world), sorting (For you, A–Z, Newest, Packs, Presets), search, favourites
+- 3D previews for blocks and the end crystal (vanilla's own model, as a placed crystal stands on obsidian), sorting (For you, A–Z, Newest, Packs, Presets), search, favourites
 - **Apply** builds `resourcepacks/HugoService-Active` and reloads; **Save pack** writes a `.zip` to `resourcepacks/`
 - **Extras**: hit colour (with strength), hitbox colour (F3+B), block outline (colour and thickness), cobweb outline
   (adjustable thickness), player glow (only while the player is visible, not through walls; also yourself in F5,
   rainbow, thickness), shield status (ready / disabled by axe), end crystal spin speed (or stopped) and core colour,
   low fire, no fog (open air only), shield and totem size in your hand, totem pop size with a test pop, enchant glint
   in your colour / a gradient / a rainbow, respawn anchor charges (own glow colour, full look from one charge, charge
-  lights that glow in the dark), crosshair gradient, kill effects (lightning, shockwave, light pillar, kill popup,
+  lights that glow in the dark), crosshair gradient, kill effects (lightning, shockwave, light pillar, their head popping up,
   shatter, soul rise; optionally only your kills), a social badge next to the recipe book,
   totem counter (pops over heads, your totems beside the hotbar, optional chat line per pop),
   end crystal and shield opacity, name tag colour and size, inventory size, hide inventory model,

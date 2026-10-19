@@ -18,7 +18,10 @@ import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.ProfileComponent;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix3x2fStack;
@@ -29,15 +32,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Kill effects, on your screen only: where a player dies there is lightning, a shockwave, a pillar of light, a popup,
- * shards or rising souls. "Only my kills" needs your hit on them in the last 5 seconds.
+ * Kill effects, on your screen only: where a player dies there is lightning, a shockwave, a pillar of light, their
+ * head popping up, shards or rising souls. "Only my kills" needs your hit on them in the last 5 seconds.
  */
 public final class KillEffects {
     public static final String[] NAMES = {"Off", "Lightning", "Shockwave", "Light Pillar", "Kill Popup", "Shatter", "Soul Rise"};
     private static final Map<Integer, Long> HIT = new HashMap<>();
     private record Running(int type, Vec3d pos, int[] age) {}
     private static final List<Running> RUNNING = new ArrayList<>();
-    private static Text popup;
+    private static ItemStack popup;
     private static long popupAt;
     private static int nextId = -2_000_000; // own ids for the client-only lightning, far from the server's
 
@@ -58,11 +61,11 @@ public final class KillEffects {
         if (cfg.killEffect <= 0 || !(e instanceof PlayerEntity) || e == mc.player) return;
         Long hit = HIT.remove(e.getId());
         if (cfg.killOnlyMine && (hit == null || System.currentTimeMillis() - hit > 5000)) return;
-        play(cfg.killEffect, e.getEntityPos(), e.getDisplayName());
+        play(cfg.killEffect, e.getEntityPos(), (PlayerEntity) e);
     }
 
     /** Runs an effect at a position (also the menu's "Try it", in front of you). */
-    public static void play(int type, Vec3d pos, Text name) {
+    public static void play(int type, Vec3d pos, PlayerEntity victim) {
         MinecraftClient mc = MinecraftClient.getInstance();
         ClientWorld world = mc.world;
         if (world == null) return;
@@ -76,7 +79,8 @@ public final class KillEffects {
                 world.addEntity(bolt);
             }
             case 4 -> {
-                popup = name;
+                popup = new ItemStack(Items.PLAYER_HEAD); // their own head, with their skin
+                popup.set(DataComponentTypes.PROFILE, ProfileComponent.ofStatic(victim.getGameProfile()));
                 popupAt = System.currentTimeMillis();
                 world.playSoundClient(pos.x, pos.y, pos.z, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.6f, false);
             }
@@ -130,23 +134,18 @@ public final class KillEffects {
         });
     }
 
-    /** "Kill" popup above the crosshair: grows in, stays, fades out. */
+    /** Kill popup: their head pops up above the crosshair, bounces, then shrinks away. No text. */
     private static void hud(DrawContext ctx, RenderTickCounter tick) {
         if (popup == null) return;
         long t = System.currentTimeMillis() - popupAt;
-        if (t > 2200) { popup = null; return; }
-        MinecraftClient mc = MinecraftClient.getInstance();
-        float grow = Math.min(1, t / 180f), alpha = t > 1700 ? 1 - (t - 1700) / 500f : 1;
-        int a = Math.max(8, Math.round(255 * alpha));
+        if (t > 1600) { popup = null; return; }
+        float s = t < 160 ? t / 160f * 1.2f : t < 300 ? 1.2f - (t - 160) / 140f * 0.2f : t > 1200 ? 1 - (t - 1200) / 400f : 1;
+        if (s <= 0.02f) return;
         Matrix3x2fStack m = ctx.getMatrices();
         m.pushMatrix();
-        m.translate(ctx.getScaledWindowWidth() / 2f, ctx.getScaledWindowHeight() / 2f - 42);
-        float s = 1.2f + 0.6f * (1 - grow);
-        m.scale(s, s);
-        Text kill = Text.literal("KILL").withColor(0xFF4F4F);
-        ctx.drawText(mc.textRenderer, kill, -mc.textRenderer.getWidth(kill) / 2, -9, a << 24 | 0xFFFFFF, true);
-        m.scale(0.6f, 0.6f);
-        ctx.drawText(mc.textRenderer, popup, -mc.textRenderer.getWidth(popup) / 2, 4, a << 24 | 0xFFFFFF, true);
+        m.translate(ctx.getScaledWindowWidth() / 2f, ctx.getScaledWindowHeight() / 2f - 38);
+        m.scale(2.2f * s, 2.2f * s);
+        ctx.drawItem(popup, -8, -8);
         m.popMatrix();
     }
 

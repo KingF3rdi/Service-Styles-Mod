@@ -5,6 +5,8 @@ import dev.hugoservice.Categories.Group;
 import dev.hugoservice.Styles.Style;
 
 import org.joml.Matrix3f;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.awt.Graphics2D;
@@ -66,36 +68,40 @@ final class Previews {
     }
 
     /**
-     * End crystal as it stands in the world (vanilla model, frozen mid-spin): base plate, outer and
-     * inner glass tilted 60° about the diagonal, core inside. Real 3D faces, painted back to front.
+     * End crystal exactly as one placed by a player stands on obsidian: vanilla's model (outer glass at 24 px, inner
+     * glass x0.875 inside it and the core x0.765625 inside that, each turned by the spin and 60 degrees about the
+     * diagonal), drawn x2 and half a block down like EndCrystalEntityRenderer does, without the bedrock plate (placed
+     * crystals have none). Frozen halfway up its bob.
      */
     private static BufferedImage crystal(Style s, Integer tint) throws IOException {
         BufferedImage tex = load(s, "textures/entity/end_crystal/end_crystal.png");
         if (tex == null) return null;
         if (tint != null) Images.tint(tex, tint);
+        byte[] obsidianPng = Styles.vanilla("textures/block/obsidian.png"); // plain obsidian below every style
+        BufferedImage obsidian = obsidianPng == null ? null : Images.decode(obsidianPng);
         int k = Math.max(1, tex.getWidth() / 64);
-        float spin = (float) Math.toRadians(25), tilt = (float) Math.toRadians(60);
-        Vector3f axis = new Vector3f(0.70710677f, 0, 0.70710677f);
         Matrix3f view = new Matrix3f().rotateX((float) Math.toRadians(22)).rotateY((float) Math.toRadians(-30));
-        Matrix3f outer = new Matrix3f().rotateY(spin).rotate(tilt, axis);
-        Matrix3f step = new Matrix3f().rotate(tilt, axis).rotateY(spin).scale(0.875f);
-        Matrix3f inner = new Matrix3f(outer).mul(step), core = new Matrix3f(inner).mul(step);
-        Vector3f glass = new Vector3f(0, 16, 0); // model px; bob midpoint above the 4px base
+        float spin = (float) Math.toRadians(40), tilt = (float) (Math.PI / 3), s45 = (float) Math.sin(Math.PI / 4), bob = -16;
+        Matrix4f outer = new Matrix4f().scale(2).translate(0, -0.5f, 0).translate(0, (24 + bob / 2) / 16f, 0)
+            .rotate(new Quaternionf().rotationY(spin).rotateAxis(tilt, s45, 0, s45));
+        Matrix4f inner = new Matrix4f(outer).rotate(new Quaternionf().setAngleAxis(tilt, s45, 0, s45).rotateY(spin)).scale(0.875f);
+        Matrix4f core = new Matrix4f(inner).rotate(new Quaternionf().setAngleAxis(tilt, s45, 0, s45).rotateY(spin)).scale(0.765625f);
         List<Face> faces = new ArrayList<>();
-        box(faces, tex, k, view, new Matrix3f(), new Vector3f(0, 2, 0), 0, 16, 12, 4, 12);
-        box(faces, tex, k, view, core, glass, 32, 0, 8, 8, 8);
-        box(faces, tex, k, view, inner, glass, 0, 0, 8, 8, 8);
-        box(faces, tex, k, view, outer, glass, 0, 0, 8, 8, 8);
+        if (obsidian != null) block(faces, firstFrame(obsidian), view);
+        cuboid(faces, tex, k, view, core, 32, 0);
+        cuboid(faces, tex, k, view, inner, 0, 0);
+        cuboid(faces, tex, k, view, outer, 0, 0);
 
         float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
         for (Face f : faces) for (float[] p : f.corners()) {
             minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
             minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
         }
-        float sc = Math.min((SIZE - 8) / (maxX - minX), (SIZE - 8) / (maxY - minY));
-        float ox = (SIZE - (maxX - minX) * sc) / 2 - minX * sc, oy = (SIZE - (maxY - minY) * sc) / 2 - minY * sc;
+        int size = SIZE * 2; // the inspector shows it big, so twice the usual detail
+        float sc = Math.min((size - 12) / (maxX - minX), (size - 12) / (maxY - minY));
+        float ox = (size - (maxX - minX) * sc) / 2 - minX * sc, oy = (size - (maxY - minY) * sc) / 2 - minY * sc;
         faces.sort(Comparator.comparingDouble(Face::depth));
-        BufferedImage out = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage out = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = out.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         for (Face f : faces) {
@@ -112,30 +118,42 @@ final class Previews {
         float[][] corners() { return new float[][] {{ox, oy}, {ax, ay}, {bx, by}, {ax + bx - ox, ay + by - oy}}; }
     }
 
-    /** The six faces of a model box (Minecraft UV layout at u, v), turned by m and centred at c. */
-    private static void box(List<Face> out, BufferedImage tex, int k, Matrix3f view, Matrix3f m, Vector3f c,
-                            int u, int v, int w, int h, int d) {
-        float x = w / 2f, y = h / 2f, z = d / 2f;
-        quad(out, tex, k, view, m, c, u + d, v, w, d, -x, y, -z, w, 0, 0, 0, 0, d);                // top
-        quad(out, tex, k, view, m, c, u + d + w, v, w, d, -x, -y, z, w, 0, 0, 0, 0, -d);           // bottom
-        quad(out, tex, k, view, m, c, u, v + d, d, h, -x, y, -z, 0, 0, d, 0, -h, 0);               // west
-        quad(out, tex, k, view, m, c, u + d, v + d, w, h, -x, y, z, w, 0, 0, 0, -h, 0);            // south
-        quad(out, tex, k, view, m, c, u + d + w, v + d, d, h, x, y, z, 0, 0, -d, 0, -h, 0);        // east
-        quad(out, tex, k, view, m, c, u + 2 * d + w, v + d, w, h, x, y, -z, -w, 0, 0, 0, -h, 0);   // north
+    /** A vanilla 8 px model cuboid at (-4, -4, -4) with its texture at (u, v) in Minecraft's box layout; m: model px/16 to blocks. */
+    private static void cuboid(List<Face> out, BufferedImage tex, int k, Matrix3f view, Matrix4f m, int u, int v) {
+        float a = -4, b = 4, s = 8;
+        quad(out, tex.getSubimage((u + 8) * k, v * k, 8 * k, 8 * k), view, m, a, a, a, s, 0, 0, 0, 0, s, -1);        // bottom
+        quad(out, tex.getSubimage((u + 16) * k, v * k, 8 * k, 8 * k), view, m, a, b, b, s, 0, 0, 0, 0, -s, -1);      // top
+        quad(out, tex.getSubimage(u * k, (v + 8) * k, 8 * k, 8 * k), view, m, a, b, a, 0, 0, s, 0, -s, 0, -1);       // west
+        quad(out, tex.getSubimage((u + 8) * k, (v + 8) * k, 8 * k, 8 * k), view, m, b, b, a, -s, 0, 0, 0, -s, 0, -1); // north
+        quad(out, tex.getSubimage((u + 16) * k, (v + 8) * k, 8 * k, 8 * k), view, m, b, b, b, 0, 0, -s, 0, -s, 0, -1); // east
+        quad(out, tex.getSubimage((u + 24) * k, (v + 8) * k, 8 * k, 8 * k), view, m, a, b, b, s, 0, 0, 0, -s, 0, -1);  // south
     }
 
-    private static void quad(List<Face> out, BufferedImage tex, int k, Matrix3f view, Matrix3f m, Vector3f c,
-                             int tu, int tv, int tw, int th, float ox, float oy, float oz,
-                             float ax, float ay, float az, float bx, float by, float bz) {
-        Vector3f o = m.transform(new Vector3f(ox, oy, oz)).add(c);
-        Vector3f a = m.transform(new Vector3f(ax, ay, az)), b = m.transform(new Vector3f(bx, by, bz));
-        float light = 0.6f + 0.4f * Math.max(0, new Vector3f(b).cross(a).normalize().dot(LIGHT));
+    /** The obsidian block the crystal stands on, with Minecraft's block face shading. */
+    private static void block(List<Face> out, BufferedImage tex, Matrix3f view) {
+        Matrix4f m = new Matrix4f().translate(-0.5f, -1, -0.5f);
+        float s = 16;
+        quad(out, tex, view, m, 0, 16, 0, s, 0, 0, 0, 0, s, 1f);     // top
+        quad(out, tex, view, m, 0, 16, 0, 0, 0, s, 0, -s, 0, 0.6f);  // west
+        quad(out, tex, view, m, 16, 16, 0, -s, 0, 0, 0, -s, 0, 0.8f); // north
+        quad(out, tex, view, m, 16, 16, 16, 0, 0, -s, 0, -s, 0, 0.6f); // east
+        quad(out, tex, view, m, 0, 16, 16, s, 0, 0, 0, -s, 0, 0.8f);  // south
+    }
+
+    /**
+     * One face: corner o and edges a, b in px (y up), taken to blocks by m (px / 16 first). Light below 0 means
+     * "from the normal", else it is the fixed block shade.
+     */
+    private static void quad(List<Face> out, BufferedImage img, Matrix3f view, Matrix4f m, float ox, float oy, float oz,
+                             float ax, float ay, float az, float bx, float by, float bz, float shade) {
+        Vector3f o = m.transformPosition(new Vector3f(ox / 16, oy / 16, oz / 16));
+        Vector3f a = m.transformDirection(new Vector3f(ax / 16, ay / 16, az / 16)), b = m.transformDirection(new Vector3f(bx / 16, by / 16, bz / 16));
+        float light = shade >= 0 ? shade : 0.78f + 0.22f * Math.abs(new Vector3f(a).cross(b).normalize().dot(LIGHT)); // glass shows both sides, lit like in game
         view.transform(o);
         view.transform(a);
         view.transform(b);
-        BufferedImage img = shade(tex.getSubimage(tu * k, tv * k, tw * k, th * k), light);
         float depth = o.z + (a.z + b.z) / 2; // face centre; bigger = nearer
-        out.add(new Face(img, o.x, -o.y, o.x + a.x, -(o.y + a.y), o.x + b.x, -(o.y + b.y), depth));
+        out.add(new Face(shade(img, light), o.x, -o.y, o.x + a.x, -(o.y + a.y), o.x + b.x, -(o.y + b.y), depth));
     }
 
     /** Vanilla overworld sky colours as a simple gradient. */
