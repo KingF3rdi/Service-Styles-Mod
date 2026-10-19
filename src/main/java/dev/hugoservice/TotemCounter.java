@@ -48,6 +48,16 @@ public final class TotemCounter {
             net.minecraft.sound.SoundCategory.PLAYERS, 1f, 1f, false);
     }
 
+    /** Everyone's pops back to zero (the menu's Reset button). */
+    public static void reset() {
+        POPS.clear();
+    }
+
+    /** How many players have pops counted right now. */
+    public static int counted() {
+        return POPS.size();
+    }
+
     /** Counts start over when a player dies or leaves. */
     private static void tick(MinecraftClient mc) {
         if (mc.world == null || mc.getNetworkHandler() == null) { POPS.clear(); return; }

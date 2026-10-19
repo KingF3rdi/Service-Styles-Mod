@@ -805,7 +805,7 @@ public class StyleScreen extends Screen {
             new Block(cfg.glintMode == 2 ? 106 : cfg.glintMode == 1 ? 76 : 48, this::drawGlint),
             new Block(cfg.anchorGlow != null ? 108 : 84, this::drawAnchorCharge),
             new Block(SHIELD_H, this::drawShieldStatus),
-            new Block(86, this::drawTotemCounter),
+            new Block(106, this::drawTotemCounter),
             new Block(96, this::drawOpacity),
             new Block(104, this::drawNametags),
             new Block(inventoryHeight(inner), this::drawInventoryTweaks),
@@ -1196,6 +1196,14 @@ public class StyleScreen extends Screen {
         toggleRow(ctx, x, y + 33, w, "My totems by the hotbar", cfg.totemHud, () -> { cfg.totemHud = !cfg.totemHud; Config.save(); });
         toggleRow(ctx, x, y + 49, w, "Chat line per pop", cfg.totemChat, () -> { cfg.totemChat = !cfg.totemChat; Config.save(); });
         text(ctx, ellipsize("Pops count again after a death", w), x, y + 66, DIM);
+        int by = y + 80;
+        if (by >= bodyY && by + 17 <= bodyB) { // buttons register plain hits, so only while fully inside the scroll area
+            int n = TotemCounter.counted();
+            button(ctx, x, by, 0, n == 0 ? "Reset pops" : "Reset pops (" + n + ")", false, () -> {
+                TotemCounter.reset();
+                status("Totem pops reset");
+            });
+        }
     }
 
     /** Shield status: tint while ready and while an axe disabled it. */
