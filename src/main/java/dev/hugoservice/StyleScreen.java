@@ -95,7 +95,8 @@ public class StyleScreen extends Screen {
     private final Map<String, List<Style>> lists = new HashMap<>();
     private Hit dragging;
     private Category cat = Categories.byId(cfg.lastCategory);
-    private boolean extras, favOnly, dirty, busy, skipChar, waitingKey, painted, themesTab;
+    private boolean extras, favOnly, dirty, busy, skipChar, painted, themesTab;
+    private KeyBinding waitingKey; // the key being set (click its chip, then press a key); null = none
     private String groupFilter; // null = all sub-groups
     private CosmeticCategory cosCat; // non-null = cosmetics view
     private boolean crosshairView; // own crosshair tab
@@ -1196,14 +1197,7 @@ public class StyleScreen extends Screen {
         toggleRow(ctx, x, y + 33, w, "My totems by the hotbar", cfg.totemHud, () -> { cfg.totemHud = !cfg.totemHud; Config.save(); });
         toggleRow(ctx, x, y + 49, w, "Chat line per pop", cfg.totemChat, () -> { cfg.totemChat = !cfg.totemChat; Config.save(); });
         text(ctx, ellipsize("Pops count again after a death", w), x, y + 66, DIM);
-        int by = y + 80;
-        if (by >= bodyY && by + 17 <= bodyB) { // buttons register plain hits, so only while fully inside the scroll area
-            int n = TotemCounter.counted();
-            button(ctx, x, by, 0, n == 0 ? "Reset pops" : "Reset pops (" + n + ")", false, () -> {
-                TotemCounter.reset();
-                status("Totem pops reset");
-            });
-        }
+        keyRow(ctx, x, y + 80, w, "Reset pops key", HugoService.RESET_POPS);
     }
 
     /** Shield status: tint while ready and while an axe disabled it. */
@@ -1510,16 +1504,21 @@ public class StyleScreen extends Screen {
             BOLD_CACHE.clear();
             Config.save();
         });
-        // menu key: click, then press any key (Esc cancels)
-        text(ctx, "Menu key", x, y + 59, TEXT);
-        String key = waitingKey ? "Press a key..." : HugoService.OPEN.getBoundKeyLocalizedText().getString();
-        int kw = width(key) + 14, kx = x + w - kw;
-        boolean hov = over(kx, y + 55, kw, 15);
-        lens(ctx, kx, y + 55, kw, 15, 7.5f, waitingKey ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
-        if (waitingKey) roundOutline(ctx, kx, y + 55, kw, 15, 7.5f, ACCENT, 0);
-        text(ctx, key, kx + 7, y + 59, waitingKey ? ACCENT_HI : TEXT);
-        clipHit(kx, y + 55, kw, 15, (a, b, btn) -> waitingKey = true);
+        keyRow(ctx, x, y + 55, w, "Menu key", HugoService.OPEN);
         toggleRow(ctx, x, y + 78, w, "Background blur", cfg.blur, () -> { cfg.blur = !cfg.blur; Config.save(); });
+    }
+
+    /** A key setting: click the chip, then press any key (Esc cancels). */
+    private void keyRow(DrawContext ctx, int x, int y, int w, String label, KeyBinding bind) {
+        boolean waiting = waitingKey == bind;
+        text(ctx, label, x, y + 4, TEXT);
+        String key = waiting ? "Press a key..." : bind.getBoundKeyLocalizedText().getString();
+        int kw = width(key) + 14, kx = x + w - kw;
+        boolean hov = over(kx, y, kw, 15);
+        lens(ctx, kx, y, kw, 15, 7.5f, waiting ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
+        if (waiting) roundOutline(ctx, kx, y, kw, 15, 7.5f, ACCENT, 0);
+        text(ctx, key, kx + 7, y + 4, waiting ? ACCENT_HI : TEXT);
+        clipHit(kx, y, kw, 15, (a, b, btn) -> waitingKey = bind);
     }
 
     private int themeHeight(int w) {
@@ -1811,7 +1810,7 @@ public class StyleScreen extends Screen {
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
-        waitingKey = false;
+        waitingKey = null;
         if (super.mouseClicked(click, doubled)) return true;
         setFocused(null);
         for (int i = hits.size() - 1; i >= 0; i--) {
@@ -1852,13 +1851,14 @@ public class StyleScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyInput input) {
-        if (waitingKey) {
-            waitingKey = false;
+        if (waitingKey != null) {
+            KeyBinding bind = waitingKey;
+            waitingKey = null;
             if (input.key() != GLFW.GLFW_KEY_ESCAPE) {
-                HugoService.OPEN.setBoundKey(InputUtil.fromKeyCode(input));
+                bind.setBoundKey(InputUtil.fromKeyCode(input));
                 KeyBinding.updateKeysByCode();
                 client.options.write();
-                status("Menu key set to " + HugoService.OPEN.getBoundKeyLocalizedText().getString());
+                status("Key set to " + bind.getBoundKeyLocalizedText().getString());
             }
             return true;
         }

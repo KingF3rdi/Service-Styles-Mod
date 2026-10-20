@@ -23,7 +23,7 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
   in your colour / a gradient / a rainbow, respawn anchor charges (own glow colour, full look from one charge, charge
   lights that glow in the dark), crosshair gradient, kill effects (lightning, shockwave, light pillar, their head popping up,
   shatter, soul rise; optionally only your kills), a social badge next to the recipe book,
-  totem counter (pops over heads, your totems beside the hotbar, optional chat line per pop, "Reset pops" button),
+  totem counter (pops over heads, your totems beside the hotbar, optional chat line per pop, a key that resets the pops),
   end crystal and shield opacity, name tag colour and size, inventory size, hide inventory model,
   name faker (own / enemy names; a real account name brings its skin and its MCTiers tier, else a default skin; hide tier tags), grey world, grass colour,
   6 UI themes, smooth/pixel font, optional background blur. Every effect has a live preview in the menu;

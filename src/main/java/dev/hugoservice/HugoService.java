@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 
 public class HugoService implements ClientModInitializer {
     public static final Logger LOG = LoggerFactory.getLogger("HugoService");
-    public static KeyBinding OPEN, INSPECT;
+    public static KeyBinding OPEN, INSPECT, RESET_POPS;
 
     @Override
     public void onInitializeClient() {
@@ -35,6 +35,8 @@ public class HugoService implements ClientModInitializer {
             GLFW.GLFW_KEY_RIGHT_SHIFT, category));
         INSPECT = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.inspect", InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_G, category));
+        RESET_POPS = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.reset_pops", InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_UNKNOWN, category)); // unbound until you pick one, so it clashes with nothing
         // index resource packs once in the background so the first menu open is fast
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> MediaWatcher.stop());
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
@@ -48,6 +50,10 @@ public class HugoService implements ClientModInitializer {
             }
             boolean inspect = false;
             while (INSPECT.wasPressed()) inspect = true;
+            while (RESET_POPS.wasPressed()) {
+                TotemCounter.reset();
+                client.inGameHud.setOverlayMessage(net.minecraft.text.Text.literal("Totem pops reset"), false);
+            }
             KnifeAnimations.tick(client, inspect);
             Spotify.tick();
             Glint.tick(client);
