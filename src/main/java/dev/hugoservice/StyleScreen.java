@@ -100,13 +100,16 @@ public class StyleScreen extends Screen {
     private String groupFilter; // null = all sub-groups
     private CosmeticCategory cosCat; // non-null = cosmetics view
     private boolean crosshairView; // own crosshair tab
+    private TextureEditor editor; // non-null = texture editor view
+    private int editTool; // 0 pen, 1 fill, 2 pick
+    private float edK0; // real pixels per texel when the texture just fits (zoom 1)
     private Cosmetic hoveredCos;
     private Pick hovered, zoomed;
     private double gridScroll, sideScroll, extrasScroll;
     private int gridMax, sideMax, extrasMax;
     private String status;
     private long statusUntil;
-    private TextFieldWidget search, packName, fakeField, enemyField, badgeField, urlField, spotifyField;
+    private TextFieldWidget search, packName, fakeField, enemyField, badgeField, urlField, spotifyField, editName;
     private int mouseX, mouseY;
 
     // layout
@@ -140,7 +143,7 @@ public class StyleScreen extends Screen {
         search.setMaxLength(40);
         search.setText(q);
         search.setChangedListener(s -> { gridScroll = 0; hovered = null; });
-        search.visible = !extras;
+        search.visible = !extras && editor == null;
         addDrawableChild(search);
 
         int nameW = Math.max(64, Math.min(120, (R - L) / 6));
@@ -194,6 +197,15 @@ public class StyleScreen extends Screen {
         spotifyField.visible = false;
         addDrawableChild(spotifyField);
 
+        String en = editName != null ? editName.getText() : "";
+        editName = new TextFieldWidget(textRenderer, 0, T + 39, 80, 10, Text.literal("Style name"));
+        styleField(editName);
+        editName.setMaxLength(40);
+        editName.setText(en);
+        editName.setPlaceholder(t("Style name").copy().withColor(DIM & 0xFFFFFF));
+        editName.visible = false;
+        addDrawableChild(editName);
+
         rescan();
     }
 
@@ -221,6 +233,7 @@ public class StyleScreen extends Screen {
     }
 
     void showExtras(boolean on) {
+        editor = null;
         extras = on;
         crosshairView = false;
         if (on) cosCat = null;
@@ -262,12 +275,13 @@ public class StyleScreen extends Screen {
         badgeField.visible = false;
         urlField.visible = false;
         spotifyField.visible = false;
+        editName.visible = false;
 
         glass(ctx, L, T, R - L, B - T, 14, WIN, 0xD8FFFFFF);
 
         drawHeader(ctx);
         drawSidebar(ctx);
-        if (extras) drawExtras(ctx); else if (crosshairView) drawCrosshairTab(ctx); else if (cosCat != null) drawCosmetics(ctx); else drawGrid(ctx);
+        if (editor != null) drawEditor(ctx); else if (extras) drawExtras(ctx); else if (crosshairView) drawCrosshairTab(ctx); else if (cosCat != null) drawCosmetics(ctx); else drawGrid(ctx);
         if (insL < R) drawInspector(ctx);
         drawBottomBar(ctx);
 
@@ -538,6 +552,7 @@ public class StyleScreen extends Screen {
     }
 
     void openCosmetics(CosmeticCategory cc) {
+        editor = null;
         cosCat = cc;
         extras = false;
         crosshairView = false;
@@ -684,13 +699,14 @@ public class StyleScreen extends Screen {
     private void drawThemesPanel(DrawContext ctx) {
         int x = insL, top = T + 36, w = R - 8 - insL, ix = x + 8, iw = w - 16;
         glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
-        inspectorTabs(ctx, ix, top + 5, iw, extras ? "Extras" : crosshairView || cosCat != null ? "Preview" : "Inspector");
+        inspectorTabs(ctx, ix, top + 5, iw, editor != null ? "Editor" : extras ? "Extras" : crosshairView || cosCat != null ? "Preview" : "Inspector");
         drawThemes(ctx, ix, top + 28, iw);
         drawMenuBlock(ctx, ix, top + 34 + themeHeight(iw), iw);
     }
 
     private void drawInspector(DrawContext ctx) {
         if (themesTab) { drawThemesPanel(ctx); return; }
+        if (editor != null) { drawEditorPanel(ctx); return; }
         if (crosshairView && !extras) { drawCrosshairInspector(ctx); return; }
         if (cosCat != null && !extras) { drawCosmeticInspector(ctx); return; }
         int x = insL, top = T + 36, w = R - 8 - insL;
@@ -727,10 +743,12 @@ public class StyleScreen extends Screen {
         int bw = (iw - 4) / 2;
         button(ctx, ix, ty + 30, bw, isActive ? "Selected" : "Select", !isActive, () -> pick(p.group(), p.style()));
         button(ctx, ix + bw + 4, ty + 30, iw - bw - 4, isFav(p.group(), p.style()) ? "★ Saved" : "☆ Favorite", false, () -> toggleFav(p));
+        boolean editable = !p.group().files().isEmpty() && p.group().look() != Categories.Look.SKY;
+        if (editable) button(ctx, ix, ty + 51, iw, "Edit texture", false, () -> openEditor(p));
 
         String[] hints = {"Click  select", "Right-click  zoom", "F  favorite", HugoService.OPEN.getBoundKeyLocalizedText().getString() + "  open / close"};
         int hy = B - 38 - hints.length * 11;
-        if (hy > ty + 52) for (int i = 0; i < hints.length; i++) text(ctx, hints[i], ix, hy + i * 11, DIM);
+        if (hy > ty + (editable ? 73 : 52)) for (int i = 0; i < hints.length; i++) text(ctx, hints[i], ix, hy + i * 11, DIM);
     }
 
     private void drawBottomBar(DrawContext ctx) {
@@ -740,12 +758,13 @@ public class StyleScreen extends Screen {
         x += button(ctx, x, y, 0, "Folder", false, () -> Util.getOperatingSystem().open(capesView() ? Config.CAPES : Config.UPLOADS)) + 5;
         x += button(ctx, x, y, 0, "Reset", false, this::reset) + 5;
 
-        int applyW = 56, saveW = 66;
-        int ax = R - 8 - applyW, sx = ax - 5 - saveW;
+        int applyW = 56, saveW = 66, exportW = width("Export") + 16;
+        int ax = R - 8 - applyW, sx = ax - 5 - saveW, ex = sx - 5 - exportW;
         button(ctx, ax, y, applyW, busy ? "..." : dirty ? "Apply •" : "Apply", true, this::apply);
         button(ctx, sx, y, saveW, "Save pack", false, this::savePack);
-        // name field sits left of "Save pack" and gives way to the left buttons in small windows
-        int nRight = sx - 5, nx = Math.max(x, nRight - Math.max(64, Math.min(120, (R - L) / 6))), nw = nRight - nx;
+        button(ctx, ex, y, exportW, "Export", false, this::exportPack);
+        // name field sits left of "Export" and gives way to the left buttons in small windows
+        int nRight = ex - 5, nx = Math.max(x, nRight - Math.max(64, Math.min(120, (R - L) / 6))), nw = nRight - nx;
         packName.setX(nx + 8);
         packName.setWidth(Math.max(10, nw - 14));
         round(ctx, nx, y, nw, 17, 8.5f, FIELD);
@@ -1477,6 +1496,190 @@ public class StyleScreen extends Screen {
         }
     }
 
+    // ---- texture editor ----
+
+    private void openEditor(Pick p) {
+        TextureEditor ed = new TextureEditor(p.group(), p.style());
+        if (ed.files.isEmpty()) { status("Nothing to edit in " + p.style().name); return; }
+        editor = ed;
+        editTool = 0;
+        search.visible = false;
+        search.setFocused(false);
+        // an own edit keeps its name, so saving again updates it
+        String folder = p.style().id.startsWith("pack:") ? p.style().id.substring(5) : "";
+        editName.setText(!folder.isEmpty() && Files.isDirectory(Config.UPLOADS.resolve(folder)) ? folder : "My " + p.group().name());
+    }
+
+    private void closeEditor() {
+        editor = null;
+        search.visible = !extras;
+        setFocused(null);
+    }
+
+    /** Main area: the texture big on a checkerboard; name, Save and Back on top, file and frame pagers under them. */
+    private void drawEditor(DrawContext ctx) {
+        TextureEditor ed = editor;
+        int backW = width("Back") + 16, saveW = width("Save") + 16;
+        int bx = cx1 - backW, sx = bx - 5 - saveW, nw = Math.min(110, Math.max(50, (cx1 - cx0) / 3)), nx = sx - 5 - nw;
+        button(ctx, bx, T + 34, backW, "Back", false, this::closeEditor);
+        button(ctx, sx, T + 34, saveW, "Save", true, this::saveEdit);
+        round(ctx, nx, T + 34, nw, 17, 8.5f, FIELD);
+        if (editName.isFocused()) roundOutline(ctx, nx, T + 34, nw, 17, 8.5f, ACCENT, 1f); else rim(ctx, nx, T + 34, nw, 17, 8.5f, 0x60FFFFFF);
+        editName.setX(nx + 8);
+        editName.setWidth(nw - 14);
+        editName.visible = true;
+        int w = ed.width(), fh = ed.frameHeight();
+        bold(ctx, ellipsize("Edit  ·  " + ed.group.name(), nx - cx0 - 8), cx0, T + 37, TEXT);
+        text(ctx, ellipsize(w + "x" + fh + "  ·  " + ed.source.name, nx - cx0 - 8), cx0, T + 48, MUTED);
+        if (ed.files.size() > 1)
+            pager(ctx, cx0, T + 59, ed.label(ed.path()) + "  " + (ed.fileIndex() + 1) + "/" + ed.files.size(), d -> ed.showFile(ed.fileIndex() + d));
+        if (ed.frames() > 1) {
+            String fl = "Frame " + (ed.frame() + 1) + "/" + ed.frames();
+            pager(ctx, cx1 - width(fl) - 40, T + 59, fl, d -> ed.showFrame(ed.frame() + d));
+        }
+
+        // canvas in real pixels: fitted to the area times the wheel zoom; whole-number steps keep pixels square
+        int sf = scale(), aw = cx1 - cx0, ah = bodyB - bodyY;
+        edK0 = Math.min(aw * sf / (float) w, ah * sf / (float) fh);
+        float k = editScale(ed.zoom);
+        int dw = Math.max(1, Math.round(w * k)), dh = Math.max(1, Math.round(fh * k));
+        // the texel in the middle of the area, kept so the texture never leaves more of the area empty than needed
+        float hx0 = aw * sf / 2f / k, hy0 = ah * sf / 2f / k;
+        if (Float.isNaN(ed.viewX)) { ed.viewX = w / 2f; ed.viewY = fh / 2f; }
+        ed.viewX = w <= 2 * hx0 ? w / 2f : (float) clamp(ed.viewX, hx0, w - hx0);
+        ed.viewY = fh <= 2 * hy0 ? fh / 2f : (float) clamp(ed.viewY, hy0, fh - hy0);
+        int ox = Math.round(cx0 * sf + aw * sf / 2f - ed.viewX * k), oy = Math.round(bodyY * sf + ah * sf / 2f - ed.viewY * k);
+        ctx.enableScissor(cx0, bodyY, cx1, bodyB);
+        Matrix3x2fStack m = ctx.getMatrices();
+        m.pushMatrix();
+        m.scale(1f / sf, 1f / sf);
+        int cell = Math.max(4 * sf, Math.round(k)); // checkerboard behind see-through pixels, only the visible part
+        int vx0 = Math.max(0, (cx0 * sf - ox) / cell * cell), vy0 = Math.max(0, (bodyY * sf - oy) / cell * cell);
+        int vx1 = Math.min(dw, cx1 * sf - ox), vy1 = Math.min(dh, bodyB * sf - oy);
+        for (int cy = vy0; cy < vy1; cy += cell) for (int cx = vx0; cx < vx1; cx += cell)
+            ctx.fill(ox + cx, oy + cy, ox + Math.min(dw, cx + cell), oy + Math.min(dh, cy + cell), (cx / cell + cy / cell & 1) == 0 ? 0xFF3A4452 : 0xFF2C3440);
+        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, ed.texture(), ox, oy, 0, ed.frame() * fh, dw, dh, w, fh, w, ed.image().getHeight());
+        double gx = client.mouse.getX() * width / client.getWindow().getWidth(), gy = client.mouse.getY() * height / client.getWindow().getHeight();
+        int hx = (int) Math.floor((gx * sf - ox) / k), hy = (int) Math.floor((gy * sf - oy) / k);
+        if (ed.inside(hx, hy)) {
+            int px = ox + Math.round(hx * k), py = oy + Math.round(hy * k), ps = Math.max(1, Math.round(k));
+            ctx.fill(px, py, px + ps, py + ps, 0x50FFFFFF);
+        }
+        m.popMatrix();
+        ctx.disableScissor();
+        float kk = k;
+        dragHit(cx0, bodyY, aw, ah, (mx, my, btn) -> {
+            int px = (int) Math.floor((mx * sf - ox) / kk), py = (int) Math.floor((my * sf - oy) / kk);
+            if (!ed.inside(px, py)) return;
+            int paint = btn == 1 ? 0 : 0xFF000000 | cfg.paintColor; // right button: see-through
+            switch (editTool) {
+                case 1 -> ed.fill(px, py, paint);
+                case 2 -> { // pick a colour, then back to the pen
+                    int c = ed.get(px, py);
+                    if (c >>> 24 != 0) { cfg.paintColor = c & 0xFFFFFF; editTool = 0; }
+                }
+                default -> ed.paint(px, py, paint);
+            }
+        });
+    }
+
+    /** Real pixels per texel at a zoom; whole numbers once a texel is at least a pixel, so pixels stay square. */
+    private float editScale(float zoom) {
+        float k = edK0 * zoom;
+        return k >= 1 ? (float) Math.floor(k) : k;
+    }
+
+    /** "‹ label ›": left / right step through. */
+    private void pager(DrawContext ctx, int x, int y, String label, java.util.function.IntConsumer step) {
+        int lw = width(label);
+        for (int i = 0; i < 2; i++) {
+            int bx = i == 0 ? x : x + 20 + lw, d = i == 0 ? -1 : 1;
+            lens(ctx, bx, y, 14, 14, 7, over(bx, y, 14, 14) ? HOVER : PANEL_HI);
+            text(ctx, i == 0 ? "‹" : "›", bx + 5, y + 3, TEXT);
+            hit(bx, y, 14, 14, (a, b, btn) -> step.accept(d));
+        }
+        text(ctx, label, x + 17, y + 3, TEXT);
+    }
+
+    /** Right panel while editing: tools, colour (with the texture's own colours), undo and reverting. */
+    private void drawEditorPanel(DrawContext ctx) {
+        TextureEditor ed = editor;
+        int x = insL, top = T + 36, w = R - 8 - insL, ix = x + 8, iw = w - 16;
+        glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
+        inspectorTabs(ctx, ix, top + 5, iw, "Editor");
+        int y = top + 26, tw = iw / 3;
+        String[] tools = {"Pen", "Fill", "Pick"};
+        round(ctx, ix, y, iw, 16, 8, FIELD);
+        lens(ctx, ix + editTool * tw, y, editTool == 2 ? iw - 2 * tw : tw, 16, 8, ACCENT_SOFT);
+        for (int i = 0; i < 3; i++) {
+            int t = i;
+            segment(ctx, ix + i * tw, y, i == 2 ? iw - 2 * tw : tw, tools[i], editTool == i, () -> editTool = t);
+        }
+        y += 22;
+        text(ctx, "Colour", ix, y + 2, MUTED);
+        round(ctx, ix + iw - 24, y, 24, 11, 4, 0xFF000000 | cfg.paintColor);
+        rim(ctx, ix + iw - 24, y, 24, 11, 4, 0x70FFFFFF);
+        y += 17;
+        colorPicker(ctx, ix, y, iw, cfg.paintColor, rgb -> cfg.paintColor = rgb);
+        y += 28;
+        float[] hsb = Color.RGBtoHSB(cfg.paintColor >> 16 & 255, cfg.paintColor >> 8 & 255, cfg.paintColor & 255, null);
+        sliderRow(ctx, ix, y, iw, "Brightness", Math.round(hsb[2] * 100), 0, 100, v -> cfg.paintColor = Color.HSBtoRGB(hsb[0], hsb[1], v / 100f) & 0xFFFFFF);
+        y += 28;
+        text(ctx, "In this texture", ix, y, MUTED);
+        y += 11;
+        int per = 8, sw = (iw - (per - 1) * 2) / per;
+        List<Integer> pal = ed.palette(per * 2);
+        for (int i = 0; i < pal.size(); i++) {
+            int c = pal.get(i), bx = ix + i % per * (sw + 2), by = y + i / per * (sw + 2);
+            round(ctx, bx, by, sw, sw, 2, c);
+            if ((c & 0xFFFFFF) == cfg.paintColor) roundOutline(ctx, bx - 1, by - 1, sw + 2, sw + 2, 3, 0xFFFFFFFF, 1f);
+            clipHit(bx, by, sw, sw, (a, b, btn) -> cfg.paintColor = c & 0xFFFFFF);
+        }
+        y += 2 * (sw + 2) + 6;
+        int half = (iw - 4) / 2;
+        smallButton(ctx, ix, y, half, "Undo", false, () -> { if (!ed.undo()) status("Nothing to undo"); });
+        smallButton(ctx, ix + half + 4, y, iw - half - 4, "Import", false, this::importTexture);
+        y += 18;
+        smallButton(ctx, ix, y, half, "Vanilla", false, () -> ed.revert(true));
+        smallButton(ctx, ix + half + 4, y, iw - half - 4, "Start over", false, () -> ed.revert(false));
+        y += 22;
+        for (String h : new String[] {"L paint  ·  R erase", "Wheel zoom  ·  Ctrl+Z undo"}) {
+            if (y + 9 > B - 36) break;
+            text(ctx, ellipsize(h, iw), ix, y, DIM);
+            y += 11;
+        }
+    }
+
+    /** Your own PNG in place of the texture you are on. */
+    private void importTexture() {
+        TextureEditor ed = editor;
+        fileDialog("Import a texture", null, false, "Images (*.png)", picked -> {
+            Path p = Path.of(picked.split("\\|")[0]);
+            try {
+                ed.replace(Images.decode(Files.readAllBytes(p)));
+                status("Imported " + p.getFileName() + " as " + ed.label(ed.path()));
+            } catch (IOException e) {
+                status("Not a PNG image: " + p.getFileName());
+            }
+        }, "*.png");
+    }
+
+    /** Saves the textures as your own style of this collection and picks it. */
+    private void saveEdit() {
+        TextureEditor ed = editor;
+        String name = TextureEditor.clean(editName.getText());
+        if (name.isEmpty()) { status("Give your style a name first"); return; }
+        try {
+            String id = "pack:" + ed.save(name).getFileName();
+            rescan();
+            for (Style s : lists.get(ed.group.id())) if (s.id.equals(id)) pick(ed.group, s);
+            status("Saved as " + name + "  ·  picked for " + ed.group.name());
+        } catch (IOException e) {
+            HugoService.LOG.warn("Could not save the edited textures", e);
+            status("Error: " + e.getMessage());
+        }
+    }
+
     private void smallButton(DrawContext ctx, int x, int y, int w, String label, boolean primary, Runnable r) {
         boolean hov = over(x, y, w, 14);
         lens(ctx, x, y, w, 14, 7, primary ? (hov ? ACCENT_HI : ACCENT) : (hov ? HOVER : PANEL_HI));
@@ -1725,26 +1928,50 @@ public class StyleScreen extends Screen {
         t.start();
     }
 
+    /** The pack as a zip wherever you want it, to share or keep (Save pack puts it in resourcepacks). */
+    private void exportPack() {
+        if (busy) return;
+        String name = TextureEditor.clean(packName.getText()).isEmpty() ? "My Mix" : TextureEditor.clean(packName.getText());
+        Path home = Path.of(System.getProperty("user.home")), downloads = home.resolve("Downloads");
+        String def = (Files.isDirectory(downloads) ? downloads : home).resolve(name + ".zip").toString();
+        fileDialog("Export pack", def, true, "Resource pack (*.zip)", picked -> {
+            if (busy) return;
+            Path target = Path.of(picked.toLowerCase(Locale.ROOT).endsWith(".zip") ? picked : picked + ".zip");
+            busy = true;
+            status("Exporting...");
+            Config snap = cfg.copy();
+            runAsync(() -> PackBuilder.writeZip(PackBuilder.collect(snap, name + " - made with HugoService Style"), target),
+                p -> status("Exported " + p.getFileName() + " to " + p.getParent()));
+        }, "*.zip");
+    }
+
     private void upload() {
+        fileDialog("Upload packs or sky images", null, false, "Packs (*.zip) and sky images (*.png, *.jpg)", picked -> {
+            List<Path> paths = new ArrayList<>();
+            for (String s : picked.split("\\|")) if (!s.isBlank()) paths.add(Path.of(s));
+            importPacks(paths);
+        }, "*.zip", "*.png", "*.jpg", "*.jpeg");
+    }
+
+    /**
+     * Native open (several files, joined by |) or save dialog, off the render thread so the game keeps drawing;
+     * {@code done} runs on the render thread, not at all when cancelled.
+     */
+    private void fileDialog(String title, String def, boolean save, String desc, java.util.function.Consumer<String> done, String... patterns) {
         Thread t = new Thread(() -> {
             String picked;
             try (MemoryStack stack = MemoryStack.stackPush()) {
-                PointerBuffer filters = stack.mallocPointer(4);
-                filters.put(stack.UTF8("*.zip"));
-                filters.put(stack.UTF8("*.png"));
-                filters.put(stack.UTF8("*.jpg"));
-                filters.put(stack.UTF8("*.jpeg"));
+                PointerBuffer filters = stack.mallocPointer(patterns.length);
+                for (String p : patterns) filters.put(stack.UTF8(p));
                 filters.flip();
-                picked = TinyFileDialogs.tinyfd_openFileDialog("Upload packs or sky images", null, filters, "Packs (*.zip) and sky images (*.png, *.jpg)", true);
+                picked = save ? TinyFileDialogs.tinyfd_saveFileDialog(title, def, filters, desc)
+                    : TinyFileDialogs.tinyfd_openFileDialog(title, def, filters, desc, true);
             } catch (Throwable e) {
                 HugoService.LOG.warn("File dialog failed", e);
                 picked = null;
             }
-            if (picked == null) return;
-            List<Path> paths = new ArrayList<>();
-            for (String s : picked.split("\\|")) if (!s.isBlank()) paths.add(Path.of(s));
-            client.execute(() -> importPacks(paths));
-        }, "HugoService-Upload");
+            if (picked != null) { String p = picked; client.execute(() -> done.accept(p)); }
+        }, "HugoService-Files");
         t.setDaemon(true);
         t.start();
     }
@@ -1836,12 +2063,24 @@ public class StyleScreen extends Screen {
     @Override
     public boolean mouseReleased(Click click) {
         dragging = null;
+        if (editor != null) editor.endStroke();
         if (painted) { painted = false; Config.save(); }
         return super.mouseReleased(click);
     }
 
     @Override
     public boolean mouseScrolled(double mx, double my, double h, double v) {
+        TextureEditor ed = editor;
+        if (ed != null && mx >= cx0 && mx < cx1 && my >= bodyY && my < bodyB) { // zoom in or out around the pointer
+            int sf = scale();
+            float nz = (float) clamp(ed.zoom * (v > 0 ? 1.25 : 0.8), 1, 32), k = editScale(ed.zoom), k1 = editScale(nz);
+            float ax = (cx0 + cx1) / 2f * sf, ay = (bodyY + bodyB) / 2f * sf;
+            float tx = ed.viewX + (float) (mx * sf - ax) / k, ty = ed.viewY + (float) (my * sf - ay) / k; // texel under the pointer
+            ed.zoom = nz;
+            ed.viewX = tx - (float) (mx * sf - ax) / k1;
+            ed.viewY = ty - (float) (my * sf - ay) / k1;
+            return true;
+        }
         double d = -v * 24;
         if (mx < sideR) sideScroll = clamp(sideScroll + d, 0, sideMax);
         else if (extras || crosshairView) extrasScroll = clamp(extrasScroll + d, 0, extrasMax);
@@ -1862,8 +2101,12 @@ public class StyleScreen extends Screen {
             }
             return true;
         }
-        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || enemyField.isFocused() || badgeField.isFocused() || urlField.isFocused() || spotifyField.isFocused();
-        if (!typing) {
+        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || enemyField.isFocused() || badgeField.isFocused() || urlField.isFocused() || spotifyField.isFocused() || editName.isFocused();
+        if (editor != null) { // Esc leaves the editor, Ctrl+Z undoes
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) { closeEditor(); return true; }
+            if (!typing && input.key() == GLFW.GLFW_KEY_Z && input.hasCtrlOrCmd()) { if (!editor.undo()) status("Nothing to undo"); return true; }
+        }
+        if (!typing && editor == null) {
             if (input.key() == GLFW.GLFW_KEY_SLASH && !extras) {
                 setFocused(search);
                 skipChar = true;

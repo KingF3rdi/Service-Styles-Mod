@@ -29,10 +29,7 @@ public final class PackBuilder {
     /** Collects all files of the mixed pack: zip path -> bytes. Safe to call off the render thread. */
     public static Map<String, byte[]> collect(Config cfg, String description) throws IOException {
         Map<String, byte[]> out = new LinkedHashMap<>();
-        int format = SharedConstants.getGameVersion().packVersion(ResourceType.CLIENT_RESOURCES).major();
-        String desc = description.replace("\\", "\\\\").replace("\"", "\\\"");
-        out.put("pack.mcmeta", ("{\n  \"pack\": {\n    \"description\": \"" + desc + "\",\n    \"min_format\": " + format
-            + ",\n    \"max_format\": " + format + "\n  }\n}\n").getBytes(StandardCharsets.UTF_8));
+        out.put("pack.mcmeta", mcmeta(description));
         out.put("pack.png", Images.encode(packIcon()));
 
         if (cfg.greyWorld) addGreyWorld(cfg, out);
@@ -60,6 +57,14 @@ public final class PackBuilder {
             }
         }
         return out;
+    }
+
+    /** pack.mcmeta for this game version. */
+    static byte[] mcmeta(String description) {
+        int format = SharedConstants.getGameVersion().packVersion(ResourceType.CLIENT_RESOURCES).major();
+        String desc = description.replace("\\", "\\\\").replace("\"", "\\\"");
+        return ("{\n  \"pack\": {\n    \"description\": \"" + desc + "\",\n    \"min_format\": " + format
+            + ",\n    \"max_format\": " + format + "\n  }\n}\n").getBytes(StandardCharsets.UTF_8);
     }
 
     /**
@@ -205,7 +210,11 @@ public final class PackBuilder {
     public static Path saveZip(Map<String, byte[]> files, String name) throws IOException {
         String clean = name.replaceAll("[\\\\/:*?\"<>|]", "").trim();
         if (clean.isEmpty()) clean = "My Mix";
-        Path target = MinecraftClient.getInstance().getResourcePackDir().resolve(clean + ".zip");
+        return writeZip(files, MinecraftClient.getInstance().getResourcePackDir().resolve(clean + ".zip"));
+    }
+
+    /** The pack as a zip at any place (Export). */
+    public static Path writeZip(Map<String, byte[]> files, Path target) throws IOException {
         Files.createDirectories(target.getParent());
         try (OutputStream os = Files.newOutputStream(target); ZipOutputStream zip = new ZipOutputStream(os)) {
             for (var e : files.entrySet()) {

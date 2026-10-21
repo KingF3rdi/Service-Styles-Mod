@@ -15,7 +15,12 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
 - **Styles**: Vanilla, *Current* (your active resource packs), 10 built-in colour presets and every pack you upload
   (`Upload` button, drag & drop a `.zip`, or packs already in `resourcepacks/`; old 1.8 PvP pack paths are understood)
 - 3D previews for blocks and the end crystal (vanilla's own model, as a placed crystal stands on obsidian), sorting (For you, A–Z, Newest, Packs, Presets), search, favourites
-- **Apply** builds `resourcepacks/HugoService-Active` and reloads; **Save pack** writes a `.zip` to `resourcepacks/`
+- **Apply** builds `resourcepacks/HugoService-Active` and reloads; **Save pack** writes a `.zip` to `resourcepacks/`;
+  **Export** saves the `.zip` wherever you choose (e.g. to share it)
+- **Texture editor** (*Edit texture* in the Inspector): edit the textures of a collection, starting from the style you
+  look at (or vanilla): pen, fill and colour picker, your colour or the texture's own colours, brightness, undo
+  (Ctrl+Z), wheel zoom, every frame of animated textures, *Import* for your own PNG. *Save* adds it as your own style
+  of that collection (a folder pack in `config/hugoservice/packs`) and picks it
 - **Extras**: hit colour (with strength), hitbox colour (F3+B), block outline (colour and thickness), cobweb outline
   (adjustable thickness), player glow (only while the player is visible, not through walls; also yourself in F5,
   rainbow, thickness), shield status (ready / disabled by axe), end crystal spin speed (or stopped) and core colour,
