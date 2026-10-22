@@ -1,5 +1,7 @@
 package dev.hugoservice;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
 import dev.hugoservice.Categories.Group;
 import dev.hugoservice.Styles.Style;
 import net.minecraft.client.MinecraftClient;
@@ -153,7 +155,10 @@ final class TextureEditor {
     }
 
     /** Mouse released: the next press starts a new undo step. */
-    void endStroke() { stroke = false; }
+    void endStroke() {
+        stroke = false;
+        palette = null;
+    }
 
     private void push() {
         if (undo.size() >= UNDO_MAX) undo.removeLast();
@@ -191,7 +196,7 @@ final class TextureEditor {
 
     private void changed() {
         dirty = true;
-        palette = null;
+        if (!stroke) palette = null; // while painting it is counted again once the stroke ends
     }
 
     /** The colours of the current frame, most used first. */
@@ -222,6 +227,21 @@ final class TextureEditor {
             dirty = false;
         }
         return TEXTURE;
+    }
+
+    private static Identifier checker;
+
+    /** A 2x2 checkerboard that repeats: the whole see-through background in one quad (one fill per cell was slow). */
+    static Identifier checker() {
+        if (checker == null) {
+            NativeImage ni = new NativeImage(2, 2, false);
+            for (int i = 0; i < 4; i++) ni.setColorArgb(i % 2, i / 2, (i % 2 + i / 2) % 2 == 0 ? 0xFF3A4452 : 0xFF2C3440);
+            checker = Identifier.of("hugoservice", "checker");
+            MinecraftClient.getInstance().getTextureManager().registerTexture(checker, new NativeImageBackedTexture(() -> "hugoservice checker", ni) {
+                { sampler = RenderSystem.getSamplerCache().getRepeated(FilterMode.NEAREST); }
+            });
+        }
+        return checker;
     }
 
     /** Folder name a save goes to. */

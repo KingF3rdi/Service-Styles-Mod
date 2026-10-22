@@ -1553,11 +1553,11 @@ public class StyleScreen extends Screen {
         Matrix3x2fStack m = ctx.getMatrices();
         m.pushMatrix();
         m.scale(1f / sf, 1f / sf);
-        int cell = Math.max(4 * sf, Math.round(k)); // checkerboard behind see-through pixels, only the visible part
-        int vx0 = Math.max(0, (cx0 * sf - ox) / cell * cell), vy0 = Math.max(0, (bodyY * sf - oy) / cell * cell);
-        int vx1 = Math.min(dw, cx1 * sf - ox), vy1 = Math.min(dh, bodyB * sf - oy);
-        for (int cy = vy0; cy < vy1; cy += cell) for (int cx = vx0; cx < vx1; cx += cell)
-            ctx.fill(ox + cx, oy + cy, ox + Math.min(dw, cx + cell), oy + Math.min(dh, cy + cell), (cx / cell + cy / cell & 1) == 0 ? 0xFF3A4452 : 0xFF2C3440);
+        // checkerboard behind see-through pixels: the visible part of the canvas, one repeating quad
+        float cell2 = 2f * Math.max(4 * sf, Math.round(k));
+        int vx0 = Math.max(ox, cx0 * sf), vy0 = Math.max(oy, bodyY * sf), vx1 = Math.min(ox + dw, cx1 * sf), vy1 = Math.min(oy + dh, bodyB * sf);
+        if (vx1 > vx0 && vy1 > vy0)
+            ctx.drawTexturedQuad(TextureEditor.checker(), vx0, vy0, vx1, vy1, (vx0 - ox) / cell2, (vx1 - ox) / cell2, (vy0 - oy) / cell2, (vy1 - oy) / cell2);
         ctx.drawTexture(RenderPipelines.GUI_TEXTURED, ed.texture(), ox, oy, 0, ed.frame() * fh, dw, dh, w, fh, w, ed.image().getHeight());
         double gx = client.mouse.getX() * width / client.getWindow().getWidth(), gy = client.mouse.getY() * height / client.getWindow().getHeight();
         int hx = (int) Math.floor((gx * sf - ox) / k), hy = (int) Math.floor((gy * sf - oy) / k);
