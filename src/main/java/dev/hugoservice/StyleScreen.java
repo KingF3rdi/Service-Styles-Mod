@@ -48,14 +48,20 @@ import java.util.stream.Stream;
 
 public class StyleScreen extends Screen {
     // ---- palette ----
-    private static final int FIELD = 0x50060E18, TEXT = 0xFFF2F8FF, MUTED = 0xFFA3B8CF, DIM = 0xFF6D829B, GOOD = 0xFF6EE7A8,
-        GOLD = 0xFFFFD36B, CARD_BOT = 0x0C06101C, INK = 0xFF07121D, EDGE = 0x30FFFFFF;
+    private static final int GOOD = 0xFF6EE7A8, GOLD = 0xFFFFD36B;
     // themed colours, set by applyTheme()
     private int WIN, PANEL, PANEL_HI, HOVER, ACCENT, ACCENT_SOFT, ACCENT_HI, CARD_TOP;
+    private int FIELD, TEXT, MUTED, DIM, CARD_BOT, INK, TRACK, TOGGLE_ON, LINE, HOVER_LINE, SEP;
+    /** Aurora: monochrome, flat panels with thin light edges and Minecraft's own font (like Aurora Client). */
+    private boolean aurora;
+    /** Static drawing helpers (rim) read this, so they follow the theme too. */
+    private static boolean flat;
+    private static String fontKey = "";
 
     /** accent = highlights, tint = colour of the glass panels, win = window base. */
     private record Theme(String name, int accent, int tint, int win) {}
     private static final List<Theme> THEMES = List.of(
+        new Theme("Aurora", 0xE6E6E6, 0xFFFFFF, 0x0A0A0C),
         new Theme("Ice", 0x8AD6FF, 0x9FD4FF, 0x0B1522),
         new Theme("Midnight", 0xA99BFF, 0x8C7BFF, 0x0E0B22),
         new Theme("Rose", 0xFF8AC8, 0xFF9FD4, 0x1E0B16),
@@ -67,20 +73,40 @@ public class StyleScreen extends Screen {
     private void applyTheme() {
         Theme t = THEMES.getFirst();
         for (Theme th : THEMES) if (th.name().equals(cfg.theme)) t = th;
-        WIN = (cfg.blur ? 0x80000000 : 0xB4000000) | t.win(); // with blur behind it the glass can be clearer
-        PANEL = 0x1C000000 | t.tint();
-        PANEL_HI = 0x30000000 | t.tint();
-        HOVER = 0x44000000 | t.tint();
-        CARD_TOP = 0x34000000 | t.tint();
-        ACCENT = 0xFF000000 | t.accent();
-        ACCENT_SOFT = 0x50000000 | t.accent();
-        ACCENT_HI = lerp(ACCENT, 0xFFFFFFFF, 0.45f);
+        aurora = t.name().equals("Aurora");
+        flat = aurora;
+        if (aurora) {
+            WIN = (cfg.blur ? 0xA8000000 : 0xE6000000) | t.win();
+            PANEL = 0x12FFFFFF; PANEL_HI = 0x1EFFFFFF; HOVER = 0x2CFFFFFF; CARD_TOP = 0x14FFFFFF;
+            ACCENT = 0xFFE4E4E4; ACCENT_SOFT = 0x2EFFFFFF; ACCENT_HI = 0xFFFFFFFF;
+            FIELD = 0x66000000; TEXT = 0xFFEDEDED; MUTED = 0xFFA2A2A2; DIM = 0xFF6E6E6E; CARD_BOT = 0x06000000; INK = 0xFF111111;
+            TRACK = 0xFF2A2A2A; TOGGLE_ON = 0xFFB0B0B0; LINE = 0x52FFFFFF; HOVER_LINE = 0x99FFFFFF; SEP = 0x26FFFFFF;
+        } else {
+            WIN = (cfg.blur ? 0x80000000 : 0xB4000000) | t.win(); // with blur behind it the glass can be clearer
+            PANEL = 0x1C000000 | t.tint();
+            PANEL_HI = 0x30000000 | t.tint();
+            HOVER = 0x44000000 | t.tint();
+            CARD_TOP = 0x34000000 | t.tint();
+            ACCENT = 0xFF000000 | t.accent();
+            ACCENT_SOFT = 0x50000000 | t.accent();
+            ACCENT_HI = lerp(ACCENT, 0xFFFFFFFF, 0.45f);
+            FIELD = 0x50060E18; TEXT = 0xFFF2F8FF; MUTED = 0xFFA3B8CF; DIM = 0xFF6D829B; CARD_BOT = 0x0C06101C; INK = 0xFF07121D;
+            TRACK = 0xFF2A3546; TOGGLE_ON = ACCENT; LINE = 0x8CFFFFFF; HOVER_LINE = 0x80BFE6FF; SEP = 0xFF1E2A3A;
+        }
+        String fk = cfg.pixelFont ? "p" : aurora ? "a" : "s";
+        if (!fk.equals(fontKey)) { // texts are cached with their font
+            fontKey = fk;
+            TEXT_CACHE.clear();
+            BOLD_CACHE.clear();
+            ELLIPSIS.clear();
+        }
     }
     // the last two (grey, black) are for crosshair and outlines; the grass picker shows only the first eight
     private static final int[] SWATCHES = {0xB388FF, 0xFF5CC8, 0xFF4F4F, 0xFFAD42, 0x5CF07A, 0x6CD3FF, 0x4A86FF, 0xFFFFFF, 0x7A7A7A, 0x000000};
     private static final StyleSpriteSource SMOOTH = new StyleSpriteSource.Font(Identifier.of("hugoservice", "ui"));
     private static final StyleSpriteSource SMOOTH_BOLD = new StyleSpriteSource.Font(Identifier.of("hugoservice", "bold"));
     private static final StyleSpriteSource PIXEL = new StyleSpriteSource.Font(Identifier.ofVanilla("uniform"));
+    private static final StyleSpriteSource MC = new StyleSpriteSource.Font(Identifier.ofVanilla("default"));
     private static final Map<String, Text> TEXT_CACHE = new HashMap<>(), BOLD_CACHE = new HashMap<>();
 
     private interface Handler { void on(double mx, double my, int button); }
@@ -101,15 +127,21 @@ public class StyleScreen extends Screen {
     private CosmeticCategory cosCat; // non-null = cosmetics view
     private boolean crosshairView; // own crosshair tab
     private TextureEditor editor; // non-null = texture editor view
-    private int editTool; // 0 pen, 1 fill, 2 pick
+    private int editTool; // 0 pencil, 1 eraser, 2 fill, 3 pick
+    private boolean editMirror, editGrid = true;
+    private float editHue = -1; // kept apart from the colour, so greys do not lose the hue
     private float edK0; // real pixels per texel when the texture just fits (zoom 1)
+    private int edX0, edX1, edY0, edY1; // editor canvas area
+    /** Start page with big category cards (like Aurora Client); the archive opens from there. */
+    private boolean home = true;
+    private final float[] homeAnim = new float[9];
     private Cosmetic hoveredCos;
     private Pick hovered, zoomed;
     private double gridScroll, sideScroll, extrasScroll;
     private int gridMax, sideMax, extrasMax;
     private String status;
     private long statusUntil;
-    private TextFieldWidget search, packName, fakeField, enemyField, badgeField, urlField, spotifyField, editName;
+    private TextFieldWidget search, packName, fakeField, enemyField, badgeField, urlField, spotifyField, editName, hexField;
     private int mouseX, mouseY;
 
     // layout
@@ -139,7 +171,7 @@ public class StyleScreen extends Screen {
         int sw = Math.min(120, Math.max(60, (cx1 - cx0) / 3));
         search = new TextFieldWidget(textRenderer, cx1 - sw + 16, T + 38, sw - 22, 10, Text.literal("Search"));
         styleField(search);
-        search.setPlaceholder(t("Search styles").copy().withColor(DIM & 0xFFFFFF));
+        search.setPlaceholder(t("Search").copy().withColor(DIM & 0xFFFFFF));
         search.setMaxLength(40);
         search.setText(q);
         search.setChangedListener(s -> { gridScroll = 0; hovered = null; });
@@ -202,10 +234,21 @@ public class StyleScreen extends Screen {
         styleField(editName);
         editName.setMaxLength(40);
         editName.setText(en);
-        editName.setPlaceholder(t("Style name").copy().withColor(DIM & 0xFFFFFF));
+        editName.setPlaceholder(t("Name your drawing...").copy().withColor(DIM & 0xFFFFFF));
         editName.visible = false;
         addDrawableChild(editName);
 
+        hexField = new TextFieldWidget(textRenderer, 0, 0, 60, 10, Text.literal("Hex colour"));
+        styleField(hexField);
+        hexField.setMaxLength(7);
+        hexField.setChangedListener(s -> { // typing a full hex code picks that colour
+            String h = s.startsWith("#") ? s.substring(1) : s;
+            if (hexField.isFocused() && h.matches("[0-9a-fA-F]{6}")) setPaint(Integer.parseInt(h, 16));
+        });
+        hexField.visible = false;
+        addDrawableChild(hexField);
+
+        if (home) search.visible = false;
         rescan();
     }
 
@@ -276,28 +319,159 @@ public class StyleScreen extends Screen {
         urlField.visible = false;
         spotifyField.visible = false;
         editName.visible = false;
+        hexField.visible = false;
+        packName.visible = !home && editor == null;
+        bodyY = T + 76;
+        bodyB = B - 32;
 
-        glass(ctx, L, T, R - L, B - T, 14, WIN, 0xD8FFFFFF);
-
-        drawHeader(ctx);
-        drawSidebar(ctx);
-        if (editor != null) drawEditor(ctx); else if (extras) drawExtras(ctx); else if (crosshairView) drawCrosshairTab(ctx); else if (cosCat != null) drawCosmetics(ctx); else drawGrid(ctx);
-        if (insL < R) drawInspector(ctx);
-        drawBottomBar(ctx);
+        if (home && editor == null) {
+            drawHome(ctx, delta);
+        } else {
+            if (aurora) glass(ctx, L, T, R - L, B - T, 8, WIN); else glass(ctx, L, T, R - L, B - T, 14, WIN, 0xD8FFFFFF);
+            if (editor != null) { // the editor gets the whole window
+                bodyY = T + 24;
+                bodyB = B - 8;
+                drawEditor(ctx);
+            } else {
+                drawHeader(ctx);
+                drawSidebar(ctx);
+                if (extras) drawExtras(ctx); else if (crosshairView) drawCrosshairTab(ctx); else if (cosCat != null) drawCosmetics(ctx); else drawGrid(ctx);
+                if (insL < R) drawInspector(ctx);
+                drawBottomBar(ctx);
+            }
+        }
 
         super.render(ctx, mx, my, delta);
         Shapes.flush();
     }
 
+    // ================================================================ start page (Aurora style)
+
+    private static final String[] HOME = {"PvP", "World", "Interface", "Wardrobe", "Extras"};
+    private static final String[] HOME_ICON = {"⚔", "☀", "▤", "♛", "⚙"};
+    private static final String[] HOME_SMALL = {"Crosshair", "Search", "Packs", "Themes"};
+    private static final String[] HOME_SMALL_ICON = {"✛", "⌕", "❐", "◐"};
+
+    /** Big title, a row of category cards that grow when you point at them, small shortcut tiles under them. */
+    private void drawHome(DrawContext ctx, float delta) {
+        ctx.fillGradient(0, 0, width, height, 0x40000000, 0xB8000000);
+        int ts = height >= 330 ? 4 : height >= 230 ? 3 : 2;
+        Text title = Text.literal("HugoService");
+        int tw = textRenderer.getWidth(title) * ts;
+        int n = HOME.length, cw = (int) clamp(width / 9.5, 50, 78), ch = cw + 10, gap = Math.max(6, cw / 7);
+        int smallH = Math.max(34, cw / 2 + 4), block = 9 * ts + 18 + ch + 16 + smallH;
+        int ty = Math.max(8, (height - block) / 2 - 10);
+        scaledText(ctx, title, (width - tw) / 2f, ty, ts, TEXT);
+        float step = Math.min(1, delta * 0.45f);
+
+        int total = n * cw + (n - 1) * gap, x0 = (width - total) / 2, cy = ty + 9 * ts + 18;
+        for (int i = 0; i < n; i++) {
+            int x = x0 + i * (cw + gap), idx = i;
+            boolean hov = over(x, cy, cw, ch);
+            homeAnim[i] += ((hov ? 1 : 0) - homeAnim[i]) * step;
+            float a = homeAnim[i], grow = a * 0.12f;
+            float gx = x - cw * grow / 2, gy = cy - ch * grow / 2, gw = cw * (1 + grow), gh = ch * (1 + grow);
+            round(ctx, gx, gy, gw, gh, 6, lerp(0x18FFFFFF, 0x30FFFFFF, a));
+            roundOutline(ctx, gx, gy, gw, gh, 6, lerp(0x48FFFFFF, 0xC0FFFFFF, a), 0);
+            Text icon = Text.literal(HOME_ICON[i]);
+            int is = cw >= 64 ? 3 : 2;
+            scaledText(ctx, icon, gx + (gw - textRenderer.getWidth(icon) * is) / 2f, gy + gh * 0.36f - 4.5f * is, is, TEXT);
+            Text label = Text.literal(HOME[i]);
+            int lx = Math.round(gx + (gw - textRenderer.getWidth(label)) / 2f), ly = Math.round(gy + gh * 0.68f);
+            ctx.drawText(textRenderer, label, lx, ly, a > 0.5f ? 0xFFFFFFFF : TEXT, false);
+            round(ctx, gx + gw / 2 - 6, ly + 12, 12, 1, 0.5f, lerp(0x66FFFFFF, 0xFFFFFFFF, a));
+            hit(x, cy, cw, ch, (mx, my, btn) -> openFromHome(idx));
+        }
+
+        // shortcut tiles
+        int sy = cy + ch + 16, sw = 0;
+        int[] widths = new int[HOME_SMALL.length];
+        for (int i = 0; i < widths.length; i++) { widths[i] = Math.max(smallH + 6, textRenderer.getWidth(HOME_SMALL[i]) + 12); sw += widths[i]; }
+        int sx = (width - sw - 6 * (widths.length - 1)) / 2;
+        for (int i = 0; i < widths.length; i++) {
+            int bw = widths[i], idx = i;
+            boolean hov = over(sx, sy, bw, smallH);
+            homeAnim[n + i] += ((hov ? 1 : 0) - homeAnim[n + i]) * step;
+            float a = homeAnim[n + i];
+            round(ctx, sx, sy, bw, smallH, 5, lerp(0x18FFFFFF, 0x30FFFFFF, a));
+            roundOutline(ctx, sx, sy, bw, smallH, 5, lerp(0x48FFFFFF, 0xC0FFFFFF, a), 0);
+            Text icon = Text.literal(HOME_SMALL_ICON[i]);
+            scaledText(ctx, icon, sx + (bw - textRenderer.getWidth(icon) * 2) / 2f, sy + smallH / 2f - 16, 2, TEXT);
+            Text label = Text.literal(HOME_SMALL[i]);
+            ctx.drawText(textRenderer, label, sx + (bw - textRenderer.getWidth(label)) / 2, sy + smallH / 2 + 4, a > 0.5f ? 0xFFFFFFFF : MUTED, false);
+            hit(sx, sy, bw, smallH, (mx, my, btn) -> openSmall(idx));
+            sx += bw + 6;
+        }
+
+        // theme switch top right (like Aurora's sky switch), version bottom left
+        String th = "Theme: " + cfg.theme;
+        int thw = textRenderer.getWidth(th) + 14, thx = width - 8 - thw;
+        boolean thov = over(thx, 8, thw, 15);
+        round(ctx, thx, 8, thw, 15, 4, thov ? 0x30FFFFFF : 0x18FFFFFF);
+        roundOutline(ctx, thx, 8, thw, 15, 4, thov ? 0xC0FFFFFF : 0x60FFFFFF, 0);
+        ctx.drawText(textRenderer, th, thx + 7, 12, TEXT, false);
+        hit(thx, 8, thw, 15, (mx, my, btn) -> {
+            int i = 0;
+            for (int k = 0; k < THEMES.size(); k++) if (THEMES.get(k).name().equals(cfg.theme)) i = k;
+            cfg.theme = THEMES.get(Math.floorMod(i + (btn == 1 ? -1 : 1), THEMES.size())).name();
+            Config.save();
+        });
+        String version = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("hugoservice")
+            .map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("");
+        ctx.drawText(textRenderer, "HugoService Style " + version + "   Minecraft 1.21.11", 6, height - 12, DIM, false);
+    }
+
+    private void scaledText(DrawContext ctx, Text t, float x, float y, float s, int color) {
+        Matrix3x2fStack m = ctx.getMatrices();
+        m.pushMatrix();
+        m.translate(x, y);
+        m.scale(s, s);
+        ctx.drawText(textRenderer, t, 0, 0, color, false);
+        m.popMatrix();
+    }
+
+    private void openFromHome(int i) {
+        home = false;
+        if (i <= 2) {
+            Category first = cat;
+            for (Category c : Categories.ALL) if (c.section().equals(HOME[i])) { first = c; break; }
+            selectCategory(first);
+        } else if (i == 3) {
+            openCosmetics(CosmeticCategory.values()[0]);
+        } else {
+            showExtras(true);
+        }
+    }
+
+    private void openSmall(int i) {
+        switch (i) {
+            case 0 -> { home = false; openCrosshair(); }
+            case 1 -> { home = false; selectCategory(cat); setFocused(search); }
+            case 2 -> Util.getOperatingSystem().open(Config.UPLOADS);
+            default -> { home = false; selectCategory(cat); themesTab = true; }
+        }
+    }
+
+    private void goHome() {
+        home = true;
+        editor = null;
+        search.visible = false;
+        setFocused(null);
+    }
+
     private void drawHeader(DrawContext ctx) {
-        round(ctx, L + 10, T + 8, 18, 18, 6, ACCENT);
-        bold(ctx, "H", L + 10 + (18 - boldWidth("H")) / 2, T + 13, INK);
-        bold(ctx, "HugoService", L + 34, T + 8, TEXT);
-        text(ctx, "Style Archive", L + 34, T + 18, MUTED);
+        // back to the start page, where the logo used to be
+        int bw = width("‹ Back") + 14;
+        boolean bhov = over(L + 8, T + 8, bw, 18);
+        lens(ctx, L + 8, T + 8, bw, 18, 6, bhov ? HOVER : PANEL_HI);
+        text(ctx, "‹ Back", L + 15, T + 13, bhov ? TEXT : MUTED);
+        hit(L + 8, T + 8, bw, 18, (a, b, btn) -> goHome());
+        bold(ctx, "HugoService", L + 14 + bw, T + 8, TEXT);
+        text(ctx, "Style Archive", L + 14 + bw, T + 18, MUTED);
 
         // loadout: what you wear in each collection; click one to open it
         int n = Categories.ALL.size();
-        int room = R - 12 - (L + 150) - width("LOADOUT") - 10;
+        int room = R - 12 - (L + 180) - width("LOADOUT") - 10;
         int shown = Math.max(0, Math.min(n, (room + 2) / 22));
         int x = R - 12 - shown * 22 + 2;
         if (shown > 0) text(ctx, "LOADOUT", x - 8 - width("LOADOUT"), T + 13, DIM);
@@ -341,7 +515,7 @@ public class StyleScreen extends Screen {
         if (sel) lens(ctx, x0 + 4, ry, w - 8, ROW_H - 1, 7, PANEL_HI);
         else if (hov) round(ctx, x0 + 4, ry, w - 8, ROW_H - 1, 7, 0x10FFFFFF);
         if (sel) round(ctx, x0 + 4, ry + 7, 2, ROW_H - 15, 1, ACCENT);
-        round(ctx, x0 + 9, ry + 3, 20, 20, 6, 0x50060E18);
+        round(ctx, x0 + 9, ry + 3, 20, 20, 6, FIELD);
         icon.accept(x0 + 11, ry + 5);
         int tx = x0 + 34, tw = sideR - 10 - tx - (right.isEmpty() ? 0 : width(right) + 4);
         text(ctx, ellipsize(name, tw), tx, ry + 4, sel || hov ? TEXT : MUTED);
@@ -463,7 +637,7 @@ public class StyleScreen extends Screen {
         round(ctx, sx, T + 34, sw, 17, 8.5f, FIELD);
         if (search.isFocused()) roundOutline(ctx, sx, T + 34, sw, 17, 8.5f, ACCENT, 1f); else rim(ctx, sx, T + 34, sw, 17, 8.5f, 0x60FFFFFF);
         round(ctx, sx + 6, T + 38, 6, 6, 3, MUTED);
-        round(ctx, sx + 7, T + 39, 4, 4, 2, 0xFF0B1522);
+        round(ctx, sx + 7, T + 39, 4, 4, 2, aurora ? 0xFF111111 : 0xFF0B1522);
         round(ctx, sx + 11, T + 43, 2.5f, 2.5f, 1, MUTED);
 
         // All / favourites
@@ -496,7 +670,7 @@ public class StyleScreen extends Screen {
                 String title = g.name().toUpperCase(Locale.ROOT);
                 text(ctx, title, cx0, y + 2, ACCENT);
                 int lx = cx0 + width(title) + 6;
-                if (lx < cx1) ctx.fill(lx, y + 6, cx1, y + 7, 0xFF1E2A3A);
+                if (lx < cx1) ctx.fill(lx, y + 6, cx1, y + 7, SEP);
                 y += 16;
             }
             Style active = selected(g);
@@ -523,7 +697,7 @@ public class StyleScreen extends Screen {
     private void drawCard(DrawContext ctx, Group g, Style s, boolean sel, int x, int y, int cw, int th, int ch) {
         boolean hov = over(x, y, cw, ch) && mouseY >= gridTop && mouseY < bodyB;
         if (hov) hovered = new Pick(g, s);
-        if (sel || hov) roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 9, sel ? ACCENT : 0x80BFE6FF, 1f);
+        if (sel || hov) roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 9, sel ? ACCENT : HOVER_LINE, 1f);
         round(ctx, x, y, cw, ch, 8, PANEL);
         roundGradient(ctx, x, y, cw, th, 8, CARD_TOP, CARD_BOT, true, false);
         rim(ctx, x, y, cw, ch, 8, hov ? 0x90FFFFFF : 0x58FFFFFF);
@@ -605,7 +779,7 @@ public class StyleScreen extends Screen {
             boolean worn = c == wearing || wearing != null && c.id().equals(wearing.id());
             boolean hov = over(x, y, cw, ch) && mouseY >= bodyY && mouseY < bodyB;
             if (hov) hoveredCos = c;
-            if (worn || hov) roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 9, worn ? ACCENT : 0x80BFE6FF, 1f);
+            if (worn || hov) roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 9, worn ? ACCENT : HOVER_LINE, 1f);
             round(ctx, x, y, cw, ch, 8, PANEL);
             roundGradient(ctx, x, y, cw, th, 8, CARD_TOP, CARD_BOT, true, false);
             rim(ctx, x, y, cw, ch, 8, hov ? 0x90FFFFFF : 0x58FFFFFF);
@@ -706,7 +880,6 @@ public class StyleScreen extends Screen {
 
     private void drawInspector(DrawContext ctx) {
         if (themesTab) { drawThemesPanel(ctx); return; }
-        if (editor != null) { drawEditorPanel(ctx); return; }
         if (crosshairView && !extras) { drawCrosshairInspector(ctx); return; }
         if (cosCat != null && !extras) { drawCosmeticInspector(ctx); return; }
         int x = insL, top = T + 36, w = R - 8 - insL;
@@ -1114,7 +1287,7 @@ public class StyleScreen extends Screen {
         text(ctx, v, x + w - width(v), y, ACCENT_HI);
         int ty = y + 15, tw = w;
         float f = (value - min) / (float) (max - min);
-        round(ctx, x, ty, tw, 4, 2, 0xFF2A3546);
+        round(ctx, x, ty, tw, 4, 2, TRACK);
         round(ctx, x, ty, Math.max(4, tw * f), 4, 2, ACCENT);
         round(ctx, x + tw * f - 4, ty - 2, 8, 8, 4, 0xFFFFFFFF);
         dragHit(x - 2, ty - 4, tw + 4, 12, (mx, my, btn) -> {
@@ -1516,30 +1689,41 @@ public class StyleScreen extends Screen {
         setFocused(null);
     }
 
-    /** Main area: the texture big on a checkerboard; name, Save and Back on top, file and frame pagers under them. */
+    private static final String[] EDIT_TOOLS = {"Pencil", "Eraser", "Fill", "Pick"};
+    private static final int[] EDIT_PALETTE = {
+        0xFFFFFF, 0xC6C6C6, 0x8E8E8E, 0x555555, 0x2B2B2B, 0x000000, 0xE53935, 0xFF7F27, 0xFFC31F, 0xFFEB3B, 0x7CD13B, 0x1FD1D1,
+        0x5AA9FF, 0x3050E8, 0x8A3FE0, 0xC03FD8, 0xFF66C4, 0x8B5A2B, 0x43A047, 0x2E7D32, 0x00897B, 0x4DD0E1, 0x6A1B9A, 0xFF9800};
+
+    /** Drawing colour; the hue is remembered on its own, so dragging to grey and back keeps it. */
+    private void setPaint(int rgb) {
+        cfg.paintColor = rgb & 0xFFFFFF;
+        float[] hsb = Color.RGBtoHSB(rgb >> 16 & 255, rgb >> 8 & 255, rgb & 255, null);
+        if (hsb[1] > 0.02f && hsb[2] > 0.02f) editHue = hsb[0];
+    }
+
+    /**
+     * Texture editor in the whole window (like Awerial's pack editor): the texture big with a grid on the left; parts,
+     * tools, frames, colour, palette, preview and saving on the right.
+     */
     private void drawEditor(DrawContext ctx) {
         TextureEditor ed = editor;
-        int backW = width("Back") + 16, saveW = width("Save") + 16;
-        int bx = cx1 - backW, sx = bx - 5 - saveW, nw = Math.min(110, Math.max(50, (cx1 - cx0) / 3)), nx = sx - 5 - nw;
-        button(ctx, bx, T + 34, backW, "Back", false, this::closeEditor);
-        button(ctx, sx, T + 34, saveW, "Save", true, this::saveEdit);
-        round(ctx, nx, T + 34, nw, 17, 8.5f, FIELD);
-        if (editName.isFocused()) roundOutline(ctx, nx, T + 34, nw, 17, 8.5f, ACCENT, 1f); else rim(ctx, nx, T + 34, nw, 17, 8.5f, 0x60FFFFFF);
-        editName.setX(nx + 8);
-        editName.setWidth(nw - 14);
-        editName.visible = true;
         int w = ed.width(), fh = ed.frameHeight();
-        bold(ctx, ellipsize("Edit  ·  " + ed.group.name(), nx - cx0 - 8), cx0, T + 37, TEXT);
-        text(ctx, ellipsize(w + "x" + fh + "  ·  " + ed.source.name, nx - cx0 - 8), cx0, T + 48, MUTED);
-        if (ed.files.size() > 1)
-            pager(ctx, cx0, T + 59, ed.label(ed.path()) + "  " + (ed.fileIndex() + 1) + "/" + ed.files.size(), d -> ed.showFile(ed.fileIndex() + d));
-        if (ed.frames() > 1) {
-            String fl = "Frame " + (ed.frame() + 1) + "/" + ed.frames();
-            pager(ctx, cx1 - width(fl) - 40, T + 59, fl, d -> ed.showFrame(ed.frame() + d));
-        }
+        int colW = (int) clamp((R - L) * 0.34, 150, 220), colX = R - 10 - colW;
+
+        // header: what you are drawing, and how
+        int hx = L + 12, hy = T + 9;
+        String head = "✎ Draw your own";
+        bold(ctx, head, hx, hy, ACCENT_HI);
+        String hint = "left: draw  ·  right: erase  ·  Ctrl+Z: undo";
+        int hintX = R - 12 - width(hint), subX = hx + boldWidth(head);
+        boolean showHint = hintX - subX > 120;
+        text(ctx, ellipsize("  —  " + ed.group.name() + " · " + ed.label(ed.path()) + "  (" + w + "x" + fh + ")", (showHint ? hintX - 10 : R - 12) - subX), subX, hy, MUTED);
+        if (showHint) text(ctx, hint, hintX, hy, DIM);
 
         // canvas in real pixels: fitted to the area times the wheel zoom; whole-number steps keep pixels square
-        int sf = scale(), aw = cx1 - cx0, ah = bodyB - bodyY;
+        edX0 = L + 12; edX1 = colX - 10; edY0 = T + 26; edY1 = B - 10;
+        glass(ctx, edX0 - 3, edY0 - 3, edX1 - edX0 + 6, edY1 - edY0 + 6, 6, 0x50000000);
+        int sf = scale(), aw = edX1 - edX0, ah = edY1 - edY0;
         edK0 = Math.min(aw * sf / (float) w, ah * sf / (float) fh);
         float k = editScale(ed.zoom);
         int dw = Math.max(1, Math.round(w * k)), dh = Math.max(1, Math.round(fh * k));
@@ -1548,106 +1732,220 @@ public class StyleScreen extends Screen {
         if (Float.isNaN(ed.viewX)) { ed.viewX = w / 2f; ed.viewY = fh / 2f; }
         ed.viewX = w <= 2 * hx0 ? w / 2f : (float) clamp(ed.viewX, hx0, w - hx0);
         ed.viewY = fh <= 2 * hy0 ? fh / 2f : (float) clamp(ed.viewY, hy0, fh - hy0);
-        int ox = Math.round(cx0 * sf + aw * sf / 2f - ed.viewX * k), oy = Math.round(bodyY * sf + ah * sf / 2f - ed.viewY * k);
-        ctx.enableScissor(cx0, bodyY, cx1, bodyB);
+        int ox = Math.round(edX0 * sf + aw * sf / 2f - ed.viewX * k), oy = Math.round(edY0 * sf + ah * sf / 2f - ed.viewY * k);
+        Identifier tex = ed.texture();
+        ctx.enableScissor(edX0, edY0, edX1, edY1);
         Matrix3x2fStack m = ctx.getMatrices();
         m.pushMatrix();
         m.scale(1f / sf, 1f / sf);
         // checkerboard behind see-through pixels: the visible part of the canvas, one repeating quad
         float cell2 = 2f * Math.max(4 * sf, Math.round(k));
-        int vx0 = Math.max(ox, cx0 * sf), vy0 = Math.max(oy, bodyY * sf), vx1 = Math.min(ox + dw, cx1 * sf), vy1 = Math.min(oy + dh, bodyB * sf);
+        int vx0 = Math.max(ox, edX0 * sf), vy0 = Math.max(oy, edY0 * sf), vx1 = Math.min(ox + dw, edX1 * sf), vy1 = Math.min(oy + dh, edY1 * sf);
         if (vx1 > vx0 && vy1 > vy0)
             ctx.drawTexturedQuad(TextureEditor.checker(), vx0, vy0, vx1, vy1, (vx0 - ox) / cell2, (vx1 - ox) / cell2, (vy0 - oy) / cell2, (vy1 - oy) / cell2);
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, ed.texture(), ox, oy, 0, ed.frame() * fh, dw, dh, w, fh, w, ed.image().getHeight());
+        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, tex, ox, oy, 0, ed.frame() * fh, dw, dh, w, fh, w, ed.image().getHeight());
+        // grid between the texels while they are big enough to see it
+        if (editGrid && k >= 5 && vx1 > vx0 && vy1 > vy0) {
+            int first = Math.max(0, (int) Math.ceil((vx0 - ox) / k)), last = Math.min(w, (int) Math.floor((vx1 - ox) / k));
+            for (int gx = first; gx <= last; gx++) { int lx = ox + Math.round(gx * k); ctx.fill(lx, vy0, lx + 1, vy1, 0x2EFFFFFF); }
+            first = Math.max(0, (int) Math.ceil((vy0 - oy) / k)); last = Math.min(fh, (int) Math.floor((vy1 - oy) / k));
+            for (int gy = first; gy <= last; gy++) { int ly = oy + Math.round(gy * k); ctx.fill(vx0, ly, vx1, ly + 1, 0x2EFFFFFF); }
+        }
+        if (editMirror) { int mxl = ox + Math.round(w * k / 2); ctx.fill(mxl, vy0, mxl + 1, vy1, 0x99FFD36B); }
         double gx = client.mouse.getX() * width / client.getWindow().getWidth(), gy = client.mouse.getY() * height / client.getWindow().getHeight();
-        int hx = (int) Math.floor((gx * sf - ox) / k), hy = (int) Math.floor((gy * sf - oy) / k);
-        if (ed.inside(hx, hy)) {
-            int px = ox + Math.round(hx * k), py = oy + Math.round(hy * k), ps = Math.max(1, Math.round(k));
-            ctx.fill(px, py, px + ps, py + ps, 0x50FFFFFF);
+        int hxp = (int) Math.floor((gx * sf - ox) / k), hyp = (int) Math.floor((gy * sf - oy) / k);
+        if (ed.inside(hxp, hyp) && gx >= edX0 && gx < edX1 && gy >= edY0 && gy < edY1) {
+            int ps = Math.max(1, Math.round(k));
+            for (int px : editMirror ? new int[] {hxp, w - 1 - hxp} : new int[] {hxp}) {
+                int qx = ox + Math.round(px * k), qy = oy + Math.round(hyp * k);
+                ctx.fill(qx, qy, qx + ps, qy + ps, 0x50FFFFFF);
+            }
         }
         m.popMatrix();
         ctx.disableScissor();
         float kk = k;
-        dragHit(cx0, bodyY, aw, ah, (mx, my, btn) -> {
+        dragHit(edX0, edY0, aw, ah, (mx, my, btn) -> {
             int px = (int) Math.floor((mx * sf - ox) / kk), py = (int) Math.floor((my * sf - oy) / kk);
             if (!ed.inside(px, py)) return;
-            int paint = btn == 1 ? 0 : 0xFF000000 | cfg.paintColor; // right button: see-through
-            switch (editTool) {
-                case 1 -> ed.fill(px, py, paint);
-                case 2 -> { // pick a colour, then back to the pen
+            boolean erase = btn == 1 || editTool == 1; // right button always erases
+            int paint = erase ? 0 : 0xFF000000 | cfg.paintColor;
+            switch (erase ? (editTool == 2 ? 2 : 0) : editTool) {
+                case 2 -> ed.fill(px, py, paint, editMirror);
+                case 3 -> { // pick a colour, then back to the pencil
                     int c = ed.get(px, py);
-                    if (c >>> 24 != 0) { cfg.paintColor = c & 0xFFFFFF; editTool = 0; }
+                    if (c >>> 24 != 0) { setPaint(c); editTool = 0; }
                 }
-                default -> ed.paint(px, py, paint);
+                default -> ed.paint(px, py, paint, editMirror);
             }
         });
+
+        drawEditorColumn(ctx, colX, edY0 - 3, colW, edY1 + 3);
+    }
+
+    /** Right column of the editor, top to bottom; the colour field takes whatever height is left. */
+    private void drawEditorColumn(DrawContext ctx, int x, int top, int w, int bottom) {
+        TextureEditor ed = editor;
+        int y = top;
+        // parts of this collection (e.g. item and worn armour, or the hotbar pieces)
+        if (ed.files.size() > 1) {
+            int rows = 1, cx = 0;
+            for (String f : ed.files) { // chips while they fit in two rows, else a pager
+                int cw = Math.min(w, width(ed.label(f)) + 12);
+                if (cx > 0 && cx + cw > w) { rows++; cx = 0; }
+                cx += cw + 3;
+            }
+            if (rows <= 2) {
+                cx = 0;
+                for (int i = 0; i < ed.files.size(); i++) {
+                    String l = ed.label(ed.files.get(i));
+                    int cw = Math.min(w, width(l) + 12), idx = i;
+                    if (cx > 0 && cx + cw > w) { cx = 0; y += 17; }
+                    toolButton(ctx, x + cx, y, cw, l, ed.fileIndex() == i, () -> ed.showFile(idx));
+                    cx += cw + 3;
+                }
+            } else {
+                String l = (ed.fileIndex() + 1) + "/" + ed.files.size() + "  " + ed.label(ed.path());
+                toolButton(ctx, x, y, 14, "‹", false, () -> ed.showFile(ed.fileIndex() - 1));
+                text(ctx, ellipsize(l, w - 36), x + 17 + (w - 34 - width(ellipsize(l, w - 36))) / 2, y + 4, TEXT);
+                toolButton(ctx, x + w - 14, y, 14, "›", false, () -> ed.showFile(ed.fileIndex() + 1));
+            }
+            y += 19;
+        }
+        int q = (w - 9) / 4;
+        for (int i = 0; i < 4; i++) {
+            int t = i, bx = x + i * (q + 3);
+            toolButton(ctx, bx, y, i == 3 ? w - 3 * (q + 3) : q, EDIT_TOOLS[i], editTool == i, () -> editTool = t);
+        }
+        y += 17;
+        toolButton(ctx, x, y, q, "Mirror", editMirror, () -> editMirror = !editMirror);
+        toolButton(ctx, x + q + 3, y, q, "Grid", editGrid, () -> editGrid = !editGrid);
+        toolButton(ctx, x + 2 * (q + 3), y, q, "Undo", false, () -> { if (!ed.undo()) status("Nothing to undo"); });
+        toolButton(ctx, x + 3 * (q + 3), y, w - 3 * (q + 3), "Clear", false, ed::clear);
+        y += 19;
+        // animation frames
+        String fl = "Frame " + (ed.frame() + 1) + "/" + ed.frames();
+        int addW = width("+ Add") + 12, remW = width("Remove") + 12, fw = width(fl) + 8;
+        boolean oneRow = 14 + 3 + fw + 3 + 14 + 6 + addW + 3 + remW <= w; // add / remove go under it when narrow
+        if (oneRow) fw = w - 14 - 3 - 3 - 14 - 6 - addW - 3 - remW;
+        else fw = w - 14 - 3 - 3 - 14;
+        toolButton(ctx, x, y, 14, "‹", false, () -> ed.showFrame(ed.frame() - 1));
+        text(ctx, fl, x + 17 + (fw - width(fl)) / 2, y + 4, TEXT);
+        toolButton(ctx, x + 20 + fw, y, 14, "›", false, () -> ed.showFrame(ed.frame() + 1));
+        int ay = oneRow ? y : y + 17, ax = oneRow ? x + w - remW - addW - 3 : x;
+        if (!oneRow) { addW = (w - 3) / 2; remW = w - 3 - addW; }
+        toolButton(ctx, ax, ay, addW, "+ Add", false, () -> { if (!ed.addFrame()) status("Only square textures can have frames"); });
+        toolButton(ctx, ax + addW + 3, ay, remW, "Remove", false, () -> { if (!ed.removeFrame()) status("The last frame stays"); });
+        y = ay + 19;
+
+        // what must fit under the colour field; the preview and the extra row go first when space is short
+        int sw = (w - 11 * 2) / 12, palH = 2 * sw + 2 + 6, pvH = (int) clamp(w / 4.5, 24, 48), saveH = 17 + 4 + 16;
+        int fixedBelow = 19 + 20 + palH + saveH; // hex row, gap and hue bar, palette, name and buttons
+        boolean extraRow = bottom - y - fixedBelow - (pvH + 14) - 19 >= 28, preview = bottom - y - fixedBelow - (extraRow ? 19 : 0) - (pvH + 14) >= 28;
+        if (extraRow) {
+            int third = (w - 6) / 3;
+            toolButton(ctx, x, y, third, "Import", false, this::importTexture);
+            toolButton(ctx, x + third + 3, y, third, "Vanilla", false, () -> ed.revert(true));
+            toolButton(ctx, x + 2 * (third + 3), y, w - 2 * (third + 3), "Start over", false, () -> ed.revert(false));
+            y += 19;
+        }
+
+        // colour: swatch and hex code
+        if (editHue < 0) { setPaint(cfg.paintColor); if (editHue < 0) editHue = 0; }
+        round(ctx, x, y, 15, 15, 3, 0xFF000000 | cfg.paintColor);
+        roundOutline(ctx, x, y, 15, 15, 3, 0x80FFFFFF, 0);
+        int hxw = w - 19;
+        round(ctx, x + 19, y, hxw, 15, 4, FIELD);
+        roundOutline(ctx, x + 19, y, hxw, 15, 4, hexField.isFocused() ? ACCENT : 0x40FFFFFF, 0);
+        if (!hexField.isFocused()) {
+            String hex = String.format("#%06X", cfg.paintColor);
+            if (!hexField.getText().equals(hex)) hexField.setText(hex);
+        }
+        hexField.setX(x + 25);
+        hexField.setY(y + 4);
+        hexField.setWidth(hxw - 10);
+        hexField.visible = true;
+        y += 19;
+
+        // saturation / brightness field and the hue bar
+        int svH = (int) clamp(bottom - y - (20 + palH + saveH + 4) - (preview ? pvH + 14 : 0), 24, 96);
+        float[] hsb = Color.RGBtoHSB(cfg.paintColor >> 16 & 255, cfg.paintColor >> 8 & 255, cfg.paintColor & 255, null);
+        float hue = editHue;
+        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, TextureEditor.svSquare(hue), x, y, 0, 0, w, svH, 32, 32, 32, 32);
+        roundOutline(ctx, x, y, w, svH, 2, 0x40FFFFFF, 0);
+        float mx0 = x + hsb[1] * (w - 1), my0 = y + (1 - hsb[2]) * (svH - 1);
+        roundOutline(ctx, mx0 - 3, my0 - 3, 7, 7, 3.5f, 0xFFFFFFFF, 0);
+        roundOutline(ctx, mx0 - 2, my0 - 2, 5, 5, 2.5f, 0xFF000000, 0);
+        int svY = y;
+        dragHit(x, svY, w, svH, (mx, my, btn) -> {
+            float s = (float) clamp((mx - x) / Math.max(1, w - 1), 0, 1), v = 1 - (float) clamp((my - svY) / Math.max(1, svH - 1), 0, 1);
+            cfg.paintColor = Color.HSBtoRGB(editHue, s, v) & 0xFFFFFF;
+        });
+        y += svH + 6;
+        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, TextureEditor.hueBar(), x, y, 0, 0, w, 7, 128, 1, 128, 1);
+        float hmx = x + hue * (w - 1);
+        round(ctx, hmx - 1.5f, y - 2, 3, 11, 1, 0xFFFFFFFF);
+        int hueY = y;
+        dragHit(x, hueY - 3, w, 13, (mx, my, btn) -> {
+            editHue = (float) clamp((mx - x) / Math.max(1, w - 1), 0, 0.999);
+            float s = hsb[1] < 0.05f ? 1 : hsb[1], v = hsb[2] < 0.05f ? 1 : hsb[2];
+            cfg.paintColor = Color.HSBtoRGB(editHue, s, v) & 0xFFFFFF;
+        });
+        y += 14;
+
+        // palette
+        for (int i = 0; i < EDIT_PALETTE.length; i++) {
+            int rgb = EDIT_PALETTE[i], bx = x + i % 12 * (sw + 2), by = y + i / 12 * (sw + 2);
+            round(ctx, bx, by, sw, sw, 2, 0xFF000000 | rgb);
+            if (rgb == cfg.paintColor) roundOutline(ctx, bx - 1, by - 1, sw + 2, sw + 2, 3, 0xFFFFFFFF, 0);
+            else if (over(bx, by, sw, sw)) roundOutline(ctx, bx - 1, by - 1, sw + 2, sw + 2, 3, 0x90FFFFFF, 0);
+            clipHit(bx, by, sw, sw, (a, b, btn) -> setPaint(rgb));
+        }
+        y += palH;
+
+        // preview at three sizes
+        if (preview) {
+            text(ctx, "Preview", x, y, DIM);
+            y += 11;
+            int px = x;
+            for (int size : new int[] {Math.max(8, pvH / 4), pvH / 2, pvH}) {
+                round(ctx, px, y + pvH - size, size, size, 2, 0x40000000);
+                roundOutline(ctx, px, y + pvH - size, size, size, 2, 0x40FFFFFF, 0);
+                float f = Math.min((size - 2f) / ed.width(), (size - 2f) / ed.frameHeight());
+                int dw2 = Math.max(1, Math.round(ed.width() * f)), dh2 = Math.max(1, Math.round(ed.frameHeight() * f));
+                ctx.drawTexture(RenderPipelines.GUI_TEXTURED, ed.texture(), px + (size - dw2) / 2, y + pvH - size + (size - dh2) / 2, 0, ed.frame() * ed.frameHeight(),
+                    dw2, dh2, ed.width(), ed.frameHeight(), ed.width(), ed.image().getHeight());
+                px += size + 8;
+            }
+            y += pvH + 3;
+        }
+
+        // name, save and cancel at the bottom
+        int ny = bottom - 16 - 4 - 17;
+        round(ctx, x, ny, w, 17, 4, FIELD);
+        roundOutline(ctx, x, ny, w, 17, 4, editName.isFocused() ? ACCENT : 0x40FFFFFF, 0);
+        editName.setX(x + 7);
+        editName.setY(ny + 5);
+        editName.setWidth(w - 12);
+        editName.visible = true;
+        int half = (w - 4) / 2;
+        button(ctx, x, bottom - 16, half, "✓ Save", true, this::saveEdit);
+        button(ctx, x + half + 4, bottom - 16, w - half - 4, "Cancel", false, this::closeEditor);
+    }
+
+    /** Small square-cornered button that can stay pressed (tools, Mirror, Grid). */
+    private void toolButton(DrawContext ctx, int x, int y, int w, String label, boolean on, Runnable r) {
+        boolean hov = over(x, y, w, 14);
+        round(ctx, x, y, w, 14, 3, on ? ACCENT_SOFT : hov ? HOVER : PANEL_HI);
+        roundOutline(ctx, x, y, w, 14, 3, on ? ACCENT : hov ? 0x80FFFFFF : 0x40FFFFFF, 0);
+        String l = ellipsize(label, w - 4);
+        text(ctx, l, x + (w - width(l)) / 2, y + 3, on ? ACCENT_HI : TEXT);
+        clipHit(x, y, w, 14, (a, b, btn) -> r.run());
     }
 
     /** Real pixels per texel at a zoom; whole numbers once a texel is at least a pixel, so pixels stay square. */
     private float editScale(float zoom) {
         float k = edK0 * zoom;
         return k >= 1 ? (float) Math.floor(k) : k;
-    }
-
-    /** "‹ label ›": left / right step through. */
-    private void pager(DrawContext ctx, int x, int y, String label, java.util.function.IntConsumer step) {
-        int lw = width(label);
-        for (int i = 0; i < 2; i++) {
-            int bx = i == 0 ? x : x + 20 + lw, d = i == 0 ? -1 : 1;
-            lens(ctx, bx, y, 14, 14, 7, over(bx, y, 14, 14) ? HOVER : PANEL_HI);
-            text(ctx, i == 0 ? "‹" : "›", bx + 5, y + 3, TEXT);
-            hit(bx, y, 14, 14, (a, b, btn) -> step.accept(d));
-        }
-        text(ctx, label, x + 17, y + 3, TEXT);
-    }
-
-    /** Right panel while editing: tools, colour (with the texture's own colours), undo and reverting. */
-    private void drawEditorPanel(DrawContext ctx) {
-        TextureEditor ed = editor;
-        int x = insL, top = T + 36, w = R - 8 - insL, ix = x + 8, iw = w - 16;
-        glass(ctx, x, top, w, B - 32 - top, 12, PANEL);
-        inspectorTabs(ctx, ix, top + 5, iw, "Editor");
-        int y = top + 26, tw = iw / 3;
-        String[] tools = {"Pen", "Fill", "Pick"};
-        round(ctx, ix, y, iw, 16, 8, FIELD);
-        lens(ctx, ix + editTool * tw, y, editTool == 2 ? iw - 2 * tw : tw, 16, 8, ACCENT_SOFT);
-        for (int i = 0; i < 3; i++) {
-            int t = i;
-            segment(ctx, ix + i * tw, y, i == 2 ? iw - 2 * tw : tw, tools[i], editTool == i, () -> editTool = t);
-        }
-        y += 22;
-        text(ctx, "Colour", ix, y + 2, MUTED);
-        round(ctx, ix + iw - 24, y, 24, 11, 4, 0xFF000000 | cfg.paintColor);
-        rim(ctx, ix + iw - 24, y, 24, 11, 4, 0x70FFFFFF);
-        y += 17;
-        colorPicker(ctx, ix, y, iw, cfg.paintColor, rgb -> cfg.paintColor = rgb);
-        y += 28;
-        float[] hsb = Color.RGBtoHSB(cfg.paintColor >> 16 & 255, cfg.paintColor >> 8 & 255, cfg.paintColor & 255, null);
-        sliderRow(ctx, ix, y, iw, "Brightness", Math.round(hsb[2] * 100), 0, 100, v -> cfg.paintColor = Color.HSBtoRGB(hsb[0], hsb[1], v / 100f) & 0xFFFFFF);
-        y += 28;
-        text(ctx, "In this texture", ix, y, MUTED);
-        y += 11;
-        int per = 8, sw = (iw - (per - 1) * 2) / per;
-        List<Integer> pal = ed.palette(per * 2);
-        for (int i = 0; i < pal.size(); i++) {
-            int c = pal.get(i), bx = ix + i % per * (sw + 2), by = y + i / per * (sw + 2);
-            round(ctx, bx, by, sw, sw, 2, c);
-            if ((c & 0xFFFFFF) == cfg.paintColor) roundOutline(ctx, bx - 1, by - 1, sw + 2, sw + 2, 3, 0xFFFFFFFF, 1f);
-            clipHit(bx, by, sw, sw, (a, b, btn) -> cfg.paintColor = c & 0xFFFFFF);
-        }
-        y += 2 * (sw + 2) + 6;
-        int half = (iw - 4) / 2;
-        smallButton(ctx, ix, y, half, "Undo", false, () -> { if (!ed.undo()) status("Nothing to undo"); });
-        smallButton(ctx, ix + half + 4, y, iw - half - 4, "Import", false, this::importTexture);
-        y += 18;
-        smallButton(ctx, ix, y, half, "Vanilla", false, () -> ed.revert(true));
-        smallButton(ctx, ix + half + 4, y, iw - half - 4, "Start over", false, () -> ed.revert(false));
-        y += 22;
-        for (String h : new String[] {"L paint  ·  R erase", "Wheel zoom  ·  Ctrl+Z undo"}) {
-            if (y + 9 > B - 36) break;
-            text(ctx, ellipsize(h, iw), ix, y, DIM);
-            y += 11;
-        }
     }
 
     /** Your own PNG in place of the texture you are on. */
@@ -1674,6 +1972,7 @@ public class StyleScreen extends Screen {
             rescan();
             for (Style s : lists.get(ed.group.id())) if (s.id.equals(id)) pick(ed.group, s);
             status("Saved as " + name + "  ·  picked for " + ed.group.name());
+            closeEditor(); // back to the collection, with the drawing picked
         } catch (IOException e) {
             HugoService.LOG.warn("Could not save the edited textures", e);
             status("Error: " + e.getMessage());
@@ -2071,10 +2370,10 @@ public class StyleScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mx, double my, double h, double v) {
         TextureEditor ed = editor;
-        if (ed != null && mx >= cx0 && mx < cx1 && my >= bodyY && my < bodyB) { // zoom in or out around the pointer
+        if (ed != null && mx >= edX0 && mx < edX1 && my >= edY0 && my < edY1) { // zoom in or out around the pointer
             int sf = scale();
             float nz = (float) clamp(ed.zoom * (v > 0 ? 1.25 : 0.8), 1, 32), k = editScale(ed.zoom), k1 = editScale(nz);
-            float ax = (cx0 + cx1) / 2f * sf, ay = (bodyY + bodyB) / 2f * sf;
+            float ax = (edX0 + edX1) / 2f * sf, ay = (edY0 + edY1) / 2f * sf;
             float tx = ed.viewX + (float) (mx * sf - ax) / k, ty = ed.viewY + (float) (my * sf - ay) / k; // texel under the pointer
             ed.zoom = nz;
             ed.viewX = tx - (float) (mx * sf - ax) / k1;
@@ -2101,13 +2400,13 @@ public class StyleScreen extends Screen {
             }
             return true;
         }
-        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || enemyField.isFocused() || badgeField.isFocused() || urlField.isFocused() || spotifyField.isFocused() || editName.isFocused();
+        boolean typing = search.isFocused() || packName.isFocused() || fakeField.isFocused() || enemyField.isFocused() || badgeField.isFocused() || urlField.isFocused() || spotifyField.isFocused() || editName.isFocused() || hexField.isFocused();
         if (editor != null) { // Esc leaves the editor, Ctrl+Z undoes
             if (input.key() == GLFW.GLFW_KEY_ESCAPE) { closeEditor(); return true; }
             if (!typing && input.key() == GLFW.GLFW_KEY_Z && input.hasCtrlOrCmd()) { if (!editor.undo()) status("Nothing to undo"); return true; }
         }
         if (!typing && editor == null) {
-            if (input.key() == GLFW.GLFW_KEY_SLASH && !extras) {
+            if (input.key() == GLFW.GLFW_KEY_SLASH && !extras && !home) {
                 setFocused(search);
                 skipChar = true;
                 return true;
@@ -2198,7 +2497,8 @@ public class StyleScreen extends Screen {
     private void toggleRow(DrawContext ctx, int x, int y, int w, String label, boolean on, Runnable r) {
         text(ctx, label, x, y + 1, TEXT);
         int tx = x + w - 20;
-        round(ctx, tx, y, 20, 11, 5.5f, on ? ACCENT : 0xFF2A3546);
+        round(ctx, tx, y, 20, 11, 5.5f, on ? TOGGLE_ON : TRACK);
+        if (aurora) roundOutline(ctx, tx, y, 20, 11, 5.5f, on ? 0x66FFFFFF : 0x30FFFFFF, 0);
         round(ctx, on ? tx + 10.5f : tx + 1.5f, y + 1.5f, 8, 8, 4, on ? 0xFFFFFFFF : DIM);
         clipHit(x, y - 2, w, 15, (a, b, btn) -> r.run());
     }
@@ -2263,6 +2563,12 @@ public class StyleScreen extends Screen {
 
     /** Liquid-glass panel: clear tinted body with a light sheen at the top and a specular rim. */
     private void glass(DrawContext ctx, float x, float y, float w, float h, float r, int fill) {
+        if (aurora) { // flat dark glass, smaller corners, one thin light edge
+            float rr = Math.min(r, 6);
+            round(ctx, x, y, w, h, rr, fill);
+            roundOutline(ctx, x, y, w, h, rr, LINE, 0);
+            return;
+        }
         glass(ctx, x, y, w, h, r, fill, 0x8CFFFFFF);
     }
 
@@ -2281,6 +2587,7 @@ public class StyleScreen extends Screen {
 
     /** Glass control (button, chip, tab): fill plus a softer rim. */
     private void lens(DrawContext ctx, float x, float y, float w, float h, float r, int fill) {
+        if (aurora) r = Math.min(r, 4);
         round(ctx, x, y, w, h, r, fill);
         rim(ctx, x, y, w, h, r, 0x78FFFFFF);
     }
@@ -2290,6 +2597,7 @@ public class StyleScreen extends Screen {
      * plus 1px strips whose brightness follows the same top-to-bottom light curve.
      */
     static void rim(DrawContext ctx, float x, float y, float w, float h, float r, int color) {
+        if (flat) { roundOutline(ctx, x, y, w, h, r, fade(color, 0.6f), 0); return; } // Aurora: a plain thin edge
         int s = scale();
         int X = Math.round(x * s), Y = Math.round(y * s), W = Math.round(w * s), H = Math.round(h * s);
         if (W < 6 || H < 6) return;
@@ -2329,7 +2637,7 @@ public class StyleScreen extends Screen {
     }
 
     /** Rounded ring; thickness in GUI pixels (0 = one real pixel). One quad when small. */
-    private void roundOutline(DrawContext ctx, float x, float y, float w, float h, float r, int color, float thickness) {
+    private static void roundOutline(DrawContext ctx, float x, float y, float w, float h, float r, int color, float thickness) {
         int s = scale();
         int X = Math.round(x * s), Y = Math.round(y * s), W = Math.round(w * s), H = Math.round(h * s);
         int t = Math.max(1, Math.round(thickness * s));
@@ -2378,7 +2686,7 @@ public class StyleScreen extends Screen {
     }
 
     private net.minecraft.text.Style ui() {
-        return net.minecraft.text.Style.EMPTY.withFont(cfg.pixelFont ? PIXEL : SMOOTH);
+        return net.minecraft.text.Style.EMPTY.withFont(cfg.pixelFont ? PIXEL : aurora ? MC : SMOOTH);
     }
 
     private Text t(String s) {
@@ -2395,7 +2703,7 @@ public class StyleScreen extends Screen {
         Text cached = BOLD_CACHE.get(s);
         if (cached == null) {
             if (BOLD_CACHE.size() > 1000) BOLD_CACHE.clear();
-            cached = Text.literal(s).setStyle(net.minecraft.text.Style.EMPTY.withFont(cfg.pixelFont ? PIXEL : SMOOTH_BOLD));
+            cached = Text.literal(s).setStyle(net.minecraft.text.Style.EMPTY.withFont(cfg.pixelFont ? PIXEL : aurora ? MC : SMOOTH_BOLD));
             BOLD_CACHE.put(s, cached);
         }
         return cached;
@@ -2417,7 +2725,7 @@ public class StyleScreen extends Screen {
 
     /** Cached, so long names are not re-measured every frame. */
     private String ellipsize(String s, int max) {
-        String key = s + "0000" + max + (cfg.pixelFont ? "p" : "");
+        String key = s + "0000" + max + fontKey;
         String cached = ELLIPSIS.get(key);
         if (cached != null) return cached;
         String out = s;

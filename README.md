@@ -1,6 +1,6 @@
 # HugoService Style
 
-Fabric mod for **Minecraft 1.21.11**: a liquid-glass style archive menu where you pick single objects
+Fabric mod for **Minecraft 1.21.11**: a style archive menu where you pick single objects
 (crystal, anchor, totem, tools, sky, …) from different texture packs, mix them and save the result
 as a new resource pack.
 
@@ -8,6 +8,9 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
 
 ## Features
 
+- **Start page** in the style of Aurora Client: big cards for PvP, World, Interface, Wardrobe and Extras, shortcuts
+  for Crosshair, Search, Packs and Themes, and a theme switch. The default **Aurora** theme is monochrome with thin
+  light edges and Minecraft's own font; *‹ Back* in the menu returns to the start page
 - **Collections** in sections (PvP, World, Interface) with sub-groups per object, e.g. Anchor → Anchors / Glowstone,
   Tools → Swords / Axes / Pickaxes / Shovels / Hoes / Spears. The sidebar shows what you picked in each collection,
   the **Loadout** bar on top shows it as previews, the right panel has **Inspector** and **Themes** tabs, and every
@@ -17,10 +20,11 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
 - 3D previews for blocks and the end crystal (vanilla's own model, as a placed crystal stands on obsidian), sorting (For you, A–Z, Newest, Packs, Presets), search, favourites
 - **Apply** builds `resourcepacks/HugoService-Active` and reloads; **Save pack** writes a `.zip` to `resourcepacks/`;
   **Export** saves the `.zip` wherever you choose (e.g. to share it)
-- **Texture editor** (*Edit texture* in the Inspector): edit the textures of a collection, starting from the style you
-  look at (or vanilla): pen, fill and colour picker, your colour or the texture's own colours, brightness, undo
-  (Ctrl+Z), wheel zoom, every frame of animated textures, *Import* for your own PNG. *Save* adds it as your own style
-  of that collection (a folder pack in `config/hugoservice/packs`) and picks it
+- **Texture editor** (*Edit texture* in the Inspector, opens in the whole window): a big canvas with a pixel grid, Pencil,
+  Eraser, Fill, Pick, Mirror, Undo (Ctrl+Z), Clear, wheel zoom, the parts of a collection (e.g. item and worn armour),
+  animation frames (add, remove, step through), hex code, colour field with hue bar, a 24-colour palette and a preview
+  at three sizes; *Import* for your own PNG, *Vanilla* / *Start over*. *Save* adds it as your own style of that
+  collection (a folder pack in `config/hugoservice/packs`) and picks it
 - **Extras**: hit colour (with strength), hitbox colour (F3+B), block outline (colour and thickness), cobweb outline
   (adjustable thickness), player glow (only while the player is visible, not through walls; also yourself in F5,
   rainbow, thickness), shield status (ready / disabled by axe), end crystal spin speed (or stopped) and core colour,
@@ -31,7 +35,7 @@ Open the menu with **Right Shift** (changeable in the menu under *Extras → Men
   totem counter (pops over heads, your totems beside the hotbar, optional chat line per pop, a key that resets the pops),
   end crystal and shield opacity, name tag colour and size, inventory size, hide inventory model,
   name faker (own / enemy names; a real account name brings its skin and its MCTiers tier, else a default skin; hide tier tags), grey world, grass colour,
-  6 UI themes, smooth/pixel font, optional background blur. Every effect has a live preview in the menu;
+  7 UI themes (Aurora, Ice, Midnight, Rose, Mint, Amber, Frost), smooth/pixel font, optional background blur. Every effect has a live preview in the menu;
   every colour picker also offers grey and black.
 - **Custom sky** (like Skyboxify): skyboxes from packs (OptiFine / MCPatcher `sky/world0` 3x2 layout) or your own
   images (upload or `config/hugoservice/skies`; 3:2 = cube layout, 2:1 = 360° panorama). Switches live, with

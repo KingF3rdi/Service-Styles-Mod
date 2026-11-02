@@ -111,7 +111,9 @@ public final class Config {
     /** Skybox options; skyTime -1 = server time. */
     public boolean skyRotate = false, skyKeepSun = false, skyNightFade = true;
     public int skyTime = -1;
-    public String theme = "Ice";
+    public String theme = "Aurora";
+    /** 1 = switched to the Aurora look once (1.15). */
+    public int uiVersion = 0;
     public int sortMode = 0;
     public String lastCategory = "crystal";
 
@@ -171,7 +173,8 @@ public final class Config {
         if (ownColorOn == null) ownColorOn = new HashSet<>();
         if (keepColour == null) keepColour = new HashSet<>();
         if (lastCategory == null) lastCategory = "crystal";
-        if (theme == null) theme = "Ice";
+        if (theme == null) theme = "Aurora";
+        if (uiVersion < 1) { theme = "Aurora"; uiVersion = 1; }
         if (fakeName == null || fakeName.isBlank()) fakeName = "Player";
         if (fakeEnemyName == null) fakeEnemyName = "";
         if (badgeName == null) badgeName = "";
