@@ -1,4 +1,4 @@
-# HugoService Style: reads what plays from Windows' media controls (the same info the volume flyout shows)
+# SkellyHole Styles: reads what plays from Windows' media controls (the same info the volume flyout shows)
 # and prints one JSON line per update. Placeholders __PARENT__, __ANY__, __DIR__ are filled in by the mod.
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8

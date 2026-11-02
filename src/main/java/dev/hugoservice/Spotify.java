@@ -47,7 +47,7 @@ public final class Spotify {
     public static final String REDIRECT = "http://127.0.0.1:" + PORT + "/callback";
     public static final Identifier COVER = Identifier.of("hugoservice", "spotify/cover");
     private static final String SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state";
-    private static final String UA = "HugoService Style (https://github.com/KingF3rdi/Service-Styles-Mod)";
+    private static final String UA = "SkellyHole Styles (https://github.com/KingF3rdi/Service-Styles-Mod)";
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
     private static final Gson GSON = new Gson();
     private static final Pattern LRC = Pattern.compile("\\[(\\d+):(\\d+(?:\\.\\d+)?)]");
@@ -110,7 +110,7 @@ public final class Spotify {
                         if (first == null || !first.startsWith("GET /callback")) { reply(s, 404, "Not found"); continue; }
                         Map<String, String> q = query(first.split(" ")[1]);
                         boolean ok = state.equals(q.get("state")) && q.containsKey("code");
-                        reply(s, 200, ok ? "Connected to HugoService Style. You can close this tab."
+                        reply(s, 200, ok ? "Connected to SkellyHole Styles. You can close this tab."
                             : "Spotify login failed: " + q.getOrDefault("error", "unknown"));
                         if (!ok) { status = "Login cancelled"; return; }
                         token("grant_type=authorization_code&code=" + enc(q.get("code")) + "&redirect_uri=" + enc(REDIRECT)
@@ -418,7 +418,7 @@ public final class Spotify {
 
     private static void reply(Socket s, int code, String message) throws Exception {
         String safe = message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-        String body = "<!doctype html><meta charset=utf-8><title>HugoService Style</title>"
+        String body = "<!doctype html><meta charset=utf-8><title>SkellyHole Styles</title>"
             + "<body style=\"font-family:sans-serif;background:#0b1522;color:#f2f8ff;display:grid;place-items:center;height:100vh;margin:0\">"
             + "<p>" + safe + "</p></body>";
         byte[] b = body.getBytes(StandardCharsets.UTF_8);

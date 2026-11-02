@@ -148,7 +148,7 @@ public class StyleScreen extends Screen {
     private int L, T, R, B, sideR, insL, cx0, cx1, bodyY, bodyB, gridTop;
 
     public StyleScreen() {
-        super(Text.literal("HugoService Style"));
+        super(Text.literal("SkellyHole Styles"));
     }
 
     // ================================================================ setup
@@ -356,7 +356,7 @@ public class StyleScreen extends Screen {
     private void drawHome(DrawContext ctx, float delta) {
         ctx.fillGradient(0, 0, width, height, 0x40000000, 0xB8000000);
         int ts = height >= 330 ? 4 : height >= 230 ? 3 : 2;
-        Text title = Text.literal("HugoService");
+        Text title = Text.literal("SkellyHole");
         int tw = textRenderer.getWidth(title) * ts;
         int n = HOME.length, cw = (int) clamp(width / 9.5, 50, 78), ch = cw + 10, gap = Math.max(6, cw / 7);
         int smallH = Math.max(34, cw / 2 + 4), block = 9 * ts + 18 + ch + 16 + smallH;
@@ -418,7 +418,7 @@ public class StyleScreen extends Screen {
         });
         String version = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("hugoservice")
             .map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("");
-        ctx.drawText(textRenderer, "HugoService Style " + version + "   Minecraft 1.21.11", 6, height - 12, DIM, false);
+        ctx.drawText(textRenderer, "SkellyHole Styles " + version + "   Minecraft 1.21.11", 6, height - 12, DIM, false);
     }
 
     private void scaledText(DrawContext ctx, Text t, float x, float y, float s, int color) {
@@ -466,7 +466,7 @@ public class StyleScreen extends Screen {
         lens(ctx, L + 8, T + 8, bw, 18, 6, bhov ? HOVER : PANEL_HI);
         text(ctx, "‹ Back", L + 15, T + 13, bhov ? TEXT : MUTED);
         hit(L + 8, T + 8, bw, 18, (a, b, btn) -> goHome());
-        bold(ctx, "HugoService", L + 14 + bw, T + 8, TEXT);
+        bold(ctx, "SkellyHole", L + 14 + bw, T + 8, TEXT);
         text(ctx, "Style Archive", L + 14 + bw, T + 18, MUTED);
 
         // loadout: what you wear in each collection; click one to open it
@@ -2170,7 +2170,7 @@ public class StyleScreen extends Screen {
         busy = true;
         status("Building pack...");
         Config snap = cfg.copy();
-        runAsync(() -> PackBuilder.collect(snap, "Made with HugoService Style"), files -> {
+        runAsync(() -> PackBuilder.collect(snap, "Made with SkellyHole Styles"), files -> {
             PackBuilder.writeActiveAndReload(files);
             dirty = false;
             status("Applied - reloading textures");
@@ -2183,7 +2183,7 @@ public class StyleScreen extends Screen {
         status("Saving pack...");
         Config snap = cfg.copy();
         String name = packName.getText();
-        runAsync(() -> PackBuilder.collect(snap, name + " - made with HugoService Style"), files -> {
+        runAsync(() -> PackBuilder.collect(snap, name + " - made with SkellyHole Styles"), files -> {
             Path p = PackBuilder.saveZip(files, name);
             status("Saved " + p.getFileName() + " to resourcepacks");
             rescan();
@@ -2218,7 +2218,7 @@ public class StyleScreen extends Screen {
                     if (er != null) throw er;
                     done.accept(r);
                 } catch (Exception e) {
-                    HugoService.LOG.error("HugoService Style failed", e);
+                    HugoService.LOG.error("SkellyHole Styles failed", e);
                     status("Error: " + e.getMessage());
                 }
             });
@@ -2239,7 +2239,7 @@ public class StyleScreen extends Screen {
             busy = true;
             status("Exporting...");
             Config snap = cfg.copy();
-            runAsync(() -> PackBuilder.writeZip(PackBuilder.collect(snap, name + " - made with HugoService Style"), target),
+            runAsync(() -> PackBuilder.writeZip(PackBuilder.collect(snap, name + " - made with SkellyHole Styles"), target),
                 p -> status("Exported " + p.getFileName() + " to " + p.getParent()));
         }, "*.zip");
     }

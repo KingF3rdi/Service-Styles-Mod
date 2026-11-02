@@ -1,4 +1,4 @@
-# HugoService Style
+# SkellyHole Styles
 
 Fabric mod for **Minecraft 1.21.11**: a style archive menu where you pick single objects
 (crystal, anchor, totem, tools, sky, …) from different texture packs, mix them and save the result

@@ -338,7 +338,7 @@ final class TextureEditor {
         Path dir = Config.UPLOADS.resolve(clean(name));
         Files.createDirectories(dir);
         Path mcmeta = dir.resolve("pack.mcmeta");
-        if (!Files.exists(mcmeta)) Files.write(mcmeta, PackBuilder.mcmeta(clean(name) + " - edited with HugoService Style"));
+        if (!Files.exists(mcmeta)) Files.write(mcmeta, PackBuilder.mcmeta(clean(name) + " - edited with SkellyHole Styles"));
         for (String f : files) {
             Path p = dir.resolve("assets/minecraft/" + f), m = dir.resolve("assets/minecraft/" + f + ".mcmeta");
             Files.createDirectories(p.getParent());
