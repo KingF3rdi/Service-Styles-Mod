@@ -1,19 +1,30 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.google.gson.Gson
+ *  com.google.gson.GsonBuilder
+ *  net.fabricmc.loader.api.FabricLoader
+ */
 package dev.hugoservice;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import net.fabricmc.loader.api.FabricLoader;
-
+import dev.hugoservice.Crosshair;
+import dev.hugoservice.HugoService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import net.fabricmc.loader.api.FabricLoader;
 
-/** Everything the user picked. Saved to config/hugoservice/config.json. */
 public final class Config {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final Path DIR = FabricLoader.getInstance().getConfigDir().resolve("hugoservice");
@@ -21,171 +32,225 @@ public final class Config {
     public static final Path SKIES = DIR.resolve("skies");
     public static final Path CAPES = DIR.resolve("capes");
     private static final Path FILE = DIR.resolve("config.json");
-
-    /** category id -> style id */
-    public Map<String, String> loadout = new HashMap<>();
-    /** "category:styleId" */
-    public Set<String> favorites = new HashSet<>();
-    /** category id -> RGB, only used when the id is in ownColorOn */
-    public Map<String, Integer> ownColor = new HashMap<>();
-    public Set<String> ownColorOn = new HashSet<>();
+    public Map<String, String> loadout = new HashMap<String, String>();
+    public Set<String> favorites = new HashSet<String>();
+    public Map<String, Integer> ownColor = new HashMap<String, Integer>();
+    public Set<String> ownColorOn = new HashSet<String>();
     public boolean greyWorld = false;
-    public Set<String> keepColour = new HashSet<>(Set.of("Obsidian", "Anchor", "Glowstone", "Fire"));
+    public Set<String> keepColour = new HashSet<String>(Set.of("Obsidian", "Anchor", "Glowstone", "Fire"));
     public boolean applyInstantly = false;
     public boolean pixelFont = false;
     public boolean blur = false;
-    /** Painted crosshair, 15x15 ARGB, row by row; 0 = empty. */
     public int[] crosshair = new int[225];
     public int paintColor = 0xFFFFFF;
-    // Own crosshair (Crosshair tab), drawn by the mod; sizes in crosshair units
     public boolean chOn = false;
     public String chStyle = "cross";
-    public int chLength = 8, chGap = 4, chThickness = 2, chOutline = 1, chDot = 0, chColor = 0xFFFFFF, chAlpha = 100;
-    public boolean chEntity = true, chEntityPlayers = false, chEntityMarker = true;
+    public int chLength = 8;
+    public int chGap = 4;
+    public int chThickness = 2;
+    public int chOutline = 1;
+    public int chDot = 0;
+    public int chColor = 0xFFFFFF;
+    public int chAlpha = 100;
+    public boolean chEntity = true;
+    public boolean chEntityPlayers = false;
+    public boolean chEntityMarker = true;
     public int chEntityColor = 0xFF3B3B;
-    // Knives: tricks when you pull one out, slight sway while holding it
-    public boolean knifeTricks = true, knifeSway = true;
-    /** In-game effects: hit, hitbox, outline, cobweb, glow. */
-    public Map<String, Integer> fxColor = new HashMap<>();
-    public Set<String> fxOn = new HashSet<>();
-    /** Cobweb outline thickness, 1..10 (3 = the old fixed width). */
+    public Map<String, Integer> fxColor = new HashMap<String, Integer>();
+    public Set<String> fxOn = new HashSet<String>();
     public int cobwebWidth = 3;
-    /** Player outline: yourself in third person, rainbow, thickness (outline blur radius, 2 = vanilla; on Apply). */
-    public boolean glowSelf = false, glowRainbow = false;
+    public boolean glowSelf = false;
+    public boolean glowRainbow = false;
     public int glowWidth = 2;
-    /** End crystal spin in percent (0 = still) and core colour (null = as the texture). */
     public int crystalSpin = 100;
     public Integer crystalCore = null;
-    /** First-person fire height in percent (100 = vanilla); no distance fog in the open air. */
     public int fireHeight = 100;
     public boolean noFog = false;
-    /** Hit flash strength in percent (vanilla 70) and block outline thickness (1 = vanilla). */
-    public int hitStrength = 70, outlineWidth = 1;
-    /** Shield and totem size in your hand and the totem pop size, percent (100 = vanilla). */
-    public int shieldSize = 100, totemSize = 100, popSize = 100;
-    /** Enchant glint: 0 vanilla, 1 own colour, 2 gradient, 3 rainbow. */
-    public int glintMode = 0, glintColor = 0xB388FF, glintColor2 = 0x6CD3FF;
-    /** Respawn anchor (on Apply): own charge colour (null = as the texture), full look from 1 charge, glowing charge pixels. */
+    public int hitStrength = 70;
+    public int outlineWidth = 1;
+    public int shieldSize = 100;
+    public int totemSize = 100;
+    public int popSize = 100;
+    public Map<String, Integer> handSize = new HashMap<String, Integer>();
+    public int glintMode = 0;
+    public int glintColor = 11766015;
+    public int glintColor2 = 7132159;
     public Integer anchorGlow = null;
-    public boolean anchorFullAtOne = false, anchorGlowPixels = false;
-    /** Crosshair arms fade to a second colour. */
+    public boolean anchorFullAtOne = false;
+    public boolean anchorGlowPixels = false;
     public boolean chGradient = false;
-    public int chColor2 = 0x4A86FF;
-    /** Kill effect (index into KillEffects.NAMES, 0 = off), only for players you hit. */
+    public int chColor2 = 4884223;
     public int killEffect = 0;
     public boolean killOnlyMine = true;
-    /** Spotify window size in percent; only show it for a moment when a song starts. */
     public int spotifyScale = 100;
     public boolean spotifyPeek = false;
-    /** Social badge next to the recipe book in your inventory (empty name = your own). */
     public boolean badgeOn = false;
     public String badgeName = "";
-    /** 10..100 percent. */
-    public int crystalOpacity = 100, shieldOpacity = 100;
-    /** Name tag size in percent (50..200). */
+    public int crystalOpacity = 100;
+    public int shieldOpacity = 100;
     public int nametagSize = 100;
-    /** GUI scale while an inventory is open; 0 = same as normal. */
     public int inventoryScale = 0;
-    // Spotify player: the client id of your own Spotify app; the login token stays on this PC
     public String spotifyClientId = "";
     public String spotifyRefresh = "";
-    public boolean spotifyWindow = true, spotifyLyrics = true, spotifySky = false;
-    public int spotifyCorner = 1; // 0 top left, 1 top right, 2 bottom left, 3 bottom right
-    public int spotifySkySide = 0; // sky lyrics stay over one side: 0 north, 1 east, 2 south, 3 west
-    public boolean spotifySkyFollow = true; // sky lyrics move to where you look, but only when a new line starts
-    public String spotifyMode = "auto"; // auto = read Windows media (no login), account = Spotify Web API
-    public boolean spotifyAnyApp = false; // auto mode: also other players (browser, YouTube...)
+    public boolean spotifyWindow = true;
+    public boolean spotifyLyrics = true;
+    public boolean spotifySky = false;
+    public int spotifyCorner = 1;
+    public int spotifySkySide = 0;
+    public boolean spotifySkyFollow = true;
+    public String spotifyMode = "auto";
+    public boolean spotifyAnyApp = false;
     public boolean hideInventoryModel = false;
-    /** Name faker. */
-    public boolean fakeOwn = false, fakeEnemies = false, fakeOwnSkin = false, fakeEnemySkin = false, hideTier = false;
+    public boolean fakeOwn = false;
+    public boolean fakeEnemies = false;
+    public boolean fakeOwnSkin = false;
+    public boolean fakeEnemySkin = false;
+    public boolean hideTier = false;
     public String fakeName = "Player";
-    /** Name for all enemies; empty = numbered "Enemy1234" names. */
     public String fakeEnemyName = "";
-    /** Tier tags next to a faked name show that name's MCTiers tier. */
     public boolean fakeTier = true;
-    /** Totem counter: pops over heads, your totems beside the hotbar, a chat line per pop. */
-    public boolean totemPops = true, totemHud = true, totemChat = false;
-    /** Name icon via the presence server (opt-in). */
+    public boolean totemPops = true;
+    public boolean totemHud = true;
+    public boolean totemChat = false;
     public boolean nameIcon = false;
     public String presenceUrl = "";
-    /** Skybox options; skyTime -1 = server time. */
-    public boolean skyRotate = false, skyKeepSun = false, skyNightFade = true;
+    public boolean skyRotate = false;
+    public boolean skyKeepSun = false;
+    public boolean skyNightFade = true;
     public int skyTime = -1;
-    public String theme = "Aurora";
-    /** 1 = switched to the Aurora look once (1.15). */
     public int uiVersion = 0;
     public int sortMode = 0;
     public String lastCategory = "crystal";
-
+    public String theme = "Aurora";
     public static Config INSTANCE = new Config();
 
     public static void load() {
         try {
-            Files.createDirectories(UPLOADS);
-            Files.createDirectories(SKIES);
-            Files.createDirectories(CAPES);
-            if (Files.exists(FILE)) {
-                Config c = GSON.fromJson(Files.readString(FILE, StandardCharsets.UTF_8), Config.class);
-                if (c != null) INSTANCE = c.fixNulls();
+            Config c;
+            Files.createDirectories(UPLOADS, new FileAttribute[0]);
+            Files.createDirectories(SKIES, new FileAttribute[0]);
+            Files.createDirectories(CAPES, new FileAttribute[0]);
+            if (Files.exists(FILE, new LinkOption[0]) && (c = (Config)GSON.fromJson(Files.readString(FILE, StandardCharsets.UTF_8), Config.class)) != null) {
+                INSTANCE = c.fixNulls();
             }
-        } catch (Exception e) {
-            HugoService.LOG.warn("Could not read HugoService config, using defaults", e);
+        }
+        catch (Exception e) {
+            HugoService.LOG.warn("Could not read HugoService config, using defaults", (Throwable)e);
         }
     }
 
     public static void save() {
         try {
-            Files.createDirectories(DIR);
-            Files.writeString(FILE, GSON.toJson(INSTANCE), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            HugoService.LOG.warn("Could not save HugoService config", e);
+            Files.createDirectories(DIR, new FileAttribute[0]);
+            Files.writeString(FILE, (CharSequence)GSON.toJson(INSTANCE), StandardCharsets.UTF_8, new OpenOption[0]);
+        }
+        catch (IOException e) {
+            HugoService.LOG.warn("Could not save HugoService config", (Throwable)e);
         }
     }
 
-    /** Snapshot for background builds, so the UI can keep editing meanwhile. */
-    public Config copy() { return GSON.fromJson(GSON.toJson(this), Config.class).fixNulls(); }
-
-    public String styleOf(String cat) { return loadout.getOrDefault(cat, Styles.VANILLA_ID); }
-
-    /** Own colour for a category, or null when off. */
-    public Integer colorOf(String cat) {
-        // only grass keeps an own colour; the other groups use styles
-        return cat.equals("grass") && ownColorOn.contains(cat) ? ownColor.getOrDefault(cat, 0x7CBD6B) : null;
+    public Config copy() {
+        return ((Config)GSON.fromJson(GSON.toJson((Object)this), Config.class)).fixNulls();
     }
 
-    /** Effect colour (RGB) or null when the effect is off. */
-    public Integer fx(String key) { return fxOn.contains(key) ? fxColorOf(key) : null; }
+    public String styleOf(String cat) {
+        String v = this.loadout.get(cat);
+        if (v != null) {
+            return v;
+        }
+        if (cat.equals("xpbottle") || cat.equals("windcharge")) {
+            return this.loadout.getOrDefault("xp", "vanilla");
+        }
+        return "vanilla";
+    }
 
-    /** Chosen colour of an effect, whether it is on or not. */
+    public Integer colorOf(String cat) {
+        return cat.equals("grass") && this.ownColorOn.contains(cat) ? this.ownColor.getOrDefault(cat, 8174955) : null;
+    }
+
+    public Integer fx(String key) {
+        return this.fxOn.contains(key) ? Integer.valueOf(this.fxColorOf(key)) : null;
+    }
+
     public int fxColorOf(String key) {
-        return fxColor.getOrDefault(key, switch (key) {
+        return this.fxColor.getOrDefault(key, switch (key) {
             case "shield" -> 0x7CFF7C;
             case "shield_off" -> 0xFF5A5A;
             case "hit" -> 0xFF0000;
-            default -> 0x8AD6FF;
+            default -> 9099007;
         });
     }
 
     private Config fixNulls() {
-        if (loadout == null) loadout = new HashMap<>();
-        if (favorites == null) favorites = new HashSet<>();
-        if (ownColor == null) ownColor = new HashMap<>();
-        if (ownColorOn == null) ownColorOn = new HashSet<>();
-        if (keepColour == null) keepColour = new HashSet<>();
-        if (lastCategory == null) lastCategory = "crystal";
-        if (theme == null) theme = "Aurora";
-        if (uiVersion < 1) { theme = "Aurora"; uiVersion = 1; }
-        if (fakeName == null || fakeName.isBlank()) fakeName = "Player";
-        if (fakeEnemyName == null) fakeEnemyName = "";
-        if (badgeName == null) badgeName = "";
-        if (presenceUrl == null) presenceUrl = "";
-        if (spotifyClientId == null) spotifyClientId = "";
-        if (spotifyRefresh == null) spotifyRefresh = "";
-        if (spotifyMode == null) spotifyMode = "auto";
-        if (chStyle == null || !Crosshair.STYLES.contains(chStyle)) chStyle = "cross";
-        if (crosshair == null || crosshair.length != 225) crosshair = new int[225];
-        if (fxColor == null) fxColor = new HashMap<>();
-        if (fxOn == null) fxOn = new HashSet<>();
+        if (this.loadout == null) {
+            this.loadout = new HashMap<String, String>();
+        }
+        if (this.favorites == null) {
+            this.favorites = new HashSet<String>();
+        }
+        if (this.ownColor == null) {
+            this.ownColor = new HashMap<String, Integer>();
+        }
+        if (this.ownColorOn == null) {
+            this.ownColorOn = new HashSet<String>();
+        }
+        if (this.keepColour == null) {
+            this.keepColour = new HashSet<String>();
+        }
+        if (this.lastCategory == null) {
+            this.lastCategory = "crystal";
+        }
+        if (this.theme == null || this.theme.isBlank()) {
+            this.theme = "Aurora";
+        }
+        if (this.uiVersion < 3) {
+            this.uiVersion = 3;
+        }
+        if (this.fakeName == null || this.fakeName.isBlank()) {
+            this.fakeName = "Player";
+        }
+        if (this.fakeEnemyName == null) {
+            this.fakeEnemyName = "";
+        }
+        if (this.badgeName == null) {
+            this.badgeName = "";
+        }
+        if (this.presenceUrl == null) {
+            this.presenceUrl = "";
+        }
+        if (this.spotifyClientId == null) {
+            this.spotifyClientId = "";
+        }
+        if (this.spotifyRefresh == null) {
+            this.spotifyRefresh = "";
+        }
+        if (this.spotifyMode == null) {
+            this.spotifyMode = "auto";
+        }
+        if (this.chStyle == null || !Crosshair.STYLES.contains(this.chStyle)) {
+            this.chStyle = "cross";
+        }
+        if (this.crosshair == null || this.crosshair.length != 225) {
+            this.crosshair = new int[225];
+        }
+        if (this.fxColor == null) {
+            this.fxColor = new HashMap<String, Integer>();
+        }
+        if (this.handSize == null) {
+            this.handSize = new HashMap<String, Integer>();
+        }
+        if (this.shieldSize != 100) {
+            this.handSize.putIfAbsent("shield", this.shieldSize);
+            this.shieldSize = 100;
+        }
+        if (this.totemSize != 100) {
+            this.handSize.putIfAbsent("totem", this.totemSize);
+            this.totemSize = 100;
+        }
+        if (this.fxOn == null) {
+            this.fxOn = new HashSet<String>();
+        }
         return this;
     }
 }
+

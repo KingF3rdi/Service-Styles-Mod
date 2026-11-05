@@ -22,13 +22,13 @@ Requires JDK 21.
 
 ```bash
 ./gradlew build
+# other versions: ./gradlew build -Pmc_compat=v12110
+#                 ./gradlew build -Pmc_compat=v1218
 ```
 
 The mod jar ends up in `build/libs/`. Install it together with Fabric Loader and Fabric API.
 
-The checked-in Java tree is the previous GitHub snapshot plus 7auction branding, bundled packs, and the shipped `dist/` jars. The multi-version Fabric tree (`src/compat/v12111|v12110|v1218`, `Mc.java`, `StyleMenu.java`) was not available to copy into this commit.
-
 ## Credits
 
 Menu font: [Poppins](https://github.com/itfoundry/Poppins) © The Poppins Project Authors, SIL Open Font License 1.1
-(`src/main/resources/LICENSE_Poppins_OFL.txt`).
+(`LICENSE_Poppins_OFL.txt`).

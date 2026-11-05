@@ -9,10 +9,10 @@
   "icon": "assets/hugoservice/icon.png",
   "environment": "client",
   "entrypoints": { "client": ["dev.hugoservice.HugoService"] },
-  "mixins": ["hugoservice.mixins.json"],
+  "mixins": ["hugoservice.mixins.json", "hugoservice-extra.mixins.json"],
   "depends": {
     "fabricloader": ">=0.17.0",
-    "minecraft": "~1.21.11",
+    "minecraft": "${minecraft_dep}",
     "java": ">=21",
     "fabric-api": "*"
   }

@@ -4,57 +4,50 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap;
+import net.minecraft.client.render.BlockRenderLayer;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.Block;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.util.Identifier;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.gui.screen.Screen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HugoService implements ClientModInitializer {
-    public static final Logger LOG = LoggerFactory.getLogger("HugoService");
-    public static KeyBinding OPEN, INSPECT, RESET_POPS;
+public class HugoService
+implements ClientModInitializer {
+    public static final Logger LOG = LoggerFactory.getLogger((String)"HugoService");
+    public static KeyBinding OPEN;
+    public static KeyBinding RESET_POPS;
 
-    @Override
     public void onInitializeClient() {
         Config.load();
-        KnifeRenderer.register();
         PackBuilder.dropOldKnifeFiles();
-        dev.hugoservice.cosmetics.CosmeticCatalog.loadOwnCapes(Config.CAPES);
         Fx.init();
-        dev.hugoservice.cosmetics.CosmeticSync.init();
-        dev.hugoservice.cosmetics.CosmeticRendering.init();
         SpotifyHud.init();
         TotemCounter.init();
         KillEffects.init();
-        // glowing anchor pixels are an extra layer with see-through parts, which needs the cutout layer
-        net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap.putBlock(net.minecraft.block.Blocks.RESPAWN_ANCHOR,
-            net.minecraft.client.render.BlockRenderLayer.CUTOUT);
-        KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("hugoservice", "main"));
-        OPEN = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.open", InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_RIGHT_SHIFT, category));
-        INSPECT = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.inspect", InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_G, category));
-        RESET_POPS = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.reset_pops", InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_UNKNOWN, category)); // unbound until you pick one, so it clashes with nothing
-        // index resource packs once in the background so the first menu open is fast
+        BlockRenderLayerMap.putBlock((Block)Blocks.RESPAWN_ANCHOR, (BlockRenderLayer)BlockRenderLayer.CUTOUT);
+        Mc.registerKeys();
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> MediaWatcher.stop());
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            BundledPacks.install();
+            StylesCloud.refresh(true);
             Thread t = new Thread(Styles::rescan, "HugoService-Scan");
             t.setDaemon(true);
             t.start();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (OPEN.wasPressed()) {
-                if (client.currentScreen == null) client.setScreen(new StyleScreen());
+                if (client.currentScreen != null) continue;
+                client.setScreen((Screen)new StyleMenu());
             }
-            boolean inspect = false;
-            while (INSPECT.wasPressed()) inspect = true;
             while (RESET_POPS.wasPressed()) {
                 TotemCounter.reset();
-                client.inGameHud.setOverlayMessage(net.minecraft.text.Text.literal("Totem pops reset"), false);
+                client.inGameHud.setOverlayMessage((Text)Text.literal((String)"Totem pops reset"), false);
             }
-            KnifeAnimations.tick(client, inspect);
             Spotify.tick();
             Glint.tick(client);
         });

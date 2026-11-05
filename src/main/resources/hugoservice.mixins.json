@@ -4,29 +4,20 @@
   "package": "dev.hugoservice.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "AbstractClientPlayerEntityMixin",
     "ChatHudMixin",
+    "ClientPlayerInteractionManagerMixin",
     "ClientPlayNetworkHandlerMixin",
     "ClientWorldPropertiesMixin",
-    "EntityHitboxDebugRendererMixin",
     "EntityMixin",
     "EntityRendererMixin",
     "FogRendererMixin",
-    "EndCrystalEntityRendererMixin",
-    "HeldItemRendererMixin",
     "InGameHudMixin",
     "InGameOverlayRendererMixin",
-    "InventoryScreenMixin",
-    "ItemModelManagerMixin",
-    "LabelCommandsMixin",
     "MinecraftClientMixin",
     "OverlayTextureAccessor",
     "PlayerEntityMixin",
-    "PlayerListEntryMixin",
-    "PlayerListHudMixin",
-    "ShieldModelRendererMixin",
-    "WorldRendererMixin",
-    "WorldRendererSkyMixin"
+    "SkyRenderingMixin",
+    "WorldRendererMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }
