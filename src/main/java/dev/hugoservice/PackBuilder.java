@@ -23,8 +23,14 @@ import java.util.zip.ZipOutputStream;
 
 /** Turns the current loadout into a resource pack (folder for "apply", zip for "save"). */
 public final class PackBuilder {
-    public static final String ACTIVE = "HugoService-Active";
+    public static final String ACTIVE = "7auction Styles";
     public static final String ACTIVE_ID = "file/" + ACTIVE;
+
+    public static boolean isMixerPack(String idOrName) {
+        if (idOrName == null) return false;
+        String n = idOrName.startsWith("file/") ? idOrName.substring(5) : idOrName;
+        return n.equals(ACTIVE) || n.equals("HugoService-Active") || n.equals("SkellyHole-Active");
+    }
 
     /** Collects all files of the mixed pack: zip path -> bytes. Safe to call off the render thread. */
     public static Map<String, byte[]> collect(Config cfg, String description) throws IOException {
@@ -149,6 +155,14 @@ public final class PackBuilder {
     }
 
     private static BufferedImage packIcon() {
+        for (String path : new String[] {"/assets/hugoservice/pack.png", "/assets/hugoservice/icon.png"}) {
+            try (InputStream in = PackBuilder.class.getResourceAsStream(path)) {
+                if (in != null) {
+                    BufferedImage loaded = javax.imageio.ImageIO.read(in);
+                    if (loaded != null) return loaded;
+                }
+            } catch (IOException ignored) {}
+        }
         BufferedImage img = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
         for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) {
             int d = Math.abs(x - 32) + Math.abs(y - 32);
@@ -162,7 +176,12 @@ public final class PackBuilder {
     public static void writeActiveAndReload(Map<String, byte[]> files) throws IOException {
         CrystalCore.invalidate();
         MinecraftClient mc = MinecraftClient.getInstance();
-        Path dir = mc.getResourcePackDir().resolve(ACTIVE);
+        Path packsDir = mc.getResourcePackDir();
+        for (String legacy : new String[] {"HugoService-Active", "SkellyHole-Active"}) {
+            Path old = packsDir.resolve(legacy);
+            if (Files.exists(old)) deleteTree(old);
+        }
+        Path dir = packsDir.resolve(ACTIVE);
         deleteTree(dir);
         for (var e : files.entrySet()) {
             Path f = dir.resolve(e.getKey());

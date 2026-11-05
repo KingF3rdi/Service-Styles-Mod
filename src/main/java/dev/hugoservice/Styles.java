@@ -92,7 +92,7 @@ public final class Styles {
             List<Resource> all = MinecraftClient.getInstance().getResourceManager().getAllResources(Identifier.ofVanilla(path));
             for (int i = all.size() - 1; i >= 0; i--) { // last = highest priority
                 String pack = all.get(i).getPackId();
-                if (pack.equals(PackBuilder.ACTIVE_ID)) continue;
+                if (PackBuilder.isMixerPack(pack)) continue;
                 return pack.equals("vanilla") ? null : all.get(i);
             }
         } catch (Exception ignored) {}
@@ -162,7 +162,7 @@ public final class Styles {
         Set<String> names = new HashSet<>();
         for (Path p : files) {
             String fileName = p.getFileName().toString();
-            if (fileName.equals(PackBuilder.ACTIVE)) continue;
+            if (PackBuilder.isMixerPack(fileName)) continue;
             Pack pack = index(p);
             if (pack != null && !pack.entries.isEmpty() && names.add(pack.name.toLowerCase(java.util.Locale.ROOT))) found.add(pack);
         }
