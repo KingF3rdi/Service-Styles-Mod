@@ -42,6 +42,9 @@ public class MinecraftClientMixin {
 
     @Inject(method={"hasOutline"}, at={@At(value="HEAD")}, cancellable=true)
     private void hugoservice$glow(Entity entity, CallbackInfoReturnable<Boolean> cir) {
+        if (Config.INSTANCE.fx(Fx.GLOW) == null) {
+            return;
+        }
         if (entity instanceof PlayerEntity && Fx.glowing(entity.getId())) {
             cir.setReturnValue(true);
         }

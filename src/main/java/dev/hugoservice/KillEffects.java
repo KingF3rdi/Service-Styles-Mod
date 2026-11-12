@@ -85,6 +85,12 @@ public final class KillEffects {
     }
 
     public static void attacked(Entity target) {
+        if (Config.INSTANCE.killEffect <= 0 || !(target instanceof PlayerEntity)) {
+            return;
+        }
+        if (HIT.size() > 64) {
+            HIT.clear();
+        }
         HIT.put(target.getId(), System.currentTimeMillis());
     }
 

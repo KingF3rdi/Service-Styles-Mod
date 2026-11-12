@@ -46,6 +46,10 @@ public class EndCrystalEntityRendererMixin {
         Identifier core = CrystalCore.texture();
         Identifier tex = core != null ? core : Identifier.ofVanilla((String)"textures/entity/end_crystal/end_crystal.png");
         int opacity = Config.INSTANCE.crystalOpacity;
+        if (core == null && opacity >= 100) {
+            queue.submitModel(model, state, matrices, layer, light, overlay, outline, crumbling);
+            return;
+        }
         if (opacity >= 100) {
             queue.submitModel(model, state, matrices, core != null ? Mc.entityCutoutNoCull((Identifier)core) : layer, light, overlay, outline, crumbling);
         } else {
@@ -56,6 +60,9 @@ public class EndCrystalEntityRendererMixin {
 
     @Inject(method={"updateRenderState(Lnet/minecraft/entity/decoration/EndCrystalEntity;Lnet/minecraft/client/render/entity/state/EndCrystalEntityRenderState;F)V"}, at={@At(value="TAIL")})
     private void hugoservice$spin(EndCrystalEntity entity, EndCrystalEntityRenderState state, float tickProgress, CallbackInfo ci) {
+        if (Config.INSTANCE.crystalSpin == 100) {
+            return;
+        }
         state.age *= (float)Config.INSTANCE.crystalSpin / 100.0f;
     }
 }

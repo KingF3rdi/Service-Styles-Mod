@@ -59,6 +59,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -83,6 +84,7 @@ import net.minecraft.util.Util;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import net.minecraft.text.Style;
 import net.minecraft.util.Identifier;
@@ -196,6 +198,16 @@ extends Screen {
     private static final String[] HOME_ICON;
     private static final String[] HOME_SMALL;
     private static final String[] HOME_SMALL_ICON;
+    private static final Identifier LOGO = Identifier.of((String)"hugoservice", (String)"gui/logo.png");
+    private static final Link[] LINKS = new Link[]{
+        new Link("Discord", "https://sevenauction-styles.delightful-pruner.workers.dev/#discord"),
+        new Link("GitHub", "https://github.com/KingF3rdi/Service-Styles-Mod"),
+        new Link("Website", "https://sevenauction-styles.delightful-pruner.workers.dev/"),
+        new Link("Download", "https://sevenauction-styles.delightful-pruner.workers.dev/#download"),
+        new Link("Modrinth", "https://modrinth.com/mods?q=7auction%20Styles"),
+        new Link("CurseForge", "https://www.curseforge.com/minecraft/search?search=7auction%20Styles"),
+        new Link("FAQ", "https://sevenauction-styles.delightful-pruner.workers.dev/#faq")
+    };
     private static final int ROW_H = 26;
     private static final int UI_GAP = 8;
     private static final int UI_PAD = 12;
@@ -307,9 +319,9 @@ extends Screen {
         String q = this.search != null ? this.search.getText() : "";
         String n = this.packName != null ? this.packName.getText() : "My Mix";
         int sw = Math.min(120, Math.max(60, (this.cx1 - this.cx0) / 3));
-        this.search = new TextFieldWidget(this.textRenderer, this.cx1 - sw + 16, this.T + 38, sw - 22, 10, (Text)Text.literal((String)"Search"));
+        this.search = new TextFieldWidget(this.textRenderer, this.cx1 - sw + 16, this.T + 38, sw - 22, 10, (Text)Text.literal((String)"Filter styles"));
         this.styleField(this.search);
-        this.search.setPlaceholder((Text)this.t("Search").copy().withColor(this.DIM & 0xFFFFFF));
+        this.search.setPlaceholder((Text)this.t("Filter styles").copy().withColor(this.DIM & 0xFFFFFF));
         this.search.setMaxLength(40);
         this.search.setText(q);
         this.search.setChangedListener(s -> {
@@ -476,13 +488,13 @@ extends Screen {
         this.spotifyField.visible = false;
         this.editName.visible = false;
         this.hexField.visible = false;
-        this.packName.visible = !this.home && this.editor == null;
+        this.packName.visible = false;
+        this.search.visible = false;
         this.bodyY = this.T + 76;
         this.bodyB = this.B - 32;
         if (this.home && this.editor == null) {
             this.drawHome(ctx, delta);
         } else {
-            this.glass(ctx, this.L, this.T, this.R - this.L, this.B - this.T, 8.0f, this.WIN);
             if (this.editor != null) {
                 this.bodyY = this.T + 24;
                 this.bodyB = this.B - 8;
@@ -503,27 +515,68 @@ extends Screen {
                 this.drawBottomBar(ctx);
             }
         }
+        this.hideVanillaFields();
         super.render(ctx, mx, my, delta);
         Shapes.flush();
     }
 
+    private void hideVanillaFields() {
+        if (this.search != null) {
+            this.search.visible = false;
+        }
+        if (this.packName != null) {
+            this.packName.visible = false;
+        }
+        if (this.fakeField != null) {
+            this.fakeField.visible = false;
+        }
+        if (this.enemyField != null) {
+            this.enemyField.visible = false;
+        }
+        if (this.badgeField != null) {
+            this.badgeField.visible = false;
+        }
+        if (this.urlField != null) {
+            this.urlField.visible = false;
+        }
+        if (this.spotifyField != null) {
+            this.spotifyField.visible = false;
+        }
+        if (this.editName != null) {
+            this.editName.visible = false;
+        }
+        if (this.hexField != null) {
+            this.hexField.visible = false;
+        }
+    }
+
     private void drawHome(DrawContext ctx, float delta) {
-        ctx.fillGradient(0, 0, this.width, this.height, 0x40000000, -1207959552);
+        ctx.fillGradient(0, 0, this.width, this.height, 0x28000000, 0x66000000);
         int ts = this.height >= 330 ? 4 : (this.height >= 230 ? 3 : 2);
         MutableText title = Text.literal((String)"7auction");
         int tw = this.textRenderer.getWidth((StringVisitable)title) * ts;
         int n = HOME.length;
-        int cw = (int)StyleScreen.clamp((double)this.width / 9.5, 50.0, 78.0);
-        int ch = cw + 10;
-        int gap = Math.max(8, cw / 7);
-        int smallH = Math.max(34, cw / 2 + 4);
-        int block = 9 * ts + 18 + ch + 16 + smallH;
+        int cw = (int)StyleScreen.clamp((double)this.width / 8.2, 58.0, 92.0);
+        int ch = cw + 18;
+        int gap = Math.max(10, cw / 6);
+        int smallH = Math.max(38, cw / 2 + 8);
+        int logo = Math.max(20, 6 * ts);
+        int titleW = logo + 8 + tw;
+        int navGuess = 22;
+        int block = 9 * ts + 16 + navGuess + 12 + ch + 18 + smallH;
         int ty = Math.max(8, (this.height - block) / 2 - 10);
-        this.scaledText(ctx, (Text)title, (float)(this.width - tw) / 2.0f, ty, ts, this.TEXT);
+        int titleX = (this.width - titleW) / 2;
+        this.drawLogo(ctx, titleX, ty + Math.max(0, (9 * ts - logo) / 2), logo);
+        this.scaledText(ctx, (Text)title, (float)(titleX + logo + 8), ty, ts, this.TEXT);
+        String sub = "Styles";
+        this.text(ctx, sub, titleX + logo + 8, ty + 9 * ts + 2, this.MUTED);
+        int navY = ty + 9 * ts + 16;
+        int navH = this.drawNavLinks(ctx, 12, this.width - 12, navY, true);
         float step = Math.min(1.0f, delta * 0.45f);
         int total = n * cw + (n - 1) * gap;
         int x0 = (this.width - total) / 2;
-        int cy = ty + 9 * ts + 18;
+        int cy = navY + navH + 10;
+        ItemConvertible[] homeItems = new ItemConvertible[]{Items.END_CRYSTAL, Items.GRASS_BLOCK, Items.PAINTING, Items.REDSTONE};
         for (int i = 0; i < n; ++i) {
             int x = x0 + i * (cw + gap);
             int idx = i;
@@ -531,21 +584,19 @@ extends Screen {
             int n2 = i;
             this.homeAnim[n2] = this.homeAnim[n2] + ((float)(hov ? 1 : 0) - this.homeAnim[i]) * step;
             float a = this.homeAnim[i];
-            float grow = a * 0.12f;
+            float grow = a * 0.10f;
             float gx = (float)x - (float)cw * grow / 2.0f;
             float gy = (float)cy - (float)ch * grow / 2.0f;
             float gw = (float)cw * (1.0f + grow);
             float gh = (float)ch * (1.0f + grow);
-            StyleScreen.round(ctx, gx, gy, gw, gh, 6.0f, StyleScreen.lerp(0x18FFFFFF, 0x30FFFFFF, a));
-            StyleScreen.roundOutline(ctx, gx, gy, gw, gh, 6.0f, StyleScreen.lerp(0x48FFFFFF, -1056964609, a), 0.0f);
-            MutableText icon = Text.literal((String)HOME_ICON[i]);
-            int is = cw >= 64 ? 3 : 2;
-            this.scaledText(ctx, (Text)icon, gx + (gw - (float)(this.textRenderer.getWidth((StringVisitable)icon) * is)) / 2.0f, gy + gh * 0.36f - 4.5f * (float)is, is, this.TEXT);
+            StyleScreen.round(ctx, gx, gy, gw, gh, 8.0f, StyleScreen.lerp(0x22FFFFFF, 0x3AFFFFFF, a));
+            StyleScreen.roundOutline(ctx, gx, gy, gw, gh, 8.0f, StyleScreen.lerp(0x55FFFFFF, -1, a), 1.0f);
+            this.drawHomeStack(ctx, new ItemStack(homeItems[i]), gx, gy, gw, gh * 0.62f);
             MutableText label = Text.literal((String)HOME[i]);
             int lx = Math.round(gx + (gw - (float)this.textRenderer.getWidth((StringVisitable)label)) / 2.0f);
-            int ly = Math.round(gy + gh * 0.68f);
+            int ly = Math.round(gy + gh * 0.72f);
             ctx.drawText(this.textRenderer, (Text)label, lx, ly, a > 0.5f ? -1 : this.TEXT, false);
-            StyleScreen.round(ctx, gx + gw / 2.0f - 6.0f, ly + 12, 12.0f, 1.0f, 0.5f, StyleScreen.lerp(0x66FFFFFF, -1, a));
+            StyleScreen.round(ctx, gx + gw / 2.0f - 8.0f, ly + 11, 16.0f, 1.5f, 0.6f, StyleScreen.lerp(0x66FFFFFF, -1, a));
             this.hit(x, cy, cw, ch, (mx, my, btn) -> this.openFromHome(idx));
         }
         int sy = cy + ch + 16;
@@ -563,12 +614,12 @@ extends Screen {
             int n3 = n + i;
             this.homeAnim[n3] = this.homeAnim[n3] + ((float)(hov ? 1 : 0) - this.homeAnim[n + i]) * step;
             float a = this.homeAnim[n + i];
-            StyleScreen.round(ctx, sx, sy, bw, smallH, 5.0f, StyleScreen.lerp(0x18FFFFFF, 0x30FFFFFF, a));
-            StyleScreen.roundOutline(ctx, sx, sy, bw, smallH, 5.0f, StyleScreen.lerp(0x48FFFFFF, -1056964609, a), 0.0f);
-            MutableText icon = Text.literal((String)HOME_SMALL_ICON[i]);
-            this.scaledText(ctx, (Text)icon, (float)sx + (float)(bw - this.textRenderer.getWidth((StringVisitable)icon) * 2) / 2.0f, (float)sy + (float)smallH / 2.0f - 16.0f, 2.0f, this.TEXT);
+            StyleScreen.round(ctx, sx, sy, bw, smallH, 7.0f, StyleScreen.lerp(0x22FFFFFF, 0x3AFFFFFF, a));
+            StyleScreen.roundOutline(ctx, sx, sy, bw, smallH, 7.0f, StyleScreen.lerp(0x55FFFFFF, -1, a), 1.0f);
+            ItemConvertible[] smallItems = new ItemConvertible[]{Items.COMPASS, Items.SPYGLASS, Items.CHEST, Items.PINK_DYE};
+            this.drawHomeStack(ctx, new ItemStack(smallItems[i]), sx, sy - 2, bw, smallH * 0.62f);
             MutableText label = Text.literal((String)HOME_SMALL[i]);
-            ctx.drawText(this.textRenderer, (Text)label, sx + (bw - this.textRenderer.getWidth((StringVisitable)label)) / 2, sy + smallH / 2 + 4, a > 0.5f ? -1 : this.MUTED, false);
+            ctx.drawText(this.textRenderer, (Text)label, sx + (bw - this.textRenderer.getWidth((StringVisitable)label)) / 2, sy + smallH / 2 + 6, a > 0.5f ? -1 : this.MUTED, false);
             this.hit(sx, sy, bw, smallH, (mx, my, btn) -> this.openSmall(idx));
             sx += bw + UI_GAP;
         }
@@ -576,6 +627,16 @@ extends Screen {
         String mcVer = FabricLoader.getInstance().getModContainer("minecraft").map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("");
         String theme = this.cfg.theme == null || this.cfg.theme.isBlank() ? "Aurora" : this.cfg.theme;
         ctx.drawText(this.textRenderer, "7auction Styles " + version + "   " + theme + " UI   Minecraft " + mcVer, 6, this.height - 12, this.DIM, false);
+    }
+
+    private void drawHomeStack(DrawContext ctx, ItemStack stack, float gx, float gy, float gw, float gh) {
+        Matrix3x2fStack m = ctx.getMatrices();
+        m.pushMatrix();
+        float s = Math.min(gw, gh) * 0.55f / 16.0f;
+        m.translate(gx + gw / 2.0f - 8.0f * s, gy + gh * 0.22f);
+        m.scale(s, s);
+        ctx.drawItem(stack, 0, 0);
+        m.popMatrix();
     }
 
     private void scaledText(DrawContext ctx, Text t, float x, float y, float s, int color) {
@@ -643,25 +704,64 @@ extends Screen {
         this.lens(ctx, this.L + 8, this.T + 8, bw, 18.0f, 6.0f, bhov ? this.HOVER : this.PANEL_HI);
         this.text(ctx, "\u2039 Back", this.L + 15, this.T + 13, bhov ? this.TEXT : this.MUTED);
         this.hit(this.L + 8, this.T + 8, bw, 18, (a, b, btn) -> this.goHome());
-        this.bold(ctx, "7auction", this.L + 14 + bw, this.T + 8, this.TEXT);
-        this.text(ctx, "Style Archive", this.L + 14 + bw, this.T + 18, this.MUTED);
-        int n = Categories.ALL.size();
-        int room = this.R - 12 - (this.L + 180) - this.width("LOADOUT") - 10;
-        int shown = Math.max(0, Math.min(n, (room + 2) / 22));
-        int x = this.R - 12 - shown * 22 + 2;
-        if (shown > 0) {
-            this.text(ctx, "LOADOUT", x - 8 - this.width("LOADOUT"), this.T + 13, this.DIM);
+        int ix = this.L + 14 + bw;
+        this.drawLogo(ctx, ix, this.T + 7, 20);
+        this.bold(ctx, "7auction Styles", ix + 24, this.T + 13, this.TEXT);
+        int navLeft = ix + 24 + this.boldWidth("7auction Styles") + 8;
+        this.drawNavLinks(ctx, navLeft, this.R - 8, this.T + 9, false);
+    }
+
+    private void drawLogo(DrawContext ctx, int x, int y, int size) {
+        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, LOGO, x, y, 0.0f, 0.0f, size, size, 128, 128, 128, 128);
+    }
+
+    private int drawNavLinks(DrawContext ctx, int left, int right, int y, boolean center) {
+        int gap = 4;
+        int h = 15;
+        int max = Math.max(40, right - left);
+        int[] ws = new int[LINKS.length];
+        for (int i = 0; i < LINKS.length; ++i) {
+            ws[i] = this.width(LINKS[i].label) + 12;
         }
-        for (int i = 0; i < shown; ++i) {
-            Categories.Category c = Categories.ALL.get(i);
-            int ix = x + i * 22;
-            boolean on = c == this.cat && !this.extras && !this.crosshairView;
-            this.lens(ctx, ix, this.T + 7, 20.0f, 20.0f, 7.0f, on ? this.ACCENT_SOFT : (this.over(ix, this.T + 7, 20, 20) ? this.HOVER : this.PANEL));
-            if (on) {
-                StyleScreen.roundOutline(ctx, ix, this.T + 7, 20.0f, 20.0f, 7.0f, this.ACCENT, 0.0f);
+        int yy = y;
+        int i = 0;
+        while (i < LINKS.length) {
+            int rowW = 0;
+            int start = i;
+            while (i < LINKS.length) {
+                int next = ws[i] + (rowW == 0 ? 0 : gap);
+                if (rowW > 0 && rowW + next > max) break;
+                rowW += next;
+                ++i;
             }
-            this.collectionIcon(ctx, c, ix + 2, this.T + 9, 16);
-            this.hit(ix, this.T + 7, 20, 20, (a, b, btn) -> this.selectCategory(c));
+            int x = center ? left + (max - rowW) / 2 : left;
+            if (!center && rowW < max) {
+                x = Math.max(left, right - rowW);
+            }
+            for (int j = start; j < i; ++j) {
+                int bw = ws[j];
+                boolean hov = this.over(x, yy, bw, h);
+                StyleScreen.round(ctx, x, yy, bw, h, 7.0f, hov ? 0x3AFFFFFF : 0x22FFFFFF);
+                if (hov) {
+                    StyleScreen.roundOutline(ctx, x, yy, bw, h, 7.0f, -1, 1.0f);
+                }
+                this.text(ctx, LINKS[j].label, x + 6, yy + 4, hov ? this.TEXT : this.MUTED);
+                String url = LINKS[j].url;
+                this.hit(x, yy, bw, h, (a, b, btn) -> this.openLink(url));
+                x += bw + gap;
+            }
+            yy += h + 4;
+        }
+        return yy - y;
+    }
+
+    private void openLink(String url) {
+        try {
+            Util.getOperatingSystem().open(URI.create(url));
+            this.status("Opened " + url);
+        }
+        catch (Exception e) {
+            this.status("Could not open link");
         }
     }
 
@@ -816,17 +916,9 @@ extends Screen {
             names.append(names.isEmpty() ? "" : " / ").append(this.selected((Categories.Group)g).name);
         }
         this.bold(ctx, this.cat.name(), this.cx0, this.T + 37, this.TEXT);
-        int sx = this.search.getX() - 16;
-        int sw = this.search.getWidth() + 22;
-        StyleScreen.round(ctx, sx, this.T + 34, sw, 17.0f, 8.5f, this.FIELD);
-        if (this.search.isFocused()) {
-            StyleScreen.roundOutline(ctx, sx, this.T + 34, sw, 17.0f, 8.5f, this.ACCENT, 1.0f);
-        } else {
-            StyleScreen.rim(ctx, sx, this.T + 34, sw, 17.0f, 8.5f, 0x60FFFFFF);
-        }
-        StyleScreen.round(ctx, sx + 6, this.T + 38, 6.0f, 6.0f, 3.0f, this.MUTED);
-        StyleScreen.round(ctx, sx + 7, this.T + 39, 4.0f, 4.0f, 2.0f, -15658735);
-        StyleScreen.round(ctx, sx + 11, this.T + 43, 2.5f, 2.5f, 1.0f, this.MUTED);
+        int sw = Math.min(132, Math.max(72, (this.cx1 - this.cx0) / 3));
+        int sx = this.cx1 - sw;
+        this.clickField(ctx, this.search, sx, this.T + 34, sw, 17, "Filter styles");
         int favCount = 0;
         for (Categories.Group g : this.cat.groups()) {
             for (Styles.Style s : this.lists.get(g.id())) {
@@ -887,7 +979,7 @@ extends Screen {
         this.gridMax = Math.max(0, (int)((double)y + this.gridScroll) - this.gridTop - (this.bodyB - this.gridTop));
         this.gridScroll = StyleScreen.clamp(this.gridScroll, 0.0, this.gridMax);
         if (shownAny == 0) {
-            String msg = this.favOnly ? "No favorites yet - hover a style and press F" : "Nothing found";
+            String msg = this.favOnly ? "No favorites yet - hover a style and press F" : "No matching styles";
             this.text(ctx, msg, this.cx0 + (areaW - this.width(msg)) / 2, this.gridTop + 30, this.DIM);
         }
         this.scrollbar(ctx, this.cx1 + 4, this.gridTop, this.bodyB, this.gridScroll, this.gridMax);
@@ -900,9 +992,8 @@ extends Screen {
             this.hovered = new Pick(g, s);
         }
         if (sel || hov) {
-            StyleScreen.roundOutline(ctx, x - 1, y - 1, cw + 2, ch + 2, 9.0f, sel ? this.ACCENT : this.HOVER_LINE, 1.0f);
+            StyleScreen.roundOutline(ctx, x, y, cw, ch, 9.0f, sel ? this.ACCENT : 0x66FFFFFF, 1.0f);
         }
-        StyleScreen.rim(ctx, x, y, cw, ch, 8.0f, hov ? 0x66FFFFFF : 0x28FFFFFF);
         int pad = g.look() == Categories.Look.WIDE || g.look() == Categories.Look.SKY ? 3 : 4;
         this.drawThumb(ctx, g, s, null, x, y, cw, th, pad, false);
         List<String> lines = this.wrap(s.name, cw - 6, 2);
@@ -1090,14 +1181,7 @@ extends Screen {
         int nRight = ex - UI_GAP;
         int nx = Math.max(x, nRight - Math.max(64, Math.min(120, (this.R - this.L) / 6)));
         int nw = nRight - nx;
-        this.packName.setX(nx + 8);
-        this.packName.setWidth(Math.max(10, nw - 14));
-        StyleScreen.round(ctx, nx, y, nw, 17.0f, 8.5f, this.FIELD);
-        if (this.packName.isFocused()) {
-            StyleScreen.roundOutline(ctx, nx, y, nw, 17.0f, 8.5f, this.ACCENT, 1.0f);
-        } else {
-            StyleScreen.rim(ctx, nx, y, nw, 17.0f, 8.5f, 0x60FFFFFF);
-        }
+        this.clickField(ctx, this.packName, nx, y, nw, 17, "My Mix");
         boolean live = this.status != null && System.currentTimeMillis() < this.statusUntil;
         String msg = live ? this.status : "Click select  \u00b7  Right-click zoom  \u00b7  F favorite  \u00b7  / search";
         int free = nx - 10 - x;
@@ -1151,11 +1235,6 @@ extends Screen {
             this.sliderRow(c, x, y + 88, w, "Thickness", this.cfg.outlineWidth, 1, 10, v -> {
                 this.cfg.outlineWidth = v;
             }, String::valueOf);
-        }), new Block(136, (c, x, y, w) -> {
-            this.fxBlock(c, x, y, w, "Cobweb outline", "cobweb", "Webs near you", Previews::cobweb);
-            this.sliderRow(c, x, y + 88, w, "Thickness", this.cfg.cobwebWidth, 1, 10, v -> {
-                this.cfg.cobwebWidth = v;
-            }, String::valueOf);
         }), new Block(180, (c, x, y, w) -> {
             this.fxBlock(c, x, y, w, "Player glow", "glow", "Only while visible", Previews::glow);
             this.toggleRow(c, x, y + 88, w, "Myself (F5)", this.cfg.glowSelf, () -> {
@@ -1170,7 +1249,7 @@ extends Screen {
                 this.cfg.glowWidth = v;
                 this.dirty = true;
             }, String::valueOf);
-        }), new Block(136, this::drawCrystalOptions), new Block(100, this::drawFireFog), new Block(this.handSizeHeight(inner), this::drawHandSize), new Block(100, this::drawKillEffect), new Block(90, this::drawSocialBadge), new Block(this.cfg.glintMode == 2 ? 124 : (this.cfg.glintMode == 1 ? 92 : 64), this::drawGlint), new Block(this.cfg.anchorGlow != null ? 128 : 100, this::drawAnchorCharge), new Block(196, this::drawShieldStatus), new Block(152, this::drawTotemCounter), new Block(112, this::drawOpacity), new Block(120, this::drawNametags), new Block(this.inventoryHeight(inner), this::drawInventoryTweaks), new Block(220, this::drawNameFaker), new Block(100, this::drawNameIcon), new Block(292, this::drawSpotify), new Block(164, this::drawSkyOptions), new Block(this.greyWorldHeight(inner), this::drawGreyWorld), new Block(112, (c, x, y, w) -> this.drawColorBlock(c, StyleScreen.grassGroup(), x, y, w))));
+        }), new Block(136, this::drawCrystalOptions), new Block(100, this::drawFireFog), new Block(this.handSizeHeight(inner), this::drawHandSize), new Block(100, this::drawKillEffect), new Block(90, this::drawSocialBadge), new Block(this.cfg.glintMode == 2 ? 124 : (this.cfg.glintMode == 1 ? 92 : 64), this::drawGlint), new Block(this.cfg.anchorGlow != null ? 128 : 100, this::drawAnchorCharge), new Block(196, this::drawShieldStatus), new Block(152, this::drawTotemCounter), new Block(112, this::drawOpacity), new Block(120, this::drawNametags), new Block(this.inventoryHeight(inner), this::drawInventoryTweaks), new Block(220, this::drawNameFaker), new Block(292, this::drawSpotify), new Block(164, this::drawSkyOptions), new Block(this.greyWorldHeight(inner), this::drawGreyWorld), new Block(112, (c, x, y, w) -> this.drawColorBlock(c, StyleScreen.grassGroup(), x, y, w))));
     }
 
     private void layoutBlocks(DrawContext ctx, List<Block> blocks) {
@@ -1374,16 +1453,30 @@ extends Screen {
     }
 
     private void nameField(DrawContext ctx, TextFieldWidget field, int x, int fy, int w) {
-        StyleScreen.round(ctx, x, fy, w, 15.0f, 7.5f, this.FIELD);
+        this.clickField(ctx, field, x, fy, w, 15, "");
+    }
+
+    private void clickField(DrawContext ctx, TextFieldWidget field, int x, int fy, int w, int h, String placeholder) {
+        StyleScreen.round(ctx, x, fy, w, h, h / 2.0f, 0x28FFFFFF);
         if (field.isFocused()) {
-            StyleScreen.roundOutline(ctx, x, fy, w, 15.0f, 7.5f, this.ACCENT, 0.0f);
+            StyleScreen.roundOutline(ctx, x, fy, w, h, h / 2.0f, this.ACCENT, 1.0f);
         } else {
-            StyleScreen.rim(ctx, x, fy, w, 15.0f, 7.5f, 0x60FFFFFF);
+            StyleScreen.roundOutline(ctx, x, fy, w, h, h / 2.0f, 0x50FFFFFF, 1.0f);
         }
         field.setX(x + 7);
         field.setY(fy + 3);
-        field.setWidth(w - 14);
-        field.visible = fy >= this.bodyY && fy + 15 <= this.bodyB;
+        field.setWidth(Math.max(10, w - 14));
+        field.visible = false;
+        String q = field.getText();
+        boolean empty = q == null || q.isEmpty();
+        String shown = empty && !field.isFocused() ? placeholder : (q == null ? "" : q);
+        int ty = fy + Math.max(2, (h - 8) / 2);
+        this.text(ctx, this.ellipsize(shown, w - 16), x + 8, ty, empty && !field.isFocused() ? this.DIM : this.TEXT);
+        if (field.isFocused() && System.currentTimeMillis() / 530L % 2L == 0L) {
+            int cx = x + 8 + this.width(q == null ? "" : q);
+            ctx.fill(cx, fy + 3, cx + 1, fy + h - 3, this.TEXT);
+        }
+        this.hit(x, fy, w, h, (a, b, btn) -> this.setFocused((Element)field));
     }
 
     private void drawNameIcon(DrawContext ctx, int x, int y, int w) {
@@ -1437,16 +1530,7 @@ extends Screen {
         } else {
             this.text(ctx, this.ellipsize("Client ID of your app on developer.spotify.com", w), x, y + 33, this.DIM);
             int fy = y + 43;
-            StyleScreen.round(ctx, x, fy, w, 15.0f, 7.5f, this.FIELD);
-            if (this.spotifyField.isFocused()) {
-                StyleScreen.roundOutline(ctx, x, fy, w, 15.0f, 7.5f, this.ACCENT, 0.0f);
-            } else {
-                StyleScreen.rim(ctx, x, fy, w, 15.0f, 7.5f, 0x60FFFFFF);
-            }
-            this.spotifyField.setX(x + 7);
-            this.spotifyField.setY(fy + 3);
-            this.spotifyField.setWidth(w - 14);
-            boolean bl = this.spotifyField.visible = fy >= this.bodyY && fy + 15 <= this.bodyB;
+            this.clickField(ctx, this.spotifyField, x, fy, w, 15, "Client ID");
             if (by < this.bodyY || by + 17 > this.bodyB) {
                 return;
             }
@@ -2424,10 +2508,7 @@ extends Screen {
                 this.hexField.setText(hex);
             }
         }
-        this.hexField.setX(x + 25);
-        this.hexField.setY(y + 4);
-        this.hexField.setWidth(hxw - 10);
-        this.hexField.visible = true;
+        this.clickField(ctx, this.hexField, x + 20, y + 2, hxw, 15, "#FFFFFF");
         int svH = (int)StyleScreen.clamp(bottom - (y += 19) - (20 + palH + saveH + 4) - (preview ? pvH + 14 : 0), 24.0, 96.0);
         float[] hsb = Color.RGBtoHSB(this.cfg.paintColor >> 16 & 0xFF, this.cfg.paintColor >> 8 & 0xFF, this.cfg.paintColor & 0xFF, null);
         float hue = this.editHue;
@@ -2483,12 +2564,7 @@ extends Screen {
             y += pvH + 3;
         }
         int ny = bottom - 16 - 4 - 17;
-        StyleScreen.round(ctx, x, ny, w, 17.0f, 4.0f, this.FIELD);
-        StyleScreen.roundOutline(ctx, x, ny, w, 17.0f, 4.0f, this.editName.isFocused() ? this.ACCENT : 0x40FFFFFF, 0.0f);
-        this.editName.setX(x + 7);
-        this.editName.setY(ny + 5);
-        this.editName.setWidth(w - 12);
-        this.editName.visible = true;
+        this.clickField(ctx, this.editName, x, ny, w, 17, "Name your drawing...");
         int half = (w - 4) / 2;
         this.button(ctx, x, bottom - 16, half, "\u2713 Save", true, this::saveEdit);
         this.button(ctx, x + half + UI_GAP, bottom - 16, w - half - UI_GAP, "Cancel", false, this::closeEditor);
@@ -3092,7 +3168,7 @@ extends Screen {
         Thumbs.Thumb th = Thumbs.get(key, src);
         if (th == null) {
             if (Thumbs.known(key)) {
-                String q = "?";
+                String q = "No preview";
                 this.text(ctx, q, x + (w - this.width(q)) / 2, y + h / 2 - 4, this.DIM);
             }
             return;
@@ -3449,6 +3525,9 @@ extends Screen {
         EDIT_PALETTE = new int[]{0xFFFFFF, 0xC6C6C6, 0x8E8E8E, 0x555555, 0x2B2B2B, 0, 15022389, 0xFF7F27, 16761631, 16771899, 8180027, 0x1FD1D1, 5941759, 3166440, 9060320, 12599256, 16737988, 9132587, 4431943, 3046706, 35195, 5099745, 6953882, 16750592};
         ICONS = new HashMap<String, ItemStack>();
         ELLIPSIS = new HashMap<String, String>();
+    }
+
+    private record Link(String label, String url) {
     }
 
     private record Pick(Categories.Group group, Styles.Style style) {

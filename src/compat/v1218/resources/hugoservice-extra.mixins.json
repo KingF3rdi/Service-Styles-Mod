@@ -4,6 +4,7 @@
   "package": "dev.hugoservice.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "EndCrystalEntityRendererMixin",
     "HeldItemRendererMixin"
   ],
   "injectors": { "defaultRequire": 0 }

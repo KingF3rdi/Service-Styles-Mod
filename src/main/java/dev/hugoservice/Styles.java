@@ -41,7 +41,6 @@ import net.minecraft.resource.InputSupplier;
 
 public final class Styles {
     public static final String VANILLA_ID = "vanilla";
-    private static final List<Preset> PRESETS = List.of(new Preset("amethyst", "Amethyst", 11766015), new Preset("rose", "Rose", 16735432), new Preset("crimson", "Crimson", 0xFF4F4F), new Preset("amber", "Amber", 16756034), new Preset("mint", "Mint", 6090874), new Preset("aqua", "Aqua", 7132159), new Preset("ocean", "Ocean", 4884223), new Preset("frost", "Frost", 15004159), new Preset("mono", "Mono", 0xA0A0A0), new Preset("midnight", "Midnight", 3818880));
     public static final String CURRENT_ID = "current";
     private static final Map<Path, Pack> PACK_CACHE = new ConcurrentHashMap<Path, Pack>();
     private static volatile List<Pack> packs = List.of();
@@ -254,7 +253,6 @@ public final class Styles {
             }));
         }
         boolean sky = c.look() == Categories.Look.SKY;
-        boolean font = c.id().equals("font");
         if (sky) {
             out.addAll(Styles.skyImages());
         }
@@ -262,15 +260,6 @@ public final class Styles {
         for (StylesCloud.Style cloud : StylesCloud.of(cloudCat)) {
             StylesCloud.Style cs = cloud;
             out.add(new Style("cloud:" + cs.id(), cs.name(), StylesCloud.isReady(cs) ? "Cloud pack" : "Cloud · download on select", false, false, null, StylesCloud.stamp(cs.id()), path -> StylesCloud.read(cs, path)));
-        }
-        for (Preset preset : sky || font ? List.<Preset>of() : PRESETS) {
-            out.add(new Style("preset:" + preset.id, preset.name, "Built-in preset", false, false, preset.rgb, 0L, path -> {
-                byte[] v = Styles.vanilla(path);
-                if (v == null) {
-                    return null;
-                }
-                return path.endsWith(".png") ? Images.recolor(path, v, preset.rgb) : v;
-            }));
         }
         for (Pack pack : packs) {
             int n = 0;
@@ -401,7 +390,5 @@ public final class Styles {
         public byte[] read(String var1) throws IOException;
     }
 
-    private record Preset(String id, String name, int rgb) {
-    }
 }
 

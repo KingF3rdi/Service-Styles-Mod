@@ -82,7 +82,6 @@ public final class Fx {
         ClientTickEvents.END_CLIENT_TICK.register(Fx::tick);
         ClientTickEvents.END_CLIENT_TICK.register(NameFaker::tick);
         ClientTickEvents.END_CLIENT_TICK.register(Presence::tick);
-        Mc.registerCobwebOverlay();
     }
 
     private static void tick(MinecraftClient mc) {

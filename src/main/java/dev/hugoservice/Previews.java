@@ -40,6 +40,12 @@ final class Previews {
     private static final Vector3f LIGHT = new Vector3f(0.3f, 1.0f, 0.55f).normalize();
 
     static BufferedImage render(Categories.Group g, Styles.Style s, Integer tint) throws IOException {
+        if (g.look() == Categories.Look.CRYSTAL) {
+            BufferedImage model = Previews.crystal(s, tint);
+            if (model != null) {
+                return model;
+            }
+        }
         if (s.id.startsWith("cloud:")) {
             BufferedImage cloud = Previews.cloud(g, s, tint);
             if (cloud != null) {
@@ -68,6 +74,7 @@ final class Previews {
         byte[] dedicated = StylesCloud.previewPng(cs);
         if (dedicated != null) {
             BufferedImage img = Previews.firstFrame(Images.decode(dedicated));
+            Images.stripPlate(img);
             if (tint != null) {
                 Images.tint(img, tint);
             }
@@ -82,6 +89,7 @@ final class Previews {
             }
             if (png != null) {
                 BufferedImage img = Previews.crop(path, Previews.firstFrame(Images.decode(png)), g);
+                Images.stripPlate(img);
                 if (tint != null) {
                     Images.tint(img, tint);
                 }
@@ -97,6 +105,7 @@ final class Previews {
             return null;
         }
         BufferedImage img = Previews.firstFrame(Images.decode(pack));
+        Images.stripPlate(img);
         if (tint != null) {
             Images.tint(img, tint);
         }
@@ -125,6 +134,7 @@ final class Previews {
         if (tint != null) {
             Images.tint(img, tint);
         }
+        Images.stripPlate(img);
         return img;
     }
 
