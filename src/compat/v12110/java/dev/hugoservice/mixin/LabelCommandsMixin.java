@@ -14,6 +14,7 @@ package dev.hugoservice.mixin;
 
 import dev.hugoservice.Config;
 import dev.hugoservice.NameFaker;
+import dev.hugoservice.Presence;
 import net.minecraft.client.render.command.LabelCommandRenderer;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
@@ -39,7 +40,7 @@ public class LabelCommandsMixin {
     private Text hugoservice$color(Text text) {
         Integer c = Config.INSTANCE.fx("nametag");
         text = NameFaker.apply(text, true);
-        return c == null ? text : Text.literal((String)text.getString()).withColor(c.intValue());
+        return Presence.recolor(text, c);
     }
 }
 

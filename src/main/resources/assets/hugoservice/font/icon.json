@@ -1,0 +1,11 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "hugoservice:gui/logo.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": ["\uE000"]
+    }
+  ]
+}

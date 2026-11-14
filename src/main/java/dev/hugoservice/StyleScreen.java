@@ -1359,7 +1359,7 @@ extends Screen {
         Integer color = this.cfg.fx("nametag");
         StyleScreen.round(ctx, x, y + 18, 56.0f, 56.0f, 7.0f, -2147086824);
         float k = (float)this.cfg.nametagSize / 100.0f;
-        String name = "Steve";
+        Text name = Text.empty().append(Mc.iconText()).append(" ").append("Steve");
         Mc.guiPush(ctx);
         Mc.guiTranslate(ctx, (float)x + 28.0f, (float)(y + 18) + 28.0f);
         Mc.guiScale(ctx, k, k);
