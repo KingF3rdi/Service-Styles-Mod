@@ -129,7 +129,7 @@ final class Thumbs {
         for (int y = 0; y < h; ++y) {
             for (int x = 0; x < w; ++x) {
                 int c = px[y * w + x];
-                atlas.setColorArgb(u + x, v + y, c);
+                Mc.setPixel(atlas, u + x, v + y, c);
                 if (c >>> 24 <= 128) continue;
                 int cr = c >> 16 & 0xFF;
                 int cg = c >> 8 & 0xFF;
@@ -159,7 +159,7 @@ final class Thumbs {
             return;
         }
         atlas = new NativeImage(2048, 2048, true);
-        texture = new NativeImageBackedTexture(() -> "hugoservice thumbs", atlas);
+        texture = Mc.nativeTex("hugoservice thumbs", atlas);
         MinecraftClient.getInstance().getTextureManager().registerTexture(ATLAS, (AbstractTexture)texture);
     }
 
@@ -170,7 +170,7 @@ final class Thumbs {
         shelfX = 0;
         for (int y = 0; y < 2048; ++y) {
             for (int x = 0; x < 2048; ++x) {
-                atlas.setColorArgb(x, y, 0);
+                Mc.setPixel(atlas, x, y, 0);
             }
         }
     }
@@ -179,10 +179,10 @@ final class Thumbs {
         if (rainbow == null) {
             NativeImage ni = new NativeImage(128, 1, false);
             for (int x = 0; x < 128; ++x) {
-                ni.setColorArgb(x, 0, 0xFF000000 | Color.HSBtoRGB((float)x / 128.0f, 0.7f, 1.0f));
+                Mc.setPixel(ni, x, 0, 0xFF000000 | Color.HSBtoRGB((float)x / 128.0f, 0.7f, 1.0f));
             }
             rainbow = Identifier.of((String)"hugoservice", (String)"rainbow");
-            MinecraftClient.getInstance().getTextureManager().registerTexture(rainbow, (AbstractTexture)new NativeImageBackedTexture(() -> "hugoservice rainbow", ni));
+            MinecraftClient.getInstance().getTextureManager().registerTexture(rainbow, (AbstractTexture)Mc.nativeTex("hugoservice rainbow", ni));
         }
         return rainbow;
     }

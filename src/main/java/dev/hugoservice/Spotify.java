@@ -484,7 +484,7 @@ public final class Spotify {
         mc.execute(() -> {
             try {
                 NativeImage image = NativeImage.read((InputStream)new ByteArrayInputStream(png));
-                mc.getTextureManager().registerTexture(COVER, (AbstractTexture)new NativeImageBackedTexture(() -> "spotify cover", image));
+                mc.getTextureManager().registerTexture(COVER, (AbstractTexture)Mc.nativeTex("spotify cover", image));
                 coverReady = true;
             }
             catch (Exception e) {

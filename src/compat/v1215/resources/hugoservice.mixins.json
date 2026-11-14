@@ -1,0 +1,19 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "dev.hugoservice.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ChatHudMixin",
+    "ClientPlayerInteractionManagerMixin",
+    "ClientPlayNetworkHandlerMixin",
+    "ClientWorldPropertiesMixin",
+    "EntityMixin",
+    "EntityRendererMixin",
+    "InGameOverlayRendererMixin",
+    "MinecraftClientMixin",
+    "OverlayTextureAccessor",
+    "PlayerEntityMixin"
+  ],
+  "injectors": { "defaultRequire": 0 }
+}

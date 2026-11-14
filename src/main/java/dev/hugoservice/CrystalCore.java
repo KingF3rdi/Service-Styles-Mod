@@ -51,17 +51,17 @@ public final class CrystalCore {
             int k = Math.max(1, img.getWidth() / 64);
             for (int y = 0; y < 16 * k && y < img.getHeight(); ++y) {
                 for (int x = 32 * k; x < 64 * k && x < img.getWidth(); ++x) {
-                    int c = img.getColorArgb(x, y);
+                    int c = Mc.getPixel(img, x, y);
                     float lum = (float)Math.max(c >> 16 & 0xFF, Math.max(c >> 8 & 0xFF, c & 0xFF)) / 255.0f;
                     float f = 0.25f + 0.75f * lum;
                     int r = Math.round((float)(rgb >> 16 & 0xFF) * f);
                     int g = Math.round((float)(rgb >> 8 & 0xFF) * f);
                     int b = Math.round((float)(rgb & 0xFF) * f);
-                    img.setColorArgb(x, y, c & 0xFF000000 | r << 16 | g << 8 | b);
+                    Mc.setPixel(img, x, y, c & 0xFF000000 | r << 16 | g << 8 | b);
                 }
             }
             if (texture == null) {
-                texture = new NativeImageBackedTexture(() -> "hugoservice crystal core", img);
+                texture = Mc.nativeTex("hugoservice crystal core", img);
                 mc.getTextureManager().registerTexture(ID, (AbstractTexture)texture);
             } else {
                 texture.setImage(img);

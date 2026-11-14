@@ -9,11 +9,19 @@ base {
 }
 
 def mcCompat = project.findProperty('mc_compat') ?: 'v12111'
+def legacy1215 = mcCompat in ['v1215', 'v1214', 'v1213', 'v1211']
+def modernMc = project.minecraft_version.toString().startsWith('26')
 
 sourceSets {
 	main {
 		java {
 			srcDir "src/compat/${mcCompat}/java"
+			if (legacy1215) {
+				exclude 'dev/hugoservice/mixin/FogRendererMixin.java'
+				exclude 'dev/hugoservice/mixin/SkyRenderingMixin.java'
+				exclude 'dev/hugoservice/mixin/WorldRendererMixin.java'
+				exclude 'dev/hugoservice/mixin/InGameHudMixin.java'
+			}
 		}
 		resources {
 			srcDir "src/compat/${mcCompat}/resources"
@@ -27,16 +35,25 @@ loom {
 			sourceSet sourceSets.main
 		}
 	}
+	if (modernMc) {
+		useIntermediateMappings = true
+		intermediaryUrl = 'https://repo.codemc.io/repository/relativitymc/org/relativitymc/intermediary/%1$s/intermediary-%1$s-v2.jar'
+	}
 }
 
 repositories {
 	maven { url = 'https://maven.fabricmc.net/' }
+	maven { url = 'https://repo.codemc.io/repository/relativitymc/' }
 	mavenCentral()
 }
 
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	if (modernMc) {
+		mappings "org.relativitymc:modern-yarn:${project.yarn_mappings}:v2"
+	} else {
+		mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	}
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 }
@@ -44,6 +61,7 @@ dependencies {
 processResources {
 	inputs.property "version", project.version
 	inputs.property "minecraft_dep", project.minecraft_dep
+	duplicatesStrategy = DuplicatesStrategy.INCLUDE
 	filesMatching("fabric.mod.json") {
 		expand "version": project.version, "minecraft_dep": project.minecraft_dep
 	}

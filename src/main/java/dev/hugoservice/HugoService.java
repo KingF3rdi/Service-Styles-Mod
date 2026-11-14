@@ -4,10 +4,6 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap;
-import net.minecraft.client.render.BlockRenderLayer;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.Block;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.option.KeyBinding;
@@ -29,7 +25,8 @@ implements ClientModInitializer {
         SpotifyHud.init();
         TotemCounter.init();
         KillEffects.init();
-        BlockRenderLayerMap.putBlock((Block)Blocks.RESPAWN_ANCHOR, (BlockRenderLayer)BlockRenderLayer.CUTOUT);
+        Mc.setAnchorCutout();
+        Mc.registerCrosshairHud();
         Mc.registerKeys();
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> MediaWatcher.stop());
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {

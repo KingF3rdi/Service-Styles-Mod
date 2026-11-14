@@ -14,8 +14,6 @@
 package dev.hugoservice;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.AddressMode;
-import com.mojang.blaze3d.textures.FilterMode;
 import dev.hugoservice.Categories;
 import dev.hugoservice.Config;
 import dev.hugoservice.Images;
@@ -374,7 +372,7 @@ final class TextureEditor {
     Identifier texture() {
         BufferedImage img = this.image();
         if (this.tex == null || this.tex.getImage().getWidth() != img.getWidth() || this.tex.getImage().getHeight() != img.getHeight()) {
-            this.tex = new NativeImageBackedTexture(() -> "hugoservice editor", new NativeImage(img.getWidth(), img.getHeight(), false));
+            this.tex = Mc.nativeTex("hugoservice editor", new NativeImage(img.getWidth(), img.getHeight(), false));
             MinecraftClient.getInstance().getTextureManager().registerTexture(TEXTURE, (AbstractTexture)this.tex);
             this.dirty = true;
         }
@@ -382,7 +380,7 @@ final class TextureEditor {
             NativeImage ni = this.tex.getImage();
             for (int y = 0; y < img.getHeight(); ++y) {
                 for (int x = 0; x < img.getWidth(); ++x) {
-                    ni.setColorArgb(x, y, img.getRGB(x, y));
+                    Mc.setPixel(ni, x, y, img.getRGB(x, y));
                 }
             }
             this.tex.upload();
@@ -395,32 +393,27 @@ final class TextureEditor {
         if (checker == null) {
             NativeImage ni = new NativeImage(2, 2, false);
             for (int i = 0; i < 4; ++i) {
-                ni.setColorArgb(i % 2, i / 2, (i % 2 + i / 2) % 2 == 0 ? -12958638 : -13880256);
+                Mc.setPixel(ni, i % 2, i / 2, (i % 2 + i / 2) % 2 == 0 ? -12958638 : -13880256);
             }
             checker = Identifier.of((String)"hugoservice", (String)"checker");
-            MinecraftClient.getInstance().getTextureManager().registerTexture(checker, (AbstractTexture)new NativeImageBackedTexture(() -> "hugoservice checker", ni){
-                {
-                    Mc.applyNearestSampler(this);
-                }
-            });
+            NativeImageBackedTexture checkerTex = Mc.nativeTex("hugoservice checker", ni);
+            Mc.applyNearestSampler(checkerTex);
+            MinecraftClient.getInstance().getTextureManager().registerTexture(checker, (AbstractTexture)checkerTex);
         }
         return checker;
     }
 
     static Identifier svSquare(float h) {
         if (sv == null) {
-            sv = new NativeImageBackedTexture(() -> "hugoservice editor sv", new NativeImage(32, 32, false)){
-                {
-                    Mc.applyClampLinearSampler(this);
-                }
-            };
+            sv = Mc.nativeTex("hugoservice editor sv", new NativeImage(32, 32, false));
+            Mc.applyClampLinearSampler(sv);
             MinecraftClient.getInstance().getTextureManager().registerTexture(SV, (AbstractTexture)sv);
         }
         if (!(Math.abs(h - svHue) <= 1.0E-4f)) {
             NativeImage ni = sv.getImage();
             for (int y = 0; y < 32; ++y) {
                 for (int x = 0; x < 32; ++x) {
-                    ni.setColorArgb(x, y, 0xFF000000 | Color.HSBtoRGB(h, (float)x / 31.0f, 1.0f - (float)y / 31.0f));
+                    Mc.setPixel(ni, x, y, 0xFF000000 | Color.HSBtoRGB(h, (float)x / 31.0f, 1.0f - (float)y / 31.0f));
                 }
             }
             sv.upload();
@@ -433,9 +426,9 @@ final class TextureEditor {
         if (!hue) {
             NativeImage ni = new NativeImage(128, 1, false);
             for (int x = 0; x < 128; ++x) {
-                ni.setColorArgb(x, 0, 0xFF000000 | Color.HSBtoRGB((float)x / 128.0f, 1.0f, 1.0f));
+                Mc.setPixel(ni, x, 0, 0xFF000000 | Color.HSBtoRGB((float)x / 128.0f, 1.0f, 1.0f));
             }
-            MinecraftClient.getInstance().getTextureManager().registerTexture(HUE, (AbstractTexture)new NativeImageBackedTexture(() -> "hugoservice editor hue", ni));
+            MinecraftClient.getInstance().getTextureManager().registerTexture(HUE, (AbstractTexture)Mc.nativeTex("hugoservice editor hue", ni));
             hue = true;
         }
         return HUE;

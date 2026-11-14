@@ -172,6 +172,97 @@ public final class Mc {
 
     private static final StyleSpriteSource VANILLA = new StyleSpriteSource.Font(Identifier.ofVanilla("default"));
 
+
+    public static void setAnchorCutout() {
+        net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap.putBlock(net.minecraft.block.Blocks.RESPAWN_ANCHOR, net.minecraft.client.render.BlockRenderLayer.CUTOUT);
+    }
+
+    public static void noTextShadow(net.minecraft.client.gui.widget.TextFieldWidget f) {
+        f.setTextShadow(false);
+    }
+
+    public static void attachHudAfterHotbar(Identifier id, java.util.function.BiConsumer<net.minecraft.client.gui.DrawContext, net.minecraft.client.render.RenderTickCounter> hud) {
+        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.attachElementAfter(net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.HOTBAR, id, hud::accept);
+    }
+
+    public static void attachHudBeforeChat(Identifier id, java.util.function.BiConsumer<net.minecraft.client.gui.DrawContext, net.minecraft.client.render.RenderTickCounter> hud) {
+        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.attachElementBefore(net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.CHAT, id, hud::accept);
+    }
+
+    public static void guiPush(net.minecraft.client.gui.DrawContext ctx) {
+        ctx.getMatrices().pushMatrix();
+    }
+
+    public static void guiPop(net.minecraft.client.gui.DrawContext ctx) {
+        ctx.getMatrices().popMatrix();
+    }
+
+    public static void guiTranslate(net.minecraft.client.gui.DrawContext ctx, float x, float y) {
+        ctx.getMatrices().translate(x, y);
+    }
+
+    public static void guiScale(net.minecraft.client.gui.DrawContext ctx, float x, float y) {
+        ctx.getMatrices().scale(x, y);
+    }
+
+    public static void guiRotate(net.minecraft.client.gui.DrawContext ctx, float radians) {
+        ctx.getMatrices().rotate(radians);
+    }
+
+    public static void registerCrosshairHud() {
+    }
+
+    public static void blit(net.minecraft.client.gui.DrawContext ctx, Identifier id, int x, int y, float u, float v, int w, int h, int regionW, int regionH, int texW, int texH) {
+        ctx.drawTexture(net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED, id, x, y, u, v, w, h, regionW, regionH, texW, texH);
+    }
+
+    public static void blit(net.minecraft.client.gui.DrawContext ctx, Identifier id, int x, int y, float u, float v, int w, int h, int regionW, int regionH, int texW, int texH, int color) {
+        ctx.drawTexture(net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED, id, x, y, u, v, w, h, regionW, regionH, texW, texH, color);
+    }
+
+    public static void guiSprite(net.minecraft.client.gui.DrawContext ctx, Identifier sprite, int x, int y, int w, int h) {
+        ctx.drawGuiTexture(net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED, sprite, x, y, w, h);
+    }
+
+    public static void texturedQuad(net.minecraft.client.gui.DrawContext ctx, Identifier id, int x0, int y0, int x1, int y1, float u0, float u1, float v0, float v1) {
+        ctx.drawTexturedQuad(id, x0, y0, x1, y1, u0, u1, v0, v1);
+    }
+
+
+    public static net.minecraft.client.texture.NativeImageBackedTexture nativeTex(String name, net.minecraft.client.texture.NativeImage image) {
+        return new net.minecraft.client.texture.NativeImageBackedTexture(() -> name, image);
+    }
+
+    public static void playSound(net.minecraft.client.world.ClientWorld world, double x, double y, double z, net.minecraft.sound.SoundEvent sound, net.minecraft.sound.SoundCategory cat, float vol, float pitch) {
+        world.playSoundClient(x, y, z, sound, cat, vol, pitch, false);
+    }
+
+    public static void addParticle(net.minecraft.client.world.ClientWorld world, net.minecraft.particle.ParticleEffect particle, double x, double y, double z, double vx, double vy, double vz) {
+        world.addParticleClient(particle, x, y, z, vx, vy, vz);
+    }
+
+
+    public static void registerResource(Identifier id) {
+        MinecraftClient.getInstance().getTextureManager().registerTexture(id, (net.minecraft.client.texture.ReloadableTexture) new net.minecraft.client.texture.ResourceTexture(id));
+    }
+
+
+    public static void setPixel(net.minecraft.client.texture.NativeImage img, int x, int y, int argb) {
+        img.setColorArgb(x, y, argb);
+    }
+
+    public static int getPixel(net.minecraft.client.texture.NativeImage img, int x, int y) {
+        return img.getColorArgb(x, y);
+    }
+
+    public static net.minecraft.entity.LightningEntity lightning(net.minecraft.world.World world) {
+        return (net.minecraft.entity.LightningEntity) net.minecraft.entity.EntityType.LIGHTNING_BOLT.create(world, net.minecraft.entity.SpawnReason.EVENT);
+    }
+
+    public static boolean coolingDown(net.minecraft.entity.player.ItemCooldownManager manager, net.minecraft.item.ItemStack stack) {
+        return manager.isCoolingDown(stack);
+    }
+
     private Mc() {
     }
 }
