@@ -12,6 +12,7 @@
  */
 package dev.hugoservice.mixin;
 
+import dev.hugoservice.StyleScreen;
 import dev.hugoservice.TotemCounter;
 import net.minecraft.entity.Entity;
 import net.minecraft.text.Text;
@@ -23,6 +24,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value={EntityRenderer.class})
 public class EntityRendererMixin {
+    @Inject(method={"hasLabel"}, at={@At(value="HEAD")}, cancellable=true, require=0)
+    private void hugoservice$hideMixer(CallbackInfoReturnable<Boolean> cir) {
+        try {
+            if (StyleScreen.coversWorld()) {
+                cir.setReturnValue(false);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     @Inject(method={"shouldRender"}, at={@At(value="HEAD")}, cancellable=true, require=0)
     private void hugoservice$cull(Entity entity, net.minecraft.client.render.Frustum frustum, double x, double y, double z, CallbackInfoReturnable<Boolean> cir) {
         try {

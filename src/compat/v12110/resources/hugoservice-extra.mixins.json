@@ -6,6 +6,8 @@
   "client": [
     "AbstractClientPlayerEntityMixin",
     "EndCrystalEntityRendererMixin",
+    "HandPreviewBlockMixin",
+    "HandPreviewMixin",
     "HeldItemRendererMixin",
     "InventoryScreenMixin",
     "LabelCommandsMixin",
