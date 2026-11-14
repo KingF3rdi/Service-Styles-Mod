@@ -18,10 +18,12 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
@@ -47,6 +49,7 @@ public final class StylesCloud {
     private static final Pattern SHA = Pattern.compile("^[0-9a-f]{64}$");
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8L)).followRedirects(HttpClient.Redirect.NORMAL).build();
     private static volatile List<Style> styles = List.of();
+    private static volatile Set<String> bundledIds = Set.of();
     private static volatile int version;
     private static volatile long lastFetch;
     private static volatile boolean fetching;
@@ -159,17 +162,17 @@ public final class StylesCloud {
             Files.createDirectories(dir().resolve("packs"));
             Files.createDirectories(dir().resolve("previews"));
             Path index = dir().resolve("index.json");
-            if (!Files.exists(index)) {
-                Files.writeString(index, json);
-            }
+            Files.writeString(index, json);
             if (parsed == null) {
                 return;
             }
+            HashSet<String> ids = new HashSet<>();
+            for (Style s : parsed) {
+                ids.add(s.id());
+            }
+            bundledIds = Set.copyOf(ids);
             for (Style s : parsed) {
                 StylesCloud.copyResource("/hugoservice/extras/packs/" + s.id() + ".zip", packFile(s));
-                if (s.hasPreview()) {
-                    StylesCloud.copyResource("/hugoservice/extras/previews/" + s.id() + ".png", previewFile(s));
-                }
                 Path marker = dir().resolve("packs").resolve(s.id() + ".v2.sha");
                 if (Files.exists(packFile(s)) && !Files.exists(marker)) {
                     Files.writeString(marker, s.sha256());
@@ -251,11 +254,11 @@ public final class StylesCloud {
                 if (id == null || category == null || name == null || sha == null || !ID.matcher(id).matches()
                         || !id.startsWith(category + "_") || CloudCategories.DROP_CLOUD.contains(category)
                         || CloudCategories.get(category) == null || !SHA.matcher(sha).matches()
-                        || size <= 0L || size > MAX_PACK_BYTES || name.isBlank() || name.length() > 40) {
+                        || size <= 0L || size > MAX_PACK_BYTES || name.isBlank() || name.length() > 40
+                        || (!bundledIds.isEmpty() && !bundledIds.contains(id))) {
                     continue;
                 }
-                boolean preview = o.has("preview") && ("previews/" + id + ".png").equals(string(o, "preview"));
-                result.add(new Style(id, category, name.trim(), sha, size, preview));
+                result.add(new Style(id, category, name.trim(), sha, size, false));
             }
             result.sort(Comparator.comparing(Style::id));
             return result;
@@ -407,7 +410,7 @@ public final class StylesCloud {
     }
 
     public static byte[] previewPng(Style s) {
-        if (s == null) {
+        if (s == null || !s.hasPreview()) {
             return null;
         }
         Path cached = previewFile(s);

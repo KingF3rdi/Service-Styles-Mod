@@ -77,15 +77,8 @@ final class Previews {
         if (cs == null) {
             return null;
         }
-        byte[] dedicated = StylesCloud.previewPng(cs);
-        if (dedicated != null) {
-            BufferedImage img = Previews.firstFrame(Images.decode(dedicated));
-            Images.stripPlate(img);
-            if (tint != null) {
-                Images.tint(img, tint);
-            }
-            return img;
-        }
+        // Dedicated cloud preview PNGs are 3D studio shots on a navy/blue plate.
+        // Mixer tiles use the pack item texture instead (same as swords).
         CloudCategories.Def def = CloudCategories.get(cs.category());
         if (def != null && def.previewTop() != null) {
             String path = CloudCategories.toGroupPath(def.previewTop());
