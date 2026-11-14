@@ -107,7 +107,7 @@ public final class StylesCloud {
         fetching = true;
         HttpRequest api = HttpRequest.newBuilder(URI.create("https://api.github.com/repos/Bauloo0/bauloo-styles-cloud/contents/index.json?ref=main"))
                 .header("Accept", "application/vnd.github.raw+json")
-                .header("User-Agent", "7auction-Styles")
+                .header("User-Agent", Brand.UA)
                 .timeout(Duration.ofSeconds(15L))
                 .GET()
                 .build();
@@ -218,7 +218,7 @@ public final class StylesCloud {
             int m = (start + k) % MIRRORS.length;
             try {
                 HttpRequest request = HttpRequest.newBuilder(URI.create(MIRRORS[m] + path))
-                        .header("User-Agent", "7auction-Styles")
+                        .header("User-Agent", Brand.UA)
                         .timeout(timeout)
                         .GET()
                         .build();

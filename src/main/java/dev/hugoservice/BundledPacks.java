@@ -18,7 +18,7 @@ final class BundledPacks {
 
     static void install() {
         int builtIn = copyTree("/hugoservice/bundled-packs/", Config.UPLOADS);
-        HugoService.LOG.info("[7auction] installed {} catalog packs into {}", builtIn, Config.UPLOADS);
+        HugoService.LOG.info("[{}] installed {} catalog packs into {}", Brand.SHORT, builtIn, Config.UPLOADS);
     }
 
     private static int copyTree(String resourceDir, Path destDir) {
@@ -45,11 +45,11 @@ final class BundledPacks {
                 n += copyDir(Path.of(uri), destDir);
             }
         } catch (Exception e) {
-            HugoService.LOG.warn("[7auction] bundled packs {}: {}", resourceDir, e.toString());
+            HugoService.LOG.warn("[{}] bundled packs {}: {}", Brand.SHORT, resourceDir, e.toString());
             try {
                 n += copyFromModJar(resourceDir, destDir);
             } catch (Exception e2) {
-                HugoService.LOG.warn("[7auction] bundled packs fallback {}: {}", resourceDir, e2.toString());
+                HugoService.LOG.warn("[{}] bundled packs fallback {}: {}", Brand.SHORT, resourceDir, e2.toString());
             }
         }
         return n;

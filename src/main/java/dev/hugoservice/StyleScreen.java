@@ -199,15 +199,7 @@ extends Screen {
     private static final String[] HOME_SMALL;
     private static final String[] HOME_SMALL_ICON;
     private static final Identifier LOGO = Identifier.of((String)"hugoservice", (String)"gui/logo.png");
-    private static final Link[] LINKS = new Link[]{
-        new Link("Discord", "https://sevenauction-styles.delightful-pruner.workers.dev/#discord"),
-        new Link("GitHub", "https://github.com/KingF3rdi/Service-Styles-Mod"),
-        new Link("Website", "https://sevenauction-styles.delightful-pruner.workers.dev/"),
-        new Link("Download", "https://sevenauction-styles.delightful-pruner.workers.dev/#download"),
-        new Link("Modrinth", "https://modrinth.com/mods?q=7auction%20Styles"),
-        new Link("CurseForge", "https://www.curseforge.com/minecraft/search?search=7auction%20Styles"),
-        new Link("FAQ", "https://sevenauction-styles.delightful-pruner.workers.dev/#faq")
-    };
+    private static final Link[] LINKS = StyleScreen.links();
     private static final int ROW_H = 26;
     private static final int UI_GAP = 8;
     private static final int UI_PAD = 12;
@@ -293,7 +285,7 @@ extends Screen {
     }
 
     public StyleScreen() {
-        super((Text)Text.literal((String)"7auction Styles"));
+        super((Text)Text.literal((String)Brand.NAME));
         this.cat = Categories.byId(this.cfg.lastCategory);
         this.editGrid = true;
         this.editHue = -1.0f;
@@ -553,7 +545,7 @@ extends Screen {
     private void drawHome(DrawContext ctx, float delta) {
         ctx.fillGradient(0, 0, this.width, this.height, 0x28000000, 0x66000000);
         int ts = this.height >= 330 ? 4 : (this.height >= 230 ? 3 : 2);
-        MutableText title = Text.literal((String)"7auction");
+        MutableText title = Text.literal((String)Brand.SHORT);
         int tw = this.textRenderer.getWidth((StringVisitable)title) * ts;
         int n = HOME.length;
         int cw = (int)StyleScreen.clamp((double)this.width / 8.2, 58.0, 92.0);
@@ -626,7 +618,7 @@ extends Screen {
         String version = FabricLoader.getInstance().getModContainer("hugoservice").map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("");
         String mcVer = FabricLoader.getInstance().getModContainer("minecraft").map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("");
         String theme = this.cfg.theme == null || this.cfg.theme.isBlank() ? "Aurora" : this.cfg.theme;
-        ctx.drawText(this.textRenderer, "7auction Styles " + version + "   " + theme + " UI   Minecraft " + mcVer, 6, this.height - 12, this.DIM, false);
+        ctx.drawText(this.textRenderer, Brand.NAME + " " + version + "   " + theme + " UI   Minecraft " + mcVer, 6, this.height - 12, this.DIM, false);
     }
 
     private void drawHomeStack(DrawContext ctx, ItemStack stack, float gx, float gy, float gw, float gh) {
@@ -706,8 +698,8 @@ extends Screen {
         this.hit(this.L + 8, this.T + 8, bw, 18, (a, b, btn) -> this.goHome());
         int ix = this.L + 14 + bw;
         this.drawLogo(ctx, ix, this.T + 7, 20);
-        this.bold(ctx, "7auction Styles", ix + 24, this.T + 13, this.TEXT);
-        int navLeft = ix + 24 + this.boldWidth("7auction Styles") + 8;
+        this.bold(ctx, Brand.NAME, ix + 24, this.T + 13, this.TEXT);
+        int navLeft = ix + 24 + this.boldWidth(Brand.NAME) + 8;
         this.drawNavLinks(ctx, navLeft, this.R - 8, this.T + 9, false);
     }
 
@@ -1152,7 +1144,7 @@ extends Screen {
         bw = (iw - UI_GAP) / 2;
         this.button(ctx, ix, ty + 32, bw, isActive ? "Selected" : "Select", !isActive, () -> this.pick(p.group(), p.style()));
         this.button(ctx, ix + bw + UI_GAP, ty + 32, iw - bw - UI_GAP, this.isFav(p.group(), p.style()) ? "\u2605 Saved" : "\u2606 Favorite", false, () -> this.toggleFav(p));
-        boolean bl = editable = !p.group().files().isEmpty() && p.group().look() != Categories.Look.SKY;
+        boolean bl = editable = !p.group().files().isEmpty() && p.group().look() != Categories.Look.SKY && p.group().look() != Categories.Look.KNIFE;
         if (editable) {
             this.button(ctx, ix, ty + 32 + BTN_H + UI_GAP, iw, "Edit texture", false, () -> this.openEditor(p));
         }
@@ -1224,7 +1216,13 @@ extends Screen {
         this.bold(ctx, "Extras", this.cx0, this.T + 37, this.TEXT);
         this.text(ctx, "Combat colours, world and menu", this.cx0, this.T + 48, this.MUTED);
         int inner = this.blockInner();
-        this.layoutBlocks(ctx, List.of(new Block(136, (c, x, y, w) -> {
+        List<Block> extras = new ArrayList<>();
+        if (Brand.KNIVES) {
+            extras.add(new Block(76, this::drawKnifeOptions));
+        }
+        extras.add(new Block(160, this::drawFpsOptions));
+        extras.add(new Block(100, this::drawExplosionOptions));
+        extras.addAll(List.of(new Block(136, (c, x, y, w) -> {
             this.fxBlock(c, x, y, w, "Hit colour", "hit", "Red flash when hit", Previews::hit);
             this.sliderRow(c, x, y + 88, w, "Strength", this.cfg.hitStrength, 5, 100, v -> {
                 this.cfg.hitStrength = v;
@@ -1250,6 +1248,43 @@ extends Screen {
                 this.dirty = true;
             }, String::valueOf);
         }), new Block(136, this::drawCrystalOptions), new Block(100, this::drawFireFog), new Block(this.handSizeHeight(inner), this::drawHandSize), new Block(100, this::drawKillEffect), new Block(90, this::drawSocialBadge), new Block(this.cfg.glintMode == 2 ? 124 : (this.cfg.glintMode == 1 ? 92 : 64), this::drawGlint), new Block(this.cfg.anchorGlow != null ? 128 : 100, this::drawAnchorCharge), new Block(196, this::drawShieldStatus), new Block(152, this::drawTotemCounter), new Block(112, this::drawOpacity), new Block(120, this::drawNametags), new Block(this.inventoryHeight(inner), this::drawInventoryTweaks), new Block(220, this::drawNameFaker), new Block(292, this::drawSpotify), new Block(164, this::drawSkyOptions), new Block(this.greyWorldHeight(inner), this::drawGreyWorld), new Block(112, (c, x, y, w) -> this.drawColorBlock(c, StyleScreen.grassGroup(), x, y, w))));
+        this.layoutBlocks(ctx, extras);
+    }
+
+    private void drawKnifeOptions(DrawContext ctx, int x, int y, int w) {
+        this.section(ctx, "Knives", x, y);
+        this.toggleRow(ctx, x, y + 17, w, "Tricks when pulling out", this.cfg.knifeTricks, () -> {
+            this.cfg.knifeTricks = !this.cfg.knifeTricks;
+            Config.save();
+        });
+        this.toggleRow(ctx, x, y + 33, w, "Sway while holding", this.cfg.knifeSway, () -> {
+            this.cfg.knifeSway = !this.cfg.knifeSway;
+            Config.save();
+        });
+        String key = HugoService.INSPECT != null ? HugoService.INSPECT.getBoundKeyLocalizedText().getString() : "G";
+        this.text(ctx, this.ellipsize("Inspect key: " + key + "  ·  change it in Controls", w), x, y + 52, this.DIM);
+    }
+
+    private void drawFpsOptions(DrawContext ctx, int x, int y, int w) {
+        this.section(ctx, "FPS optimizer", x, y);
+        this.toggleRow(ctx, x, y + 17, w, "Entity and particle culling", this.cfg.fpsCulling, () -> {
+            this.cfg.fpsCulling = !this.cfg.fpsCulling;
+            Config.save();
+        });
+        this.sliderRow(ctx, x, y + 17 + ROW, w, "Cull distance (blocks)", this.cfg.cullDistance, 24, 128, v -> {
+            this.cfg.cullDistance = v;
+        }, String::valueOf);
+        this.text(ctx, this.ellipsize("Vanilla hooks only. Safe with Sodium and VulkanMod.", w), x, y + 17 + ROW * 2, this.DIM);
+        this.text(ctx, this.ellipsize("Does not patch those mods; a missed mixin never crashes.", w), x, y + 17 + ROW * 2 + 12, this.DIM);
+    }
+
+    private void drawExplosionOptions(DrawContext ctx, int x, int y, int w) {
+        this.section(ctx, "Explosions", x, y);
+        String[] modes = new String[]{"Off", "Cull far bursts", "Cull + thin particles"};
+        this.chipRow(ctx, x, y + 18, w, "Optimize explosions", modes[Math.floorMod(this.cfg.explosionOptimize, modes.length)], btn -> {
+            this.cfg.explosionOptimize = Math.floorMod(this.cfg.explosionOptimize + (btn == 1 ? -1 : 1), modes.length);
+        });
+        this.text(ctx, this.ellipsize("Cuts explosion emitter spam. Sodium / Vulkan safe.", w), x, y + 18 + ROW, this.DIM);
     }
 
     private void layoutBlocks(DrawContext ctx, List<Block> blocks) {
@@ -1556,7 +1591,7 @@ extends Screen {
                 this.cfg.spotifyLyrics = !this.cfg.spotifyLyrics;
                 Config.save();
             });
-            this.toggleRow(ctx, x, y + 86 + ROW * 2, w, "Lyrics on the sky", this.cfg.spotifySky, () -> {
+            this.toggleRow(ctx, x, y + 86 + ROW * 2, w, "Lyrics in front of skin", this.cfg.spotifySky, () -> {
             this.cfg.spotifySky = !this.cfg.spotifySky;
             Config.save();
         });
@@ -1564,7 +1599,7 @@ extends Screen {
         this.chipRow(ctx, x, chips, w, "Window", CORNERS[Math.floorMod(this.cfg.spotifyCorner, 4)], btn -> {
             this.cfg.spotifyCorner = Math.floorMod(this.cfg.spotifyCorner + (btn == 1 ? -1 : 1), 4);
         });
-        this.chipRow(ctx, x, chips + ROW, w, "Sky lyrics side", this.cfg.spotifySkyFollow ? "Follow view" : SIDES[Math.floorMod(this.cfg.spotifySkySide, 4)], btn -> {
+        this.chipRow(ctx, x, chips + ROW, w, "Lyrics side", this.cfg.spotifySkyFollow ? "In front of you" : SIDES[Math.floorMod(this.cfg.spotifySkySide, 4)], btn -> {
             int next = Math.floorMod((this.cfg.spotifySkyFollow ? 0 : Math.floorMod(this.cfg.spotifySkySide, 4) + 1) + (btn == 1 ? -1 : 1), 5);
             boolean bl = this.cfg.spotifySkyFollow = next == 0;
             if (next > 0) {
@@ -2810,6 +2845,10 @@ extends Screen {
             this.cfg.loadout.remove(g.id());
         } else {
             this.cfg.loadout.put(g.id(), s.id);
+            if (Brand.KNIVES && g.id().equals(Knives.FINISH_GROUP) && Knives.active() == null) {
+                this.cfg.loadout.put(Knives.MODEL_GROUP, "knife:" + Knives.MODELS.getFirst().id());
+                this.status("Finish needs a knife: " + Knives.MODELS.getFirst().name() + " picked");
+            }
             if (s.id.startsWith("pack:") && Prebuilds.isPrebuild(s.id.substring("pack:".length()))) {
                 Prebuilds.applyLoadout(this.cfg, s.id);
                 this.status("Mix: " + s.name);
@@ -2859,7 +2898,7 @@ extends Screen {
         this.busy = true;
         this.status("Building pack...");
         Config snap = this.cfg.copy();
-        this.runAsync(() -> PackBuilder.collect(snap, "7auction Styles"), files -> {
+        this.runAsync(() -> PackBuilder.collect(snap, Brand.NAME), files -> {
             PackBuilder.writeActiveAndReload(files);
             this.dirty = false;
             this.status("Applied - reloading textures");
@@ -2874,7 +2913,7 @@ extends Screen {
         this.status("Saving pack...");
         Config snap = this.cfg.copy();
         String name = this.packName.getText();
-        this.runAsync(() -> PackBuilder.collect(snap, name + " - made with 7auction Styles"), files -> {
+        this.runAsync(() -> PackBuilder.collect(snap, name + " - made with " + Brand.NAME), files -> {
             Path p = PackBuilder.saveZip(files, name);
             this.status("Saved " + String.valueOf(p.getFileName()) + " to resourcepacks");
             this.rescan();
@@ -2913,7 +2952,7 @@ extends Screen {
                     done.accept(r);
                 }
                 catch (Exception e) {
-                    HugoService.LOG.error("7auction Styles failed", (Throwable)e);
+                    HugoService.LOG.error(Brand.NAME + " failed", (Throwable)e);
                     this.status("Error: " + e.getMessage());
                 }
             });
@@ -2938,7 +2977,7 @@ extends Screen {
             this.busy = true;
             this.status("Exporting...");
             Config snap = this.cfg.copy();
-            this.runAsync(() -> PackBuilder.writeZip(PackBuilder.collect(snap, name + " - made with 7auction Styles"), target), p -> this.status("Exported " + String.valueOf(p.getFileName()) + " to " + String.valueOf(p.getParent())));
+            this.runAsync(() -> PackBuilder.writeZip(PackBuilder.collect(snap, name + " - made with " + Brand.NAME), target), p -> this.status("Exported " + String.valueOf(p.getFileName()) + " to " + String.valueOf(p.getParent())));
         }, "*.zip");
     }
 
@@ -3523,6 +3562,24 @@ extends Screen {
         EDIT_PALETTE = new int[]{0xFFFFFF, 0xC6C6C6, 0x8E8E8E, 0x555555, 0x2B2B2B, 0, 15022389, 0xFF7F27, 16761631, 16771899, 8180027, 0x1FD1D1, 5941759, 3166440, 9060320, 12599256, 16737988, 9132587, 4431943, 3046706, 35195, 5099745, 6953882, 16750592};
         ICONS = new HashMap<String, ItemStack>();
         ELLIPSIS = new HashMap<String, String>();
+    }
+
+    private static Link[] links() {
+        if (Brand.KNIVES) {
+            return new Link[]{
+                new Link("GitHub", "https://github.com/KingF3rdi/Service-Styles-Mod"),
+                new Link("Releases", "https://github.com/KingF3rdi/Service-Styles-Mod/releases")
+            };
+        }
+        return new Link[]{
+            new Link("Discord", "https://sevenauction-styles.delightful-pruner.workers.dev/#discord"),
+            new Link("GitHub", "https://github.com/KingF3rdi/Service-Styles-Mod"),
+            new Link("Website", "https://sevenauction-styles.delightful-pruner.workers.dev/"),
+            new Link("Download", "https://sevenauction-styles.delightful-pruner.workers.dev/#download"),
+            new Link("Modrinth", "https://modrinth.com/mods?q=7auction%20Styles"),
+            new Link("CurseForge", "https://www.curseforge.com/minecraft/search?search=7auction%20Styles"),
+            new Link("FAQ", "https://sevenauction-styles.delightful-pruner.workers.dev/#faq")
+        };
     }
 
     private record Link(String label, String url) {

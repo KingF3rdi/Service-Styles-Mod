@@ -52,6 +52,10 @@ public final class Mc {
         return RenderLayer.getEntityCutoutNoCull(id);
     }
 
+    public static RenderLayer entityGlint() {
+        return RenderLayer.getEntityGlint();
+    }
+
     public static float minLineWidth() {
         return 1.0f;
     }
@@ -147,9 +151,25 @@ public final class Mc {
         KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("hugoservice", "main"));
         HugoService.OPEN = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.open", InputUtil.Type.KEYSYM, 344, category));
         HugoService.RESET_POPS = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.reset_pops", InputUtil.Type.KEYSYM, -1, category));
+        if (Brand.KNIVES) {
+            HugoService.INSPECT = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.inspect", InputUtil.Type.KEYSYM, 71, category));
+        }
+    }
+
+    public static int selectedSlot(net.minecraft.entity.player.PlayerEntity player) {
+        return player.getInventory().getSelectedSlot();
+    }
+
+    public static float eyeHeight(net.minecraft.entity.Entity entity) {
+        return entity.getStandingEyeHeight();
+    }
+
+    public static Vec3d cameraPos(MinecraftClient mc) {
+        return mc.gameRenderer.getCamera().getCameraPos();
     }
 
     public static void registerSpotifySky() {
+        // Fabric API 0.134.x for 1.21.9 has no WorldRenderEvents; lyrics overlay is 1.21.8 / 1.21.10+.
     }
 
     public static void registerCobwebOverlay() {

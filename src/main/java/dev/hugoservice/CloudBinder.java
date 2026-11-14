@@ -18,7 +18,7 @@ public final class CloudBinder {
                 continue;
             }
             if (!NEW_MODULES.contains(def.id())) {
-                HugoService.LOG.info("[Cloud] extra '{}' slot {} has no 7auction group; skipped (not a new module)", def.id(), def.slot());
+                HugoService.LOG.info("[Cloud] extra '{}' slot {} has no {} group; skipped (not a new module)", def.id(), def.slot(), Brand.SHORT);
                 continue;
             }
             Categories.appendCategory(categoryFor(def, files));

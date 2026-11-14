@@ -63,6 +63,7 @@ final class Previews {
             case Categories.Look.CUBE -> Previews.cube(g.cube(), s, tint);
             case Categories.Look.CRYSTAL -> Previews.crystal(s, tint);
             case Categories.Look.FLAT, Categories.Look.WIDE -> Previews.flat(g, s, tint);
+            case Categories.Look.KNIFE -> Knives.preview(g, s);
             case Categories.Look.SKY -> {
                 if (s.vanilla) {
                     yield Previews.vanillaSky();

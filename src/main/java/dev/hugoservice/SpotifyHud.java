@@ -150,10 +150,9 @@ public final class SpotifyHud {
     }
 
     static void sky(MatrixStack m, VertexConsumerProvider consumers) {
-        float yaw;
         MinecraftClient mc = MinecraftClient.getInstance();
         Config cfg = Config.INSTANCE;
-        if (!cfg.spotifySky || mc.options.hudHidden || Spotify.track == null || !Spotify.active()) {
+        if (!cfg.spotifySky || mc.options.hudHidden || Spotify.track == null || !Spotify.active() || mc.player == null) {
             return;
         }
         int line = SpotifyHud.currentLine();
@@ -161,34 +160,46 @@ public final class SpotifyHud {
         if (line < 0 || line >= lyrics.size() || lyrics.get(line).text().isEmpty()) {
             return;
         }
-        float pitch = -28.0f;
+        String raw = lyrics.get(line).text().trim();
+        String[] words = raw.isEmpty() ? new String[0] : raw.split("\\s+");
+        if (words.length == 0) {
+            return;
+        }
+        long elapsed = System.currentTimeMillis() - lineAt;
+        int shown = Math.min(words.length, 1 + (int) (elapsed / 140L));
+        float yaw;
         if (cfg.spotifySkyFollow) {
-            float look = mc.gameRenderer.getCamera().getYaw();
-            if (line != skyLine) {
-                skyLine = line;
-                if (Float.isNaN(skyYaw) || Math.abs(MathHelper.wrapDegrees((float)(look - skyYaw))) > 40.0f) {
-                    skyYaw = look;
-                }
-            }
-            yaw = skyYaw;
+            yaw = mc.player.getYaw();
         } else {
             yaw = SIDE_YAW[Math.floorMod(cfg.spotifySkySide, 4)];
         }
-        float dist = Math.max(48.0f, Math.min(128.0f, (float)mc.options.getClampedViewDistance() * 8.0f));
-        float scale = dist * 0.0105f;
-        Vector3f at = SpotifyHud.dir(yaw, pitch).mul(dist);
+        Vector3f forward = SpotifyHud.dir(yaw, 0.0f);
+        net.minecraft.util.math.Vec3d eyes = Mc.pos(mc.player).add(0.0, Mc.eyeHeight(mc.player), 0.0);
+        net.minecraft.util.math.Vec3d cam = Mc.cameraPos(mc);
+        float dist = 20.0f;
+        float atX = (float) (eyes.x + forward.x * dist - cam.x);
+        float atY = (float) (eyes.y + 1.15 + forward.y * dist - cam.y);
+        float atZ = (float) (eyes.z + forward.z * dist - cam.z);
         m.push();
-        m.translate(at.x, at.y, at.z);
-        m.multiply((Quaternionfc)new Quaternionf().rotationYXZ((float)Math.PI - (float)Math.toRadians(yaw), (float)Math.toRadians(-pitch), 0.0f));
-        m.scale(scale, -scale, scale);
+        m.translate(atX, atY, atZ);
+        m.multiply((Quaternionfc) new Quaternionf().rotationYXZ((float) Math.PI - (float) Math.toRadians(yaw), 0.0f, 0.0f));
+        m.scale(0.16f, -0.16f, 0.16f);
         TextRenderer tr = mc.textRenderer;
-        float fade = Math.min(1.0f, (float)(System.currentTimeMillis() - lineAt) / 400.0f);
-        MutableText big = Text.literal((String)lyrics.get(line).text()).setStyle(bold());
-        tr.draw((Text)big, (float)(-tr.getWidth((StringVisitable)big)) / 2.0f, -4.0f, Math.max(26, Math.round(235.0f * fade)) << 24 | 0xFFFFFF, true, m.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.NORMAL, 0, 0xF000F0);
-        if (line + 1 < lyrics.size() && !lyrics.get(line + 1).text().isEmpty()) {
-            MutableText next = Text.literal((String)lyrics.get(line + 1).text()).setStyle(ui());
-            m.scale(0.5f, 0.5f, 0.5f);
-            tr.draw((Text)next, (float)(-tr.getWidth((StringVisitable)next)) / 2.0f, 14.0f, Math.max(26, Math.round(150.0f * fade)) << 24 | 0xCFE8FF, true, m.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.NORMAL, 0, 0xF000F0);
+        int[] widths = new int[shown];
+        int total = 0;
+        for (int i = 0; i < shown; ++i) {
+            String piece = words[i] + (i + 1 < shown ? " " : "");
+            widths[i] = tr.getWidth((StringVisitable) Text.literal((String) piece).setStyle(bold()));
+            total += widths[i];
+        }
+        float x = -total / 2.0f;
+        for (int i = 0; i < shown; ++i) {
+            String piece = words[i] + (i + 1 < shown ? " " : "");
+            float wordFade = Math.min(1.0f, (elapsed - i * 140L) / 180.0f);
+            int alpha = Math.max(28, Math.round(240.0f * Math.max(0.0f, wordFade)));
+            MutableText word = Text.literal((String) piece).setStyle(bold());
+            tr.draw((Text) word, x, -4.0f, alpha << 24 | 0xFFFFFF, true, m.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.SEE_THROUGH, 0, 0xF000F0);
+            x += widths[i];
         }
         m.pop();
     }

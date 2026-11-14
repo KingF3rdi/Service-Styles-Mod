@@ -21,9 +21,13 @@ implements ClientModInitializer {
     public static final Logger LOG = LoggerFactory.getLogger((String)"HugoService");
     public static KeyBinding OPEN;
     public static KeyBinding RESET_POPS;
+    public static KeyBinding INSPECT;
 
     public void onInitializeClient() {
         Config.load();
+        if (Brand.KNIVES) {
+            KnifeRenderer.register();
+        }
         PackBuilder.sanitizeActivePack();
         Fx.init();
         SpotifyHud.init();
@@ -41,7 +45,7 @@ implements ClientModInitializer {
                 t.start();
             }
             catch (Throwable t) {
-                LOG.warn("7auction Styles startup scan failed", t);
+                LOG.warn(Brand.NAME + " startup scan failed", t);
             }
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -55,6 +59,9 @@ implements ClientModInitializer {
             }
             Spotify.tick();
             Glint.tick(client);
+            if (Brand.KNIVES && INSPECT != null) {
+                KnifeAnimations.tick(client, INSPECT.wasPressed());
+            }
         });
     }
 }
