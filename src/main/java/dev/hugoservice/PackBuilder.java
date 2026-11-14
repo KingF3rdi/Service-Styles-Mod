@@ -42,14 +42,14 @@ import net.minecraft.resource.ResourceType;
 import net.minecraft.resource.ResourcePackManager;
 
 public final class PackBuilder {
-    public static final String ACTIVE = "7auction Styles";
-    public static final String ACTIVE_ID = "file/7auction Styles";
-    static final String[] LEGACY_ACTIVE = {"HugoService-Active", "SkellyHole-Active", "SkellyHole Styles"};
+    public static final String ACTIVE = Brand.NAME;
+    public static final String ACTIVE_ID = "file/" + Brand.NAME;
+    static final String[] LEGACY_ACTIVE = {"HugoService-Active", "SkellyHole-Active", "SkellyHole Styles", "7auction Styles", "PinguuTxw Styles"};
 
     public static Map<String, byte[]> collect(Config cfg, String description) throws IOException {
         byte[] v;
         LinkedHashMap<String, byte[]> out = new LinkedHashMap<String, byte[]>();
-        String desc = description == null || description.isBlank() ? "7auction Styles" : description;
+        String desc = description == null || description.isBlank() ? Brand.NAME : description;
         out.put("pack.mcmeta", PackBuilder.mcmeta(desc));
         out.put("pack.png", Images.encode(PackBuilder.packIcon()));
         if (cfg.greyWorld) {
@@ -62,7 +62,7 @@ public final class PackBuilder {
             out.put("assets/minecraft/post_effect/entity_outline.json", new String(v, StandardCharsets.UTF_8).replaceAll("(\"name\": \"Radius\",\\s*\"type\": \"float\",\\s*\"value\": )[0-9.]+", "$1" + Math.max(1, cfg.glowWidth) + ".0").getBytes(StandardCharsets.UTF_8));
         }
         for (Categories.Group c : Categories.allGroups()) {
-            if (c.look() == Categories.Look.SKY || c.id().equals("mixes")) continue;
+            if (c.look() == Categories.Look.SKY || c.look() == Categories.Look.KNIFE || c.id().equals("mixes")) continue;
             Styles.Style style = Styles.find(c, cfg.styleOf(c.id()));
             Integer color = cfg.colorOf(c.id());
             if (style.vanilla && color == null) continue;
@@ -70,7 +70,7 @@ public final class PackBuilder {
                 if (file.contains("/font/") || file.startsWith("font/") || file.contains("/shaders/") || file.startsWith("shaders/")) {
                     continue;
                 }
-                byte[] png = style.read(file);
+                byte[] png = PackBuilder.readStyleFile(c, style, file);
                 if (png == null) continue;
                 if (color != null) {
                     png = Images.recolor(file, png, color);
@@ -85,6 +85,54 @@ public final class PackBuilder {
             }
         }
         return out;
+    }
+
+    /** Fill a missing group file from a sibling of the same kind (diamond sword from netherite, spear in-hand, crystal beam). */
+    static byte[] readStyleFile(Categories.Group c, Styles.Style style, String file) {
+        byte[] png = style.read(file);
+        if (png != null) {
+            return png;
+        }
+        String kind = PackBuilder.fileKind(file);
+        if (kind == null) {
+            return null;
+        }
+        for (String alt : c.files()) {
+            if (alt.equals(file) || !kind.equals(PackBuilder.fileKind(alt))) {
+                continue;
+            }
+            png = style.read(alt);
+            if (png != null) {
+                return png;
+            }
+        }
+        return null;
+    }
+
+    static String fileKind(String file) {
+        int slash = file.lastIndexOf('/');
+        String n = slash < 0 ? file : file.substring(slash + 1);
+        if (n.contains("spear_in_hand")) {
+            return "spear_in_hand";
+        }
+        if (n.contains("spear")) {
+            return "spear";
+        }
+        if (n.startsWith("end_crystal")) {
+            return "end_crystal";
+        }
+        if (n.startsWith("fire_")) {
+            return "fire";
+        }
+        int u = n.lastIndexOf('_');
+        if (u <= 0) {
+            return n;
+        }
+        String tail = n.substring(u + 1);
+        if (tail.equals("png") || tail.equals("overlay.png")) {
+            return n;
+        }
+        return tail;
     }
 
     static boolean isMixerPack(String nameOrId) {
@@ -288,7 +336,7 @@ public final class PackBuilder {
                 PackBuilder.deleteTree(assets.resolve(leftover));
             }
             catch (IOException e) {
-                HugoService.LOG.warn("Could not remove leftover {} from the 7auction Styles pack", leftover, e);
+                HugoService.LOG.warn("Could not remove leftover {} from the {} pack", leftover, Brand.NAME, e);
             }
         }
         Path meta = dir.resolve("pack.mcmeta");
@@ -296,11 +344,11 @@ public final class PackBuilder {
             try {
                 String raw = Files.readString(meta);
                 if (raw.contains("font/") || !raw.contains("pack_format")) {
-                    Files.write(meta, PackBuilder.mcmeta("7auction Styles"), new OpenOption[0]);
+                    Files.write(meta, PackBuilder.mcmeta(Brand.NAME), new OpenOption[0]);
                 }
             }
             catch (Exception e) {
-                HugoService.LOG.warn("Could not rewrite pack.mcmeta for 7auction Styles", (Throwable)e);
+                HugoService.LOG.warn("Could not rewrite pack.mcmeta for " + Brand.NAME, (Throwable)e);
             }
         }
     }
@@ -319,7 +367,7 @@ public final class PackBuilder {
             }
         }
         catch (IOException e) {
-                HugoService.LOG.warn("Could not remove the old knife files from the 7auction Styles pack", (Throwable)e);
+                HugoService.LOG.warn("Could not remove the old knife files from the {} pack", Brand.NAME, (Throwable)e);
         }
     }
 

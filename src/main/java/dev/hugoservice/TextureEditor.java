@@ -450,7 +450,7 @@ final class TextureEditor {
         Files.createDirectories(dir, new FileAttribute[0]);
         Path mcmeta = dir.resolve("pack.mcmeta");
         if (!Files.exists(mcmeta, new LinkOption[0])) {
-            Files.write(mcmeta, PackBuilder.mcmeta(TextureEditor.clean(name) + " - edited with 7auction Styles"), new OpenOption[0]);
+            Files.write(mcmeta, PackBuilder.mcmeta(TextureEditor.clean(name) + " - edited with " + Brand.NAME), new OpenOption[0]);
         }
         for (String f : this.files) {
             Path p = dir.resolve("assets/minecraft/" + f);

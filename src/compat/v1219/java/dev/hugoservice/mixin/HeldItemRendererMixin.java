@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import dev.hugoservice.HandSize;
+import dev.hugoservice.KnifeAnimations;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.item.HeldItemRenderer;
 import net.minecraft.client.util.math.MatrixStack;
@@ -21,6 +22,7 @@ public class HeldItemRendererMixin {
             at = {@At(value = "INVOKE", target = "Lnet/minecraft/client/render/item/HeldItemRenderer;renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemDisplayContext;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;I)V")}
     )
     private void hugoservice$handSize(HeldItemRenderer self, LivingEntity entity, ItemStack stack, ItemDisplayContext context, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, Operation<Void> original, @Local(argsOnly = true) net.minecraft.util.Hand hand) {
+        KnifeAnimations.apply(matrices, stack, hand == net.minecraft.util.Hand.MAIN_HAND, 0.0f);
         int size = HandSize.of(stack);
         if (size == 100) {
             original.call(self, entity, stack, context, matrices, queue, light);

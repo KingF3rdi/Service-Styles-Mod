@@ -23,6 +23,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value={EntityRenderer.class})
 public class EntityRendererMixin {
+    @Inject(method={"shouldRender"}, at={@At(value="HEAD")}, cancellable=true, require=0)
+    private void hugoservice$cull(Entity entity, net.minecraft.client.render.Frustum frustum, double x, double y, double z, CallbackInfoReturnable<Boolean> cir) {
+        try {
+            if (dev.hugoservice.Perf.skipEntity(entity)) {
+                cir.setReturnValue(false);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     @Inject(method={"getDisplayName"}, at={@At(value="RETURN")}, cancellable=true, require=0)
     private void hugoservice$pops(Entity entity, CallbackInfoReturnable<Text> cir) {
         Text pops = TotemCounter.suffix(entity);

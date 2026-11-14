@@ -1,2 +1,2 @@
-7auction Styles 1.0.0
-No knives, no cosmetics/wardrobe. Mixer, extras packs, Aurora, Yarn sky mixins.
+${product_name} 1.0.0.1
+${product_knives} Mixer, extras packs, Aurora, Yarn sky mixins. FPS culling and explosion extras (Sodium/Vulkan safe).

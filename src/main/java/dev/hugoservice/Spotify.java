@@ -66,7 +66,7 @@ public final class Spotify {
     public static final String REDIRECT = "http://127.0.0.1:43219/callback";
     public static final Identifier COVER = Identifier.of((String)"hugoservice", (String)"spotify/cover");
     private static final String SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state";
-    private static final String UA = "7auction Styles";
+    private static final String UA = Brand.UA;
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6L)).build();
     private static final Gson GSON = new Gson();
     private static final Pattern LRC = Pattern.compile("\\[(\\d+):(\\d+(?:\\.\\d+)?)]");
@@ -144,7 +144,7 @@ public final class Spotify {
                             try {
                                 q = Spotify.query(first.split(" ")[1]);
                                 boolean ok = state.equals(q.get("state")) && q.containsKey("code");
-                                Spotify.reply(s, 200, (String)(ok ? "Connected to 7auction Styles. You can close this tab." : "Spotify login failed: " + q.getOrDefault("error", "unknown")));
+                                Spotify.reply(s, 200, (String)(ok ? "Connected to " + Brand.NAME + ". You can close this tab." : "Spotify login failed: " + q.getOrDefault("error", "unknown")));
                                 if (ok) break block18;
                                 status = "Login cancelled";
                                 if (s == null) break block19;
@@ -560,7 +560,7 @@ public final class Spotify {
 
     private static void reply(Socket s, int code, String message) throws Exception {
         String safe = message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-        String body = "<!doctype html><meta charset=utf-8><title>7auction Styles</title><body style=\"font-family:sans-serif;background:#0b1522;color:#f2f8ff;display:grid;place-items:center;height:100vh;margin:0\"><p>" + safe + "</p></body>";
+        String body = "<!doctype html><meta charset=utf-8><title>" + Brand.NAME + "</title><body style=\"font-family:sans-serif;background:#0b1522;color:#f2f8ff;display:grid;place-items:center;height:100vh;margin:0\"><p>" + safe + "</p></body>";
         byte[] b = body.getBytes(StandardCharsets.UTF_8);
         OutputStream out = s.getOutputStream();
         out.write(("HTTP/1.1 " + code + (code == 200 ? " OK" : " Not Found") + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + b.length + "\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.US_ASCII));

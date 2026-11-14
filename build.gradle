@@ -4,8 +4,15 @@ plugins {
 
 version = project.mod_version
 group = project.maven_group
+
+def productKey = (project.findProperty('product') ?: 'pinguutxw').toString()
+def pinguu = productKey != '7auction'
+def productName = pinguu ? 'PinguuTxw Styles' : '7auction Styles'
+def productAuthor = pinguu ? 'PinguuTxw' : '7auction'
+def productJar = pinguu ? 'PinguuTxw-Styles' : '7auction-Styles'
+
 base {
-	archivesName = project.archives_base_name
+	archivesName = productJar
 }
 
 def mcCompat = project.findProperty('mc_compat') ?: 'v12111'
@@ -44,8 +51,16 @@ dependencies {
 processResources {
 	inputs.property "version", project.version
 	inputs.property "minecraft_dep", project.minecraft_dep
+	inputs.property "product_name", productName
+	inputs.property "product_author", productAuthor
 	filesMatching("fabric.mod.json") {
-		expand "version": project.version, "minecraft_dep": project.minecraft_dep
+		expand "version": project.version, "minecraft_dep": project.minecraft_dep, "product_name": productName, "product_author": productAuthor
+	}
+	filesMatching("assets/hugoservice/lang/*.json") {
+		expand "product_name": productName
+	}
+	filesMatching("hugoservice/BUILD.txt") {
+		expand "product_name": productName, "product_knives": pinguu ? "3D knives, lyrics 20 blocks in front of the skin." : "No knives."
 	}
 }
 

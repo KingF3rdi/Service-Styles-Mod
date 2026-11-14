@@ -1,5 +1,6 @@
 {
-  "key.hugoservice.open": "7auction Styles öffnen",
+  "key.hugoservice.open": "${product_name} öffnen",
   "key.hugoservice.reset_pops": "Totem-Pops zurücksetzen",
-  "key.category.hugoservice.main": "7auction Styles"
+  "key.hugoservice.inspect": "Messer inspizieren",
+  "key.category.hugoservice.main": "${product_name}"
 }

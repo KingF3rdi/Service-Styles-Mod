@@ -264,8 +264,13 @@ public final class Styles {
             }));
         }
         boolean sky = c.look() == Categories.Look.SKY;
+        boolean knife = Brand.KNIVES && Knives.isKnifeGroup(c);
         if (sky) {
             out.addAll(Styles.skyImages());
+        }
+        if (knife) {
+            out.addAll(Knives.styles(c));
+            return out;
         }
         String cloudCat = c.id().equals("spears") ? "spear" : c.id();
         for (StylesCloud.Style cloud : StylesCloud.of(cloudCat)) {
@@ -323,7 +328,33 @@ public final class Styles {
 
     static {
         rebuildWanted();
-        LEGACY = Map.ofEntries(Map.entry("textures/entity/endercrystal/endercrystal.png", "textures/entity/end_crystal/end_crystal.png"), Map.entry("textures/entity/endercrystal/endercrystal_beam.png", "textures/entity/end_crystal/end_crystal_beam.png"), Map.entry("textures/item/apple_golden.png", "textures/item/golden_apple.png"), Map.entry("textures/item/totem.png", "textures/item/totem_of_undying.png"), Map.entry("textures/block/fire_layer_0.png", "textures/block/fire_0.png"), Map.entry("textures/block/fire_layer_1.png", "textures/block/fire_1.png"), Map.entry("textures/block/web.png", "textures/block/cobweb.png"), Map.entry("textures/block/grass_top.png", "textures/block/grass_block_top.png"), Map.entry("textures/block/grass_side.png", "textures/block/grass_block_side.png"), Map.entry("textures/block/grass_side_overlay.png", "textures/block/grass_block_side_overlay.png"), Map.entry("textures/environment/sun.png", "textures/environment/celestial/sun.png"), Map.entry("textures/models/armor/diamond_layer_1.png", "textures/entity/equipment/humanoid/diamond.png"), Map.entry("textures/models/armor/diamond_layer_2.png", "textures/entity/equipment/humanoid_leggings/diamond.png"), Map.entry("textures/models/armor/netherite_layer_1.png", "textures/entity/equipment/humanoid/netherite.png"), Map.entry("textures/models/armor/netherite_layer_2.png", "textures/entity/equipment/humanoid_leggings/netherite.png"));
+        LEGACY = new java.util.HashMap<>();
+        LEGACY.put("textures/entity/endercrystal/endercrystal.png", "textures/entity/end_crystal/end_crystal.png");
+        LEGACY.put("textures/entity/endercrystal/endercrystal_beam.png", "textures/entity/end_crystal/end_crystal_beam.png");
+        LEGACY.put("textures/item/apple_golden.png", "textures/item/golden_apple.png");
+        LEGACY.put("textures/item/totem.png", "textures/item/totem_of_undying.png");
+        LEGACY.put("textures/block/fire_layer_0.png", "textures/block/fire_0.png");
+        LEGACY.put("textures/block/fire_layer_1.png", "textures/block/fire_1.png");
+        LEGACY.put("textures/block/web.png", "textures/block/cobweb.png");
+        LEGACY.put("textures/block/grass_top.png", "textures/block/grass_block_top.png");
+        LEGACY.put("textures/block/grass_side.png", "textures/block/grass_block_side.png");
+        LEGACY.put("textures/block/grass_side_overlay.png", "textures/block/grass_block_side_overlay.png");
+        LEGACY.put("textures/environment/sun.png", "textures/environment/celestial/sun.png");
+        LEGACY.put("textures/entity/elytra.png", "textures/entity/equipment/wings/elytra.png");
+        LEGACY.put("textures/models/armor/diamond_layer_1.png", "textures/entity/equipment/humanoid/diamond.png");
+        LEGACY.put("textures/models/armor/diamond_layer_2.png", "textures/entity/equipment/humanoid_leggings/diamond.png");
+        LEGACY.put("textures/models/armor/netherite_layer_1.png", "textures/entity/equipment/humanoid/netherite.png");
+        LEGACY.put("textures/models/armor/netherite_layer_2.png", "textures/entity/equipment/humanoid_leggings/netherite.png");
+        LEGACY.put("textures/models/armor/iron_layer_1.png", "textures/entity/equipment/humanoid/iron.png");
+        LEGACY.put("textures/models/armor/iron_layer_2.png", "textures/entity/equipment/humanoid_leggings/iron.png");
+        LEGACY.put("textures/models/armor/gold_layer_1.png", "textures/entity/equipment/humanoid/gold.png");
+        LEGACY.put("textures/models/armor/gold_layer_2.png", "textures/entity/equipment/humanoid_leggings/gold.png");
+        LEGACY.put("textures/models/armor/chainmail_layer_1.png", "textures/entity/equipment/humanoid/chainmail.png");
+        LEGACY.put("textures/models/armor/chainmail_layer_2.png", "textures/entity/equipment/humanoid_leggings/chainmail.png");
+        LEGACY.put("textures/models/armor/leather_layer_1.png", "textures/entity/equipment/humanoid/leather.png");
+        LEGACY.put("textures/models/armor/leather_layer_2.png", "textures/entity/equipment/humanoid_leggings/leather.png");
+        LEGACY.put("textures/entity/shield/base_nopattern.png", "textures/entity/shield_base_nopattern.png");
+        LEGACY.put("textures/entity/shield/base.png", "textures/entity/shield_base.png");
     }
 
     private record Pack(Path path, boolean zip, String name, long stamp, long modified, Map<String, String> entries) {

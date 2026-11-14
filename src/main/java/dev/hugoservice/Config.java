@@ -116,6 +116,11 @@ public final class Config {
     public String presenceUrl = "";
     public boolean skyRotate = false;
     public boolean skyKeepSun = false;
+    public boolean knifeTricks = true;
+    public boolean knifeSway = true;
+    public boolean fpsCulling = false;
+    public int cullDistance = 64;
+    public int explosionOptimize = 0;
     public boolean skyNightFade = true;
     public int skyTime = -1;
     public int uiVersion = 0;

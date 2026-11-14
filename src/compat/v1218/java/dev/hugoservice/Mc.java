@@ -37,6 +37,10 @@ public final class Mc {
         return RenderLayer.getEntityCutoutNoCull(id);
     }
 
+    public static RenderLayer entityGlint() {
+        return RenderLayer.getEntityGlint();
+    }
+
     public static float minLineWidth() {
         return 1.0f;
     }
@@ -110,6 +114,21 @@ public final class Mc {
     public static void registerKeys() {
         HugoService.OPEN = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.open", InputUtil.Type.KEYSYM, 344, "key.categories.hugoservice"));
         HugoService.RESET_POPS = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.reset_pops", InputUtil.Type.KEYSYM, -1, "key.categories.hugoservice"));
+        if (Brand.KNIVES) {
+            HugoService.INSPECT = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hugoservice.inspect", InputUtil.Type.KEYSYM, 71, "key.categories.hugoservice"));
+        }
+    }
+
+    public static int selectedSlot(net.minecraft.entity.player.PlayerEntity player) {
+        return player.getInventory().getSelectedSlot();
+    }
+
+    public static float eyeHeight(net.minecraft.entity.Entity entity) {
+        return entity.getStandingEyeHeight();
+    }
+
+    public static Vec3d cameraPos(MinecraftClient mc) {
+        return mc.gameRenderer.getCamera().getPos();
     }
 
     public static void registerSpotifySky() {
