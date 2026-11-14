@@ -1,9 +1,9 @@
 # PinguuTxw Styles
 
-Flavor of the Service-Styles mixer. Display **PinguuTxw Styles**. Mod id `hugoservice`. **`main` stays 7auction Styles** — do not merge this branch over 7auction identity.
+Flavor of the Service-Styles mixer. Display **PinguuTxw Styles**. Mod id `hugoservice`. **`main` defaults to 7auction Styles.**
 
-Build PinguuTxw: `./gradlew remapJar` (this branch defaults to PinguuTxw).
-Build 7auction from this tree: `./gradlew remapJar -Pproduct=7auction` (knives stay off).
+Build PinguuTxw: `./gradlew remapJar -Pproduct=pinguutxw`.
+Default / 7auction: `./gradlew remapJar` (knives stay off).
 
 Knives are on for PinguuTxw only. Shared extras (FPS culling, explosion optimize) and mixer packs apply to both flavors.
 

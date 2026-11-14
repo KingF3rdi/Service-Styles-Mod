@@ -5,7 +5,7 @@ plugins {
 version = project.mod_version
 group = project.maven_group
 
-def productKey = (project.findProperty('product') ?: 'pinguutxw').toString()
+def productKey = (project.findProperty('product') ?: '7auction').toString()
 def pinguu = productKey != '7auction'
 def productName = pinguu ? 'PinguuTxw Styles' : '7auction Styles'
 def productAuthor = pinguu ? 'PinguuTxw' : '7auction'

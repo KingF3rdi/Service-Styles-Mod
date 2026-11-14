@@ -5,8 +5,8 @@ import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
 
 /**
- * Product flavor. {@code -Pproduct=pinguutxw} (this branch) or {@code -Pproduct=7auction}.
- * Knives stay off for 7auction so that identity is never mixed into the 7auction jar.
+ * Product flavor. {@code main} defaults to {@code -Pproduct=7auction}.
+ * PinguuTxw is {@code -Pproduct=pinguutxw}. Knives stay off for 7auction.
  */
 public final class Brand {
     public static final String ID = "hugoservice";
@@ -18,8 +18,8 @@ public final class Brand {
 
     static {
         ModMetadata meta = FabricLoader.getInstance().getModContainer(ID).map(c -> c.getMetadata()).orElse(null);
-        String name = meta != null ? meta.getName() : "PinguuTxw Styles";
-        String author = "PinguuTxw";
+        String name = meta != null ? meta.getName() : "7auction Styles";
+        String author = "7auction";
         if (meta != null) {
             for (Person p : meta.getAuthors()) {
                 if (p.getName() != null && !p.getName().isBlank()) {
@@ -28,7 +28,7 @@ public final class Brand {
                 }
             }
         }
-        NAME = name == null || name.isBlank() ? "PinguuTxw Styles" : name;
+        NAME = name == null || name.isBlank() ? "7auction Styles" : name;
         AUTHOR = author;
         SHORT = NAME.endsWith(" Styles") ? NAME.substring(0, NAME.length() - " Styles".length()) : NAME;
         UA = NAME;
