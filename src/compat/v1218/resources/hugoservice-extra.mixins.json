@@ -5,6 +5,8 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "EndCrystalEntityRendererMixin",
+    "HandPreviewBlockMixin",
+    "HandPreviewMixin",
     "HeldItemRendererMixin"
   ],
   "injectors": { "defaultRequire": 0 }

@@ -14,16 +14,26 @@ package dev.hugoservice.mixin;
 
 import dev.hugoservice.Config;
 import dev.hugoservice.NameFaker;
+import dev.hugoservice.StyleScreen;
 import net.minecraft.client.render.command.LabelCommandRenderer;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArgs;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 
 @Mixin(value={LabelCommandRenderer.Commands.class})
 public class LabelCommandsMixin {
+    @Inject(method={"add"}, at={@At(value="HEAD")}, cancellable=true, require=0)
+    private void hugoservice$hideMixer(CallbackInfo ci) {
+        if (StyleScreen.coversWorld()) {
+            ci.cancel();
+        }
+    }
+
     @ModifyArgs(method={"add"}, at={@At(value="INVOKE", target="Lnet/minecraft/client/util/math/MatrixStack;scale(FFF)V")})
     private void hugoservice$size(Args args) {
         float k = (float)Config.INSTANCE.nametagSize / 100.0f;
