@@ -15,7 +15,6 @@
 package dev.hugoservice;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
 import dev.hugoservice.Config;
 import dev.hugoservice.HugoService;
 import dev.hugoservice.Images;
@@ -24,8 +23,6 @@ import java.io.InputStream;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.texture.AbstractTexture;
-import net.minecraft.client.texture.ResourceTexture;
-import net.minecraft.client.texture.ReloadableTexture;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.MinecraftClient;
 
@@ -44,17 +41,15 @@ public final class Glint {
         applied = want;
         for (Identifier id : TEXTURES) {
             if (want.isEmpty()) {
-                mc.getTextureManager().registerTexture(id, (ReloadableTexture)new ResourceTexture(id));
+                Mc.registerResource(id);
                 continue;
             }
             try (InputStream in = mc.getResourceManager().open(id);){
                 NativeImage img = NativeImage.read((InputStream)in);
                 Glint.recolour(img, cfg);
-                mc.getTextureManager().registerTexture(id, (AbstractTexture)new NativeImageBackedTexture(() -> "hugoservice glint", img){
-                    {
-                        Mc.applyLinearSampler(this);
-                    }
-                });
+                NativeImageBackedTexture glintTex = Mc.nativeTex("hugoservice glint", img);
+                Mc.applyLinearSampler(glintTex);
+                mc.getTextureManager().registerTexture(id, (AbstractTexture)glintTex);
             }
             catch (Exception e) {
                 HugoService.LOG.warn("Could not recolour the enchant glint", (Throwable)e);
@@ -67,7 +62,7 @@ public final class Glint {
         int h = img.getHeight();
         for (int y = 0; y < h; ++y) {
             for (int x = 0; x < w; ++x) {
-                int c = img.getColorArgb(x, y);
+                int c = Mc.getPixel(img, x, y);
                 float lum = (float)Math.max(c >> 16 & 0xFF, Math.max(c >> 8 & 0xFF, c & 0xFF)) / 255.0f;
                 float f = (float)x / (float)Math.max(1, w - 1);
                 int rgb = switch (cfg.glintMode) {
@@ -78,7 +73,7 @@ public final class Glint {
                 int r = Math.round((float)(rgb >> 16 & 0xFF) * lum);
                 int g = Math.round((float)(rgb >> 8 & 0xFF) * lum);
                 int b = Math.round((float)(rgb & 0xFF) * lum);
-                img.setColorArgb(x, y, c & 0xFF000000 | r << 16 | g << 8 | b);
+                Mc.setPixel(img, x, y, c & 0xFF000000 | r << 16 | g << 8 | b);
             }
         }
     }

@@ -29,8 +29,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.Arm;
 import net.minecraft.entity.LivingEntity;
@@ -53,7 +51,7 @@ public final class TotemCounter {
     private static final ItemStack TOTEM = new ItemStack((ItemConvertible)Items.TOTEM_OF_UNDYING);
 
     static void init() {
-        HudElementRegistry.attachElementAfter((Identifier)VanillaHudElements.HOTBAR, (Identifier)Identifier.of((String)"hugoservice", (String)"totems"), TotemCounter::hud);
+        Mc.attachHudAfterHotbar(Identifier.of((String)"hugoservice", (String)"totems"), TotemCounter::hud);
         ClientTickEvents.END_CLIENT_TICK.register(TotemCounter::tick);
     }
 
@@ -76,7 +74,7 @@ public final class TotemCounter {
         }
         mc.gameRenderer.showFloatingItem(TOTEM);
         mc.particleManager.addEmitter((Entity)mc.player, (ParticleEffect)ParticleTypes.TOTEM_OF_UNDYING, 30);
-        mc.world.playSoundClient(mc.player.getX(), mc.player.getY(), mc.player.getZ(), SoundEvents.ITEM_TOTEM_USE, SoundCategory.PLAYERS, 1.0f, 1.0f, false);
+        Mc.playSound(mc.world, mc.player.getX(), mc.player.getY(), mc.player.getZ(), SoundEvents.ITEM_TOTEM_USE, SoundCategory.PLAYERS, 1.0f, 1.0f);
     }
 
     public static void reset() {

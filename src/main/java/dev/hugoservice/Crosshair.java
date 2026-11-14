@@ -16,12 +16,10 @@ import dev.hugoservice.Images;
 import dev.hugoservice.Shapes;
 import dev.hugoservice.StyleScreen;
 import java.util.List;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import org.joml.Matrix3x2fStack;
 
 public final class Crosshair {
     public static final List<String> STYLES = List.of("cross", "dot", "circle", "t", "x", "square", "pixel");
@@ -56,9 +54,8 @@ public final class Crosshair {
         fade = Config.INSTANCE.chGradient ? a << 24 | Config.INSTANCE.chColor2 & 0xFFFFFF : 0;
         int col = a << 24 | color & 0xFFFFFF;
         int black = Math.round((float)a * 0.85f) << 24;
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.scale(1.0f / (float)scale, 1.0f / (float)scale);
+        Mc.guiPush(ctx);
+        Mc.guiScale(ctx, 1.0f / (float)scale, 1.0f / (float)scale);
         int x = Math.round(cx * (float)scale);
         int y = Math.round(cy * (float)scale);
         int len = s.length() * unit;
@@ -96,11 +93,11 @@ public final class Crosshair {
                 break;
             }
             case "x": {
-                m.pushMatrix();
-                m.translate((float)x, (float)y);
-                m.rotate((float)Math.toRadians(45.0));
+                Mc.guiPush(ctx);
+                Mc.guiTranslate(ctx, (float)x, (float)y);
+                Mc.guiRotate(ctx, (float)Math.toRadians(45.0));
                 Crosshair.bars(ctx, 0, 0, len, gap, t, o, col, black, true);
-                m.popMatrix();
+                Mc.guiPop(ctx);
                 break;
             }
             case "t": {
@@ -119,16 +116,16 @@ public final class Crosshair {
             Crosshair.box(ctx, x - d / 2, y - d / 2, d, d, o, col, black);
         }
         if (marker) {
-            m.pushMatrix();
-            m.translate((float)x, (float)y);
-            m.rotate((float)Math.toRadians(45.0));
+            Mc.guiPush(ctx);
+            Mc.guiTranslate(ctx, (float)x, (float)y);
+            Mc.guiRotate(ctx, (float)Math.toRadians(45.0));
             int mg = Math.max(gap + len, 4 * unit) + 2 * unit;
             int ml = 3 * unit;
             int mt = Math.max(1, unit);
             Crosshair.bars(ctx, 0, 0, ml, mg, mt, unit, col, black, true);
-            m.popMatrix();
+            Mc.guiPop(ctx);
         }
-        m.popMatrix();
+        Mc.guiPop(ctx);
     }
 
     private static void bars(DrawContext ctx, int x, int y, int len, int gap, int t, int o, int col, int black, boolean top) {
@@ -192,7 +189,7 @@ public final class Crosshair {
         if (sp == null) {
             return;
         }
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Shapes.ID, x - r, y - r, (float)sp.u(), (float)sp.v(), 2 * r, 2 * r, 2 * r, 2 * r, 2048, 2048, col);
+        Mc.blit(ctx, Shapes.ID, x - r, y - r, (float)sp.u(), (float)sp.v(), 2 * r, 2 * r, 2 * r, 2 * r, 2048, 2048, col);
     }
 
     public static void apply(Spec s) {

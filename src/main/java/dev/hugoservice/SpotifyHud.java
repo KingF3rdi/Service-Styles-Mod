@@ -33,9 +33,6 @@ import dev.hugoservice.Shapes;
 import dev.hugoservice.Spotify;
 import dev.hugoservice.StyleScreen;
 import java.util.List;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.text.Text;
 import net.minecraft.text.Style;
@@ -48,9 +45,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.StringVisitable;
 import net.minecraft.client.render.RenderTickCounter;
-import org.joml.Matrix3x2fStack;
 import org.joml.Quaternionf;
-import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 
 public final class SpotifyHud {
@@ -70,7 +65,7 @@ public final class SpotifyHud {
     private static long lineAt;
 
     static void init() {
-        HudElementRegistry.attachElementBefore((Identifier)VanillaHudElements.CHAT, (Identifier)Identifier.of((String)"hugoservice", (String)"spotify"), SpotifyHud::render);
+        Mc.attachHudBeforeChat(Identifier.of((String)"hugoservice", (String)"spotify"), SpotifyHud::render);
         Mc.registerSpotifySky();
     }
 
@@ -115,16 +110,15 @@ public final class SpotifyHud {
         float f = px = corner % 2 == 0 ? (float)m : (float)sw - (float)w * k - (float)m;
         float py = corner < 2 ? (float)m : (float)sh - (float)h * k - (float)m - (float)(corner == 2 ? 40 : 0);
         int n = corner % 2 == 0 ? -1 : 1;
-        Matrix3x2fStack mat = ctx.getMatrices();
-        mat.pushMatrix();
-        mat.translate(px += (float)n * slide * ((float)w * k + (float)m), py);
-        mat.scale(k, k);
+        Mc.guiPush(ctx);
+        Mc.guiTranslate(ctx, px += (float)n * slide * ((float)w * k + (float)m), py);
+        Mc.guiScale(ctx, k, k);
         int x = 0;
         int y = 0;
         StyleScreen.glass(ctx, x, y, w, h, 10.0f, -1341450974, -1660944385);
         int c = 34;
         if (Spotify.coverReady) {
-            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Spotify.COVER, x + 6, y + 6, 0.0f, 0.0f, c, c, 64, 64, 64, 64);
+            Mc.blit(ctx, Spotify.COVER, x + 6, y + 6, 0.0f, 0.0f, c, c, 64, 64, 64, 64);
         } else {
             StyleScreen.round(ctx, x + 6, y + 6, c, c, 6.0f, -14829228);
         }
@@ -146,7 +140,7 @@ public final class SpotifyHud {
             int col = Math.round(255.0f * fade) << 24 | 0x8AD6FF;
             ctx.drawText(tr, (Text)Text.literal((String)SpotifyHud.cut(tr, lyric, w - 12, ui())).setStyle(ui()), x + 6, y + 45, col, false);
         }
-        mat.popMatrix();
+        Mc.guiPop(ctx);
     }
 
     static void sky(MatrixStack m, VertexConsumerProvider consumers) {
@@ -179,7 +173,7 @@ public final class SpotifyHud {
         Vector3f at = SpotifyHud.dir(yaw, pitch).mul(dist);
         m.push();
         m.translate(at.x, at.y, at.z);
-        m.multiply((Quaternionfc)new Quaternionf().rotationYXZ((float)Math.PI - (float)Math.toRadians(yaw), (float)Math.toRadians(-pitch), 0.0f));
+        m.multiply(new Quaternionf().rotationYXZ((float)Math.PI - (float)Math.toRadians(yaw), (float)Math.toRadians(-pitch), 0.0f));
         m.scale(scale, -scale, scale);
         TextRenderer tr = mc.textRenderer;
         float fade = Math.min(1.0f, (float)(System.currentTimeMillis() - lineAt) / 400.0f);

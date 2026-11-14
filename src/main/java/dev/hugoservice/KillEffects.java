@@ -42,8 +42,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
@@ -69,7 +67,6 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.component.type.ProfileComponent;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.client.render.RenderTickCounter;
-import org.joml.Matrix3x2fStack;
 
 public final class KillEffects {
     public static final String[] NAMES = new String[]{"Off", "Lightning", "Shockwave", "Light Pillar", "Kill Popup", "Shatter", "Soul Rise"};
@@ -81,7 +78,7 @@ public final class KillEffects {
 
     static void init() {
         ClientTickEvents.END_CLIENT_TICK.register(KillEffects::tick);
-        HudElementRegistry.attachElementBefore((Identifier)VanillaHudElements.CHAT, (Identifier)Identifier.of((String)"hugoservice", (String)"kill_popup"), KillEffects::hud);
+        Mc.attachHudBeforeChat(Identifier.of((String)"hugoservice", (String)"kill_popup"), KillEffects::hud);
     }
 
     public static void attacked(Entity target) {
@@ -115,7 +112,7 @@ public final class KillEffects {
         }
         switch (type) {
             case 1: {
-                LightningEntity bolt = (LightningEntity)EntityType.LIGHTNING_BOLT.create((World)world, SpawnReason.EVENT);
+                LightningEntity bolt = Mc.lightning((World)world);
                 if (bolt == null) {
                     return;
                 }
@@ -129,13 +126,13 @@ public final class KillEffects {
                 popup = new ItemStack((ItemConvertible)Items.PLAYER_HEAD);
                 popup.set(DataComponentTypes.PROFILE, Mc.headProfile(victim.getGameProfile()));
                 popupAt = System.currentTimeMillis();
-                world.playSoundClient(pos.x, pos.y, pos.z, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.6f, false);
+                Mc.playSound(world, pos.x, pos.y, pos.z, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.6f);
                 break;
             }
             default: {
                 RUNNING.add(new Running(type, pos, new int[1]));
                 SoundEvent sound = type == 2 ? (SoundEvent)SoundEvents.ENTITY_GENERIC_EXPLODE.value() : (type == 3 ? SoundEvents.BLOCK_BEACON_ACTIVATE : (type == 5 ? SoundEvents.BLOCK_GLASS_BREAK : (SoundEvent)SoundEvents.PARTICLE_SOUL_ESCAPE.value()));
-                world.playSoundClient(pos.x, pos.y, pos.z, sound, SoundCategory.PLAYERS, 0.8f, 1.0f, false);
+                Mc.playSound(world, pos.x, pos.y, pos.z, sound, SoundCategory.PLAYERS, 0.8f, 1.0f);
             }
         }
     }
@@ -156,32 +153,32 @@ public final class KillEffects {
             switch (r.type()) {
                 case 2: {
                     if (age == 0) {
-                        w.addParticleClient((ParticleEffect)ParticleTypes.SONIC_BOOM, p.x, p.y + 1.0, p.z, 0.0, 0.0, 0.0);
+                        Mc.addParticle(w, (ParticleEffect)ParticleTypes.SONIC_BOOM, p.x, p.y + 1.0, p.z, 0.0, 0.0, 0.0);
                     }
                     double rad = 0.6 + (double)age * 0.45;
                     for (int i = 0; i < 28; ++i) {
                         double a = (double)i / 28.0 * Math.PI * 2.0;
-                        w.addParticleClient((ParticleEffect)ParticleTypes.END_ROD, p.x + Math.cos(a) * rad, p.y + 0.1, p.z + Math.sin(a) * rad, 0.0, 0.01, 0.0);
+                        Mc.addParticle(w, (ParticleEffect)ParticleTypes.END_ROD, p.x + Math.cos(a) * rad, p.y + 0.1, p.z + Math.sin(a) * rad, 0.0, 0.01, 0.0);
                     }
                     return age >= 9;
                 }
                 case 3: {
                     for (int i = 0; i < 12; ++i) {
                         double y = p.y + w.random.nextDouble() * 24.0;
-                        w.addParticleClient((ParticleEffect)ParticleTypes.END_ROD, p.x + (w.random.nextDouble() - 0.5) * 0.3, y, p.z + (w.random.nextDouble() - 0.5) * 0.3, 0.0, 0.05, 0.0);
+                        Mc.addParticle(w, (ParticleEffect)ParticleTypes.END_ROD, p.x + (w.random.nextDouble() - 0.5) * 0.3, y, p.z + (w.random.nextDouble() - 0.5) * 0.3, 0.0, 0.05, 0.0);
                     }
                     return age >= 30;
                 }
                 case 5: {
                     BlockStateParticleEffect glass = new BlockStateParticleEffect(ParticleTypes.BLOCK, Blocks.GLASS.getDefaultState());
                     for (int i = 0; i < 50; ++i) {
-                        w.addParticleClient((ParticleEffect)glass, p.x, p.y + 1.0, p.z, (w.random.nextDouble() - 0.5) * 0.8, w.random.nextDouble() * 0.6, (w.random.nextDouble() - 0.5) * 0.8);
+                        Mc.addParticle(w, (ParticleEffect)glass, p.x, p.y + 1.0, p.z, (w.random.nextDouble() - 0.5) * 0.8, w.random.nextDouble() * 0.6, (w.random.nextDouble() - 0.5) * 0.8);
                     }
                     return true;
                 }
             }
             for (int i = 0; i < 4; ++i) {
-                w.addParticleClient((ParticleEffect)(i % 2 == 0 ? ParticleTypes.SOUL : ParticleTypes.SOUL_FIRE_FLAME), p.x + (w.random.nextDouble() - 0.5) * 0.8, p.y + w.random.nextDouble() * 1.8, p.z + (w.random.nextDouble() - 0.5) * 0.8, 0.0, 0.08, 0.0);
+                Mc.addParticle(w, (ParticleEffect)(i % 2 == 0 ? ParticleTypes.SOUL : ParticleTypes.SOUL_FIRE_FLAME), p.x + (w.random.nextDouble() - 0.5) * 0.8, p.y + w.random.nextDouble() * 1.8, p.z + (w.random.nextDouble() - 0.5) * 0.8, 0.0, 0.08, 0.0);
             }
             return age >= 30;
         });
@@ -209,12 +206,11 @@ public final class KillEffects {
         if (s <= 0.02f) {
             return;
         }
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate((float)ctx.getScaledWindowWidth() / 2.0f, (float)ctx.getScaledWindowHeight() / 2.0f - 38.0f);
-        m.scale(2.2f * s, 2.2f * s);
+        Mc.guiPush(ctx);
+        Mc.guiTranslate(ctx, (float)ctx.getScaledWindowWidth() / 2.0f, (float)ctx.getScaledWindowHeight() / 2.0f - 38.0f);
+        Mc.guiScale(ctx, 2.2f * s, 2.2f * s);
         ctx.drawItem(popup, -8, -8);
-        m.popMatrix();
+        Mc.guiPop(ctx);
     }
 
     private KillEffects() {

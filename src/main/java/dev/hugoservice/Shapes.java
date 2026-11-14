@@ -65,7 +65,7 @@ final class Shapes {
                 double d = Shapes.sdf((double)x + 0.5 - hw, (double)y + 0.5 - hh, hw, hh, r);
                 double ring = Shapes.clamp(0.5 - d) - Shapes.clamp(0.5 - (d + 1.0));
                 double glow = d < -1.0 ? 0.28 * Math.pow(Shapes.clamp(1.0 + (d + 1.0) / 4.0), 2.0) : 0.0;
-                img.setColorArgb(s.u() + x, s.v() + y, (int)Math.round(Shapes.clamp(ring + glow) * (double)light * 255.0) << 24 | 0xFFFFFF);
+                Mc.setPixel(img, s.u() + x, s.v() + y, (int)Math.round(Shapes.clamp(ring + glow) * (double)light * 255.0) << 24 | 0xFFFFFF);
             }
         }
         SPRITES.put(key, s);
@@ -87,7 +87,7 @@ final class Shapes {
         for (int y = 0; y < 64; ++y) {
             for (int x = 0; x < 64; ++x) {
                 double d = Math.min(1.0, Math.hypot((double)x - 31.5, (double)y - 31.5) / 32.0);
-                img.setColorArgb(s.u() + x, s.v() + y, (int)(255.0 * Math.pow(1.0 - d, 2.0)) << 24 | 0xFFFFFF);
+                Mc.setPixel(img, s.u() + x, s.v() + y, (int)(255.0 * Math.pow(1.0 - d, 2.0)) << 24 | 0xFFFFFF);
             }
         }
         SPRITES.put(key, s);
@@ -123,7 +123,7 @@ final class Shapes {
             return;
         }
         img = new NativeImage(2048, 2048, true);
-        tex = new NativeImageBackedTexture(() -> "hugoservice shapes", img);
+        tex = Mc.nativeTex("hugoservice shapes", img);
         MinecraftClient.getInstance().getTextureManager().registerTexture(ID, (AbstractTexture)tex);
     }
 
@@ -134,7 +134,7 @@ final class Shapes {
         shelfX = 0;
         for (int y = 0; y < 2048; ++y) {
             for (int x = 0; x < 2048; ++x) {
-                img.setColorArgb(x, y, 0);
+                Mc.setPixel(img, x, y, 0);
             }
         }
     }
@@ -153,7 +153,7 @@ final class Shapes {
                 if (t > 0) {
                     a -= Shapes.clamp(0.5 - (d + (double)t));
                 }
-                img.setColorArgb(ox + x, oy + y, (int)Math.round(Shapes.clamp(a) * 255.0) << 24 | 0xFFFFFF);
+                Mc.setPixel(img, ox + x, oy + y, (int)Math.round(Shapes.clamp(a) * 255.0) << 24 | 0xFFFFFF);
             }
         }
     }

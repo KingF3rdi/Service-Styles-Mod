@@ -1,6 +1,6 @@
 # 7auction Styles
 
-**Latest:** `dist/7auction-Styles.jar` (`1.0.0.1`, Minecraft `~1.21.11`). Same bytes at `7auction-Styles-1.21.11.jar`. Version jars `7auction-Styles-1.21.6.jar` … `1.21.11.jar`.
+**Latest:** `dist/7auction-Styles.jar` (`1.0.0.1`, Minecraft `~1.21.11`). Same bytes at `7auction-Styles-1.21.11.jar`. Version jars `7auction-Styles-1.21.jar` … `1.21.11.jar`. Minecraft 26.x is not shipped.
 
 Display **7auction Styles**. Mod id `hugoservice`. Mixer kept. No knives. Vanilla Minecraft font only.
 

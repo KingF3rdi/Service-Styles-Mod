@@ -1,0 +1,11 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "dev.hugoservice.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "EndCrystalEntityRendererMixin",
+    "HeldItemRendererMixin"
+  ],
+  "injectors": { "defaultRequire": 0 }
+}

@@ -79,7 +79,6 @@ import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import java.util.stream.Stream;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.util.Util;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -100,7 +99,6 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.StringVisitable;
 import net.minecraft.text.OrderedText;
 import net.minecraft.client.network.ClientPlayerEntity;
-import org.joml.Matrix3x2fStack;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
@@ -415,7 +413,7 @@ extends Screen {
 
     private void styleField(TextFieldWidget f) {
         f.setDrawsBackground(false);
-        f.setTextShadow(false);
+        Mc.noTextShadow(f);
         f.setEditableColor(this.TEXT);
         Mc.fieldFormatter(f, this.ui());
     }
@@ -630,22 +628,20 @@ extends Screen {
     }
 
     private void drawHomeStack(DrawContext ctx, ItemStack stack, float gx, float gy, float gw, float gh) {
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
+        Mc.guiPush(ctx);
         float s = Math.min(gw, gh) * 0.55f / 16.0f;
-        m.translate(gx + gw / 2.0f - 8.0f * s, gy + gh * 0.22f);
-        m.scale(s, s);
+        Mc.guiTranslate(ctx, gx + gw / 2.0f - 8.0f * s, gy + gh * 0.22f);
+        Mc.guiScale(ctx, s, s);
         ctx.drawItem(stack, 0, 0);
-        m.popMatrix();
+        Mc.guiPop(ctx);
     }
 
     private void scaledText(DrawContext ctx, Text t, float x, float y, float s, int color) {
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate(x, y);
-        m.scale(s, s);
+        Mc.guiPush(ctx);
+        Mc.guiTranslate(ctx, x, y);
+        Mc.guiScale(ctx, s, s);
         ctx.drawText(this.textRenderer, t, 0, 0, color, false);
-        m.popMatrix();
+        Mc.guiPop(ctx);
     }
 
     private void openFromHome(int i) {
@@ -712,7 +708,7 @@ extends Screen {
     }
 
     private void drawLogo(DrawContext ctx, int x, int y, int size) {
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, LOGO, x, y, 0.0f, 0.0f, size, size, 128, 128, 128, 128);
+        Mc.blit(ctx, LOGO, x, y, 0.0f, 0.0f, size, size, 128, 128, 128, 128);
     }
 
     private int drawNavLinks(DrawContext ctx, int left, int right, int y, boolean center) {
@@ -1364,14 +1360,13 @@ extends Screen {
         StyleScreen.round(ctx, x, y + 18, 56.0f, 56.0f, 7.0f, -2147086824);
         float k = (float)this.cfg.nametagSize / 100.0f;
         String name = "Steve";
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate((float)x + 28.0f, (float)(y + 18) + 28.0f);
-        m.scale(k, k);
+        Mc.guiPush(ctx);
+        Mc.guiTranslate(ctx, (float)x + 28.0f, (float)(y + 18) + 28.0f);
+        Mc.guiScale(ctx, k, k);
         int tw = this.textRenderer.getWidth(name);
         ctx.fill(-tw / 2 - 2, -6, tw / 2 + 2, 5, 0x40000000);
         ctx.drawText(this.textRenderer, name, -tw / 2, -4, 0xFF000000 | (color == null ? 0xFFFFFF : color), false);
-        m.popMatrix();
+        Mc.guiPop(ctx);
         int rx = x + 56 + 8;
         int rw = w - 56 - 8;
         this.toggleRow(ctx, rx, y + 18, rw, "Own colour", color != null, () -> {
@@ -1917,7 +1912,7 @@ extends Screen {
         }
         int ry = y + 17;
         int rw = sw * n + (n - 1) * DOT_GAP;
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Thumbs.rainbow(), x, ry, 0.0f, 0.0f, rw, 8, 128, 1, 128, 1);
+        Mc.blit(ctx, Thumbs.rainbow(), x, ry, 0.0f, 0.0f, rw, 8, 128, 1, 128, 1);
         if (current != null && (hsb = Color.RGBtoHSB(current >> 16 & 0xFF, current >> 8 & 0xFF, current & 0xFF, null))[1] > 0.6f && hsb[1] < 0.8f && hsb[2] > 0.95f) {
             float mx2 = (float)x + hsb[0] * (float)(rw - 1);
             StyleScreen.round(ctx, mx2 - 3.0f, (float)ry - 1.5f, 6.0f, 11.0f, 3.0f, -1);
@@ -2121,13 +2116,12 @@ extends Screen {
     }
 
     private static void zoomed(DrawContext ctx, float cx, float cy, float factor, Runnable draw) {
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate(cx, cy);
-        m.scale(factor, factor);
-        m.translate(-cx, -cy);
+        Mc.guiPush(ctx);
+        Mc.guiTranslate(ctx, cx, cy);
+        Mc.guiScale(ctx, factor, factor);
+        Mc.guiTranslate(ctx, -cx, -cy);
         draw.run();
-        m.popMatrix();
+        Mc.guiPop(ctx);
     }
 
     private void drawCrosshairPainter(DrawContext ctx, int x, int y, int w) {
@@ -2308,18 +2302,17 @@ extends Screen {
         int oy = Math.round((float)(this.edY0 * sf) + (float)(ah * sf) / 2.0f - ed.viewY * k);
         Identifier tex = ed.texture();
         ctx.enableScissor(this.edX0, this.edY0, this.edX1, this.edY1);
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.scale(1.0f / (float)sf, 1.0f / (float)sf);
+        Mc.guiPush(ctx);
+        Mc.guiScale(ctx, 1.0f / (float)sf, 1.0f / (float)sf);
         float cell2 = 2.0f * (float)Math.max(4 * sf, Math.round(k));
         int vx0 = Math.max(ox, this.edX0 * sf);
         int vy0 = Math.max(oy, this.edY0 * sf);
         int vx1 = Math.min(ox + dw, this.edX1 * sf);
         int vy1 = Math.min(oy + dh, this.edY1 * sf);
         if (vx1 > vx0 && vy1 > vy0) {
-            ctx.drawTexturedQuad(TextureEditor.checker(), vx0, vy0, vx1, vy1, (float)(vx0 - ox) / cell2, (float)(vx1 - ox) / cell2, (float)(vy0 - oy) / cell2, (float)(vy1 - oy) / cell2);
+            Mc.texturedQuad(ctx, TextureEditor.checker(), vx0, vy0, vx1, vy1, (float)(vx0 - ox) / cell2, (float)(vx1 - ox) / cell2, (float)(vy0 - oy) / cell2, (float)(vy1 - oy) / cell2);
         }
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, tex, ox, oy, 0.0f, (float)(ed.frame() * fh), dw, dh, w, fh, w, ed.image().getHeight());
+        Mc.blit(ctx, tex, ox, oy, 0.0f, (float)(ed.frame() * fh), dw, dh, w, fh, w, ed.image().getHeight());
         if (this.editGrid && k >= 5.0f && vx1 > vx0 && vy1 > vy0) {
             int first = Math.max(0, (int)Math.ceil((float)(vx0 - ox) / k));
             int last = Math.min(w, (int)Math.floor((float)(vx1 - ox) / k));
@@ -2360,7 +2353,7 @@ extends Screen {
                 ctx.fill(qx, qy, qx + ps, qy + ps, 0x50FFFFFF);
             }
         }
-        m.popMatrix();
+        Mc.guiPop(ctx);
         ctx.disableScissor();
         float kk = k;
         this.dragHit(this.edX0, this.edY0, aw, ah, (mx, my, btn) -> {
@@ -2512,7 +2505,7 @@ extends Screen {
         int svH = (int)StyleScreen.clamp(bottom - (y += 19) - (20 + palH + saveH + 4) - (preview ? pvH + 14 : 0), 24.0, 96.0);
         float[] hsb = Color.RGBtoHSB(this.cfg.paintColor >> 16 & 0xFF, this.cfg.paintColor >> 8 & 0xFF, this.cfg.paintColor & 0xFF, null);
         float hue = this.editHue;
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, TextureEditor.svSquare(hue), x, y, 0.0f, 0.0f, w, svH, 32, 32, 32, 32);
+        Mc.blit(ctx, TextureEditor.svSquare(hue), x, y, 0.0f, 0.0f, w, svH, 32, 32, 32, 32);
         StyleScreen.roundOutline(ctx, x, y, w, svH, 2.0f, 0x40FFFFFF, 0.0f);
         float mx0 = (float)x + hsb[1] * (float)(w - 1);
         float my0 = (float)y + (1.0f - hsb[2]) * (float)(svH - 1);
@@ -2524,7 +2517,7 @@ extends Screen {
             float v = 1.0f - (float)StyleScreen.clamp((my - (double)svY) / (double)Math.max(1, svH - 1), 0.0, 1.0);
             this.cfg.paintColor = Color.HSBtoRGB(this.editHue, s, v) & 0xFFFFFF;
         });
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, TextureEditor.hueBar(), x, y += svH + 6, 0.0f, 0.0f, w, 7, 128, 1, 128, 1);
+        Mc.blit(ctx, TextureEditor.hueBar(), x, y += svH + 6, 0.0f, 0.0f, w, 7, 128, 1, 128, 1);
         float hmx = (float)x + hue * (float)(w - 1);
         StyleScreen.round(ctx, hmx - 1.5f, y - 2, 3.0f, 11.0f, 1.0f, -1);
         int hueY = y;
@@ -2558,7 +2551,7 @@ extends Screen {
                 float f = Math.min(((float)size - 2.0f) / (float)ed.width(), ((float)size - 2.0f) / (float)ed.frameHeight());
                 int dw2 = Math.max(1, Math.round((float)ed.width() * f));
                 int dh2 = Math.max(1, Math.round((float)ed.frameHeight() * f));
-                ctx.drawTexture(RenderPipelines.GUI_TEXTURED, ed.texture(), px + (size - dw2) / 2, y + pvH - size + (size - dh2) / 2, 0.0f, (float)(ed.frame() * ed.frameHeight()), dw2, dh2, ed.width(), ed.frameHeight(), ed.width(), ed.image().getHeight());
+                Mc.blit(ctx, ed.texture(), px + (size - dw2) / 2, y + pvH - size + (size - dh2) / 2, 0.0f, (float)(ed.frame() * ed.frameHeight()), dw2, dh2, ed.width(), ed.frameHeight(), ed.width(), ed.image().getHeight());
                 px += size + 8;
             }
             y += pvH + 3;
@@ -2656,7 +2649,7 @@ extends Screen {
     private void vanillaButton(DrawContext ctx, int x, int y, int w, int h, String label, boolean selected, Runnable r) {
         boolean hov = this.over(x, y, w, h);
         Identifier sprite = Identifier.ofVanilla(selected ? "widget/button_disabled" : (hov ? "widget/button_highlighted" : "widget/button"));
-        ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, sprite, x, y, w, h);
+        Mc.guiSprite(ctx, sprite, x, y, w, h);
         String l = this.ellipsize(label, Math.max(8, w - 8));
         int color = selected ? 0xFFFFFFA0 : (hov ? 0xFFFFFFA0 : 0xFFE0E0E0);
         ctx.drawText(this.textRenderer, l, x + (w - this.textRenderer.getWidth(l)) / 2, y + (h - 8) / 2, color, true);
@@ -2775,7 +2768,7 @@ extends Screen {
         int rx = sx;
         int ry = py + 31;
         int rw = w - ps - 8;
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Thumbs.rainbow(), rx, ry, 0.0f, 0.0f, rw, 6, 128, 1, 128, 1);
+        Mc.blit(ctx, Thumbs.rainbow(), rx, ry, 0.0f, 0.0f, rw, 6, 128, 1, 128, 1);
         if (color != null && (hsb = Color.RGBtoHSB(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF, null))[1] > 0.6f && hsb[1] < 0.8f && hsb[2] > 0.95f) {
             float mx2 = (float)rx + hsb[0] * (float)(rw - 1);
             StyleScreen.round(ctx, mx2 - 3.0f, (float)ry - 1.5f, 6.0f, 9.0f, 3.0f, -1);
@@ -3145,7 +3138,7 @@ extends Screen {
     }
 
     static int scale() {
-        return Math.max(1, MinecraftClient.getInstance().getWindow().getScaleFactor());
+        return Math.max(1, (int) Math.round((double) MinecraftClient.getInstance().getWindow().getScaleFactor()));
     }
 
     private void drawThumb(DrawContext ctx, Categories.Group g, Styles.Style s, Integer tint, int x, int y, int w, int h, int pad, boolean glow) {
@@ -3177,11 +3170,10 @@ extends Screen {
         float k = Math.min(bw / (float)th.w(), bh / (float)th.h());
         int dw = Math.max(1, Math.round((float)th.w() * k));
         int dh = Math.max(1, Math.round((float)th.h() * k));
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.scale(1.0f / (float)sf, 1.0f / (float)sf);
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Thumbs.ATLAS, x * sf + (w * sf - dw) / 2, y * sf + (h * sf - dh) / 2, (float)th.u(), (float)th.v(), dw, dh, th.w(), th.h(), 2048, 2048);
-        m.popMatrix();
+        Mc.guiPush(ctx);
+        Mc.guiScale(ctx, 1.0f / (float)sf, 1.0f / (float)sf);
+        Mc.blit(ctx, Thumbs.ATLAS, x * sf + (w * sf - dw) / 2, y * sf + (h * sf - dh) / 2, (float)th.u(), (float)th.v(), dw, dh, th.w(), th.h(), 2048, 2048);
+        Mc.guiPop(ctx);
     }
 
     private void segment(DrawContext ctx, int x, int y, int w, String label, boolean on, Runnable r) {
@@ -3233,7 +3225,7 @@ extends Screen {
     }
 
     private static void sprite(DrawContext ctx, int x, int y, int w, int h, int u, int v, int color) {
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Shapes.ID, x, y, (float)u, (float)v, w, h, w, h, 2048, 2048, color);
+        Mc.blit(ctx, Shapes.ID, x, y, (float)u, (float)v, w, h, w, h, 2048, 2048, color);
     }
 
     static void roundGradient(DrawContext ctx, float x, float y, float w, float h, float r, int top, int bottom, boolean rt, boolean rb) {
@@ -3246,9 +3238,8 @@ extends Screen {
             return;
         }
         int R = Math.min(Math.round(r * (float)s), Math.min(W, H) / 2);
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.scale(1.0f / (float)s, 1.0f / (float)s);
+        Mc.guiPush(ctx);
+        Mc.guiScale(ctx, 1.0f / (float)s, 1.0f / (float)s);
         Shapes.Sprite one = Shapes.get(W, H, R, 0, (rt ? 3 : 0) | (rb ? 12 : 0));
         if (one != null) {
             StyleScreen.sprite(ctx, X, Y, W, H, one.u(), one.v(), top == bottom ? top : StyleScreen.lerp(top, bottom, 0.5f));
@@ -3273,7 +3264,7 @@ extends Screen {
                 StyleScreen.band(ctx, X, y0, X + W, y1, StyleScreen.lerp(top, bottom, (float)(y0 - Y) / (float)H), StyleScreen.lerp(top, bottom, (float)(y1 - Y) / (float)H));
             }
         }
-        m.popMatrix();
+        Mc.guiPop(ctx);
     }
 
     private static void band(DrawContext ctx, int x0, int y0, int x1, int y1, int top, int bottom) {
@@ -3325,9 +3316,8 @@ extends Screen {
             return;
         }
         int R = Math.max(2, Math.min(Math.round(r * (float)s), Math.min(W, H) / 2));
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.scale(1.0f / (float)s, 1.0f / (float)s);
+        Mc.guiPush(ctx);
+        Mc.guiScale(ctx, 1.0f / (float)s, 1.0f / (float)s);
         Shapes.Sprite one = Shapes.rim(W, H, R);
         if (one != null) {
             StyleScreen.sprite(ctx, X, Y, W, H, one.u(), one.v(), color);
@@ -3353,7 +3343,7 @@ extends Screen {
             ctx.fillGradient(X + R, Y + 1, X + W - R, Y + 1 + g, StyleScreen.fade(color, 0.28f), color & 0xFFFFFF);
             ctx.fillGradient(X + R, Y + H - 1 - g, X + W - R, Y + H - 1, color & 0xFFFFFF, StyleScreen.fade(color, 0.28f * Shapes.rimLight(1.0f)));
         }
-        m.popMatrix();
+        Mc.guiPop(ctx);
     }
 
     private static int fade(int color, float f) {
@@ -3371,9 +3361,8 @@ extends Screen {
             return;
         }
         int R = Math.max(t, Math.min(Math.round(r * (float)s), Math.min(W, H) / 2));
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.scale(1.0f / (float)s, 1.0f / (float)s);
+        Mc.guiPush(ctx);
+        Mc.guiScale(ctx, 1.0f / (float)s, 1.0f / (float)s);
         Shapes.Sprite one = Shapes.get(W, H, R, t, 15);
         if (one != null) {
             StyleScreen.sprite(ctx, X, Y, W, H, one.u(), one.v(), color);
@@ -3388,16 +3377,15 @@ extends Screen {
             ctx.fill(X, Y + R, X + t, Y + H - R, color);
             ctx.fill(X + W - t, Y + R, X + W, Y + H - R, color);
         }
-        m.popMatrix();
+        Mc.guiPop(ctx);
     }
 
     private static void item(DrawContext ctx, Categories.Category c, int x, int y) {
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate((float)x, (float)y);
-        m.scale(0.625f, 0.625f);
+        Mc.guiPush(ctx);
+        Mc.guiTranslate(ctx, (float)x, (float)y);
+        Mc.guiScale(ctx, 0.625f, 0.625f);
         ctx.drawItem(ICONS.computeIfAbsent(c.id(), k -> new ItemStack((ItemConvertible)c.icon())), 0, 0);
-        m.popMatrix();
+        Mc.guiPop(ctx);
     }
 
     private static int lerp(int a, int b, float t) {

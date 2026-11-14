@@ -44,7 +44,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.client.render.RenderLayers;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -61,7 +60,6 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.render.VertexRendering;
 
 public final class Fx {
     public static final String HIT = "hit";
@@ -133,7 +131,7 @@ public final class Fx {
         if (!cfg.fxOn.contains(SHIELD) || p == null) {
             return null;
         }
-        boolean disabled = p.getItemCooldownManager().isCoolingDown(SHIELD_STACK);
+        boolean disabled = Mc.coolingDown(p.getItemCooldownManager(), SHIELD_STACK);
         return 0xFF000000 | cfg.fxColorOf(disabled ? SHIELD_OFF : SHIELD);
     }
 
@@ -168,7 +166,7 @@ public final class Fx {
             }
             for (int y = 0; y < 8; ++y) {
                 for (int x = 0; x < 16; ++x) {
-                    img.setColorArgb(x, y, argb);
+                    Mc.setPixel(img, x, y, argb);
                 }
             }
             tex.upload();
