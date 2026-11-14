@@ -95,31 +95,37 @@ public final class Sky {
         if (!Sky.active()) {
             return false;
         }
-        Config cfg = Config.INSTANCE;
-        SkyRenderState s = state;
-        Matrix4f view = new Matrix4f((Matrix4fc)RenderSystem.getModelViewMatrix());
-        view.rotate((float)Math.toRadians(-90.0), 0.0f, 1.0f, 0.0f);
-        if (cfg.skyRotate) {
-            view.rotate(Mc.sunAngle(s), 0.0f, 0.0f, 1.0f);
+        try {
+            Config cfg = Config.INSTANCE;
+            SkyRenderState s = state;
+            Matrix4f view = new Matrix4f((Matrix4fc)RenderSystem.getModelViewMatrix());
+            view.rotate((float)Math.toRadians(-90.0), 0.0f, 1.0f, 0.0f);
+            if (cfg.skyRotate) {
+                view.rotate(Mc.sunAngle(s), 0.0f, 0.0f, 1.0f);
+            }
+            float b = 1.0f;
+            if (cfg.skyNightFade) {
+                b = Math.max(0.18f, 1.0f - s.starBrightness * 1.6f);
+            }
+            RenderSystem.ShapeIndexBuffer indices = RenderSystem.getSequentialBuffer((VertexFormat.DrawMode)VertexFormat.DrawMode.QUADS);
+            GpuBuffer indexBuffer = indices.getIndexBuffer(36);
+            Framebuffer fb = MinecraftClient.getInstance().getFramebuffer();
+            GpuBufferSlice transforms = Mc.writeSkyTransforms((Matrix4fc)view, (Vector4fc)new Vector4f(b *= 1.0f - s.rainGradient * 0.3f, b, b, 1.0f));
+            try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "HugoService skybox", fb.getColorAttachmentView(), OptionalInt.empty(), fb.getDepthAttachmentView(), OptionalDouble.empty());){
+                pass.setPipeline(RenderPipelines.POSITION_TEX_COLOR_END_SKY);
+                RenderSystem.bindDefaultUniforms((RenderPass)pass);
+                pass.setUniform("DynamicTransforms", transforms);
+                Mc.bindSkySampler(pass, texture);
+                pass.setVertexBuffer(0, cube);
+                pass.setIndexBuffer(indexBuffer, indices.getIndexType());
+                pass.drawIndexed(0, 0, 36, 1);
+            }
+            return true;
         }
-        float b = 1.0f;
-        if (cfg.skyNightFade) {
-            b = Math.max(0.18f, 1.0f - s.starBrightness * 1.6f);
+        catch (Throwable t) {
+            HugoService.LOG.warn("Could not draw custom skybox", t);
+            return false;
         }
-        RenderSystem.ShapeIndexBuffer indices = RenderSystem.getSequentialBuffer((VertexFormat.DrawMode)VertexFormat.DrawMode.QUADS);
-        GpuBuffer indexBuffer = indices.getIndexBuffer(36);
-        Framebuffer fb = MinecraftClient.getInstance().getFramebuffer();
-        GpuBufferSlice transforms = Mc.writeSkyTransforms((Matrix4fc)view, (Vector4fc)new Vector4f(b *= 1.0f - s.rainGradient * 0.3f, b, b, 1.0f));
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "HugoService skybox", fb.getColorAttachmentView(), OptionalInt.empty(), fb.getDepthAttachmentView(), OptionalDouble.empty());){
-            pass.setPipeline(RenderPipelines.POSITION_TEX_COLOR_END_SKY);
-            RenderSystem.bindDefaultUniforms((RenderPass)pass);
-            pass.setUniform("DynamicTransforms", transforms);
-            Mc.bindSkySampler(pass, texture);
-            pass.setVertexBuffer(0, cube);
-            pass.setIndexBuffer(indexBuffer, indices.getIndexType());
-            pass.drawIndexed(0, 0, 36, 1);
-        }
-        return true;
     }
 
     private static void update() {

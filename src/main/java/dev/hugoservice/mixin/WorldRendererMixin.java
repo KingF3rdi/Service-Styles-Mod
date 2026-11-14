@@ -22,7 +22,7 @@ public class WorldRendererMixin {
         return width * (1.0f + (float)(Math.max(1, Config.INSTANCE.outlineWidth) - 1) * 0.5f);
     }
 
-    @ModifyArg(method={"renderTargetBlockOutline"}, index=6, at={@At(value="INVOKE", ordinal=1, target="Lnet/minecraft/client/render/WorldRenderer;drawBlockOutline(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;DDDLnet/minecraft/client/render/state/OutlineRenderState;IF)V")})
+    @ModifyArg(method={"renderTargetBlockOutline"}, index=6, require=0, at={@At(value="INVOKE", ordinal=1, target="Lnet/minecraft/client/render/WorldRenderer;drawBlockOutline(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;DDDLnet/minecraft/client/render/state/OutlineRenderState;IF)V")})
     private int hugoservice$outlineColor(int color) {
         Integer c = Config.INSTANCE.fx("outline");
         return c == null ? color : 0xFF000000 | c;

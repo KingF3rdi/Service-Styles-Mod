@@ -67,6 +67,9 @@ public final class PackBuilder {
             Integer color = cfg.colorOf(c.id());
             if (style.vanilla && color == null) continue;
             for (String file : c.files()) {
+                if (file.contains("/font/") || file.startsWith("font/") || file.contains("/shaders/") || file.startsWith("shaders/")) {
+                    continue;
+                }
                 byte[] png = style.read(file);
                 if (png == null) continue;
                 if (color != null) {
@@ -106,8 +109,11 @@ public final class PackBuilder {
         }
         catch (Throwable ignored) {
         }
+        if (format <= 0) {
+            format = 75;
+        }
         String desc = description.replace("\\", "\\\\").replace("\"", "\\\"");
-        return ("{\n  \"pack\": {\n    \"description\": \"" + desc + "\",\n    \"min_format\": " + format + ",\n    \"max_format\": " + format + "\n  }\n}\n").getBytes(StandardCharsets.UTF_8);
+        return ("{\n  \"pack\": {\n    \"description\": \"" + desc + "\",\n    \"pack_format\": " + format + ",\n    \"min_format\": " + format + ",\n    \"max_format\": " + format + "\n  }\n}\n").getBytes(StandardCharsets.UTF_8);
     }
 
     private static void addAnchor(Config cfg, Map<String, byte[]> out) throws IOException {
@@ -267,6 +273,35 @@ public final class PackBuilder {
             mc.options.refreshResourcePacks(m);
         } else {
             mc.reloadResources();
+        }
+    }
+
+    static void sanitizeActivePack() {
+        Path dir = FabricLoader.getInstance().getGameDir().resolve("resourcepacks").resolve(ACTIVE);
+        PackBuilder.dropOldKnifeFiles();
+        if (!Files.exists(dir, new LinkOption[0])) {
+            return;
+        }
+        Path assets = dir.resolve("assets/minecraft");
+        for (String leftover : new String[]{"font", "shaders"}) {
+            try {
+                PackBuilder.deleteTree(assets.resolve(leftover));
+            }
+            catch (IOException e) {
+                HugoService.LOG.warn("Could not remove leftover {} from the 7auction Styles pack", leftover, e);
+            }
+        }
+        Path meta = dir.resolve("pack.mcmeta");
+        if (Files.exists(meta, new LinkOption[0])) {
+            try {
+                String raw = Files.readString(meta);
+                if (raw.contains("font/") || !raw.contains("pack_format")) {
+                    Files.write(meta, PackBuilder.mcmeta("7auction Styles"), new OpenOption[0]);
+                }
+            }
+            catch (Exception e) {
+                HugoService.LOG.warn("Could not rewrite pack.mcmeta for 7auction Styles", (Throwable)e);
+            }
         }
     }
 

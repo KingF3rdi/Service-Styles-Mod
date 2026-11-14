@@ -43,7 +43,7 @@ public class FogRendererMixin {
             distEnd = 1000001.0f;
             envEnd = 1000001.0f;
         }
-        original.call(new Object[]{self, buffer, offset, color, Float.valueOf(envStart), Float.valueOf(envEnd), Float.valueOf(distStart), Float.valueOf(distEnd), Float.valueOf(skyEnd), Float.valueOf(cloudEnd)});
+        original.call(self, buffer, offset, color, envStart, envEnd, distStart, distEnd, skyEnd, cloudEnd);
     }
 }
 

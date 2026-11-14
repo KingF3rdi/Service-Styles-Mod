@@ -1,5 +1,5 @@
 {
-  "required": true,
+  "required": false,
   "minVersion": "0.8",
   "package": "dev.hugoservice.mixin",
   "compatibilityLevel": "JAVA_21",
@@ -19,5 +19,5 @@
     "SkyRenderingMixin",
     "WorldRendererMixin"
   ],
-  "injectors": { "defaultRequire": 1 }
+  "injectors": { "defaultRequire": 0 }
 }

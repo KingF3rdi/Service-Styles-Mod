@@ -20,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(value={EndCrystalEntityRenderer.class})
 public class EndCrystalEntityRendererMixin {
-    @Redirect(method={"render(Lnet/minecraft/client/render/entity/state/EndCrystalEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V"}, at={@At(value="INVOKE", target="Lnet/minecraft/client/render/VertexConsumerProvider;getBuffer(Lnet/minecraft/client/render/RenderLayer;)Lnet/minecraft/client/render/VertexConsumer;")})
+    @Redirect(method={"render(Lnet/minecraft/client/render/entity/state/EndCrystalEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V"}, require=0, at={@At(value="INVOKE", target="Lnet/minecraft/client/render/VertexConsumerProvider;getBuffer(Lnet/minecraft/client/render/RenderLayer;)Lnet/minecraft/client/render/VertexConsumer;")})
     private VertexConsumer hugoservice$layer(VertexConsumerProvider consumers, RenderLayer layer) {
         Identifier core = CrystalCore.texture();
         int opacity = Config.INSTANCE.crystalOpacity;
@@ -34,7 +34,7 @@ public class EndCrystalEntityRendererMixin {
         return consumers.getBuffer(Mc.entityTranslucent(tex));
     }
 
-    @Redirect(method={"render(Lnet/minecraft/client/render/entity/state/EndCrystalEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V"}, at={@At(value="INVOKE", target="Lnet/minecraft/client/render/entity/model/EndCrystalEntityModel;render(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;II)V")})
+    @Redirect(method={"render(Lnet/minecraft/client/render/entity/state/EndCrystalEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V"}, require=0, at={@At(value="INVOKE", target="Lnet/minecraft/client/render/entity/model/EndCrystalEntityModel;render(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;II)V")})
     private void hugoservice$alpha(EndCrystalEntityModel model, MatrixStack matrices, VertexConsumer vertices, int light, int overlay) {
         int opacity = Config.INSTANCE.crystalOpacity;
         if (opacity >= 100) {

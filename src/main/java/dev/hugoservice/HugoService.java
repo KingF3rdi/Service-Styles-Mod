@@ -24,7 +24,7 @@ implements ClientModInitializer {
 
     public void onInitializeClient() {
         Config.load();
-        PackBuilder.dropOldKnifeFiles();
+        PackBuilder.sanitizeActivePack();
         Fx.init();
         SpotifyHud.init();
         TotemCounter.init();
@@ -33,11 +33,16 @@ implements ClientModInitializer {
         Mc.registerKeys();
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> MediaWatcher.stop());
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-            BundledPacks.install();
-            StylesCloud.refresh(true);
-            Thread t = new Thread(Styles::rescan, "HugoService-Scan");
-            t.setDaemon(true);
-            t.start();
+            try {
+                BundledPacks.install();
+                StylesCloud.refresh(true);
+                Thread t = new Thread(Styles::rescan, "HugoService-Scan");
+                t.setDaemon(true);
+                t.start();
+            }
+            catch (Throwable t) {
+                LOG.warn("7auction Styles startup scan failed", t);
+            }
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (OPEN.wasPressed()) {

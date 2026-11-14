@@ -155,19 +155,27 @@ public final class Fx {
             return;
         }
         Integer c = Config.INSTANCE.fx(HIT);
-        int alpha = Math.round((float)Math.max(5, Math.min(100, Config.INSTANCE.hitStrength)) * 2.55f);
-        int argb = alpha << 24 | (c == null ? 0xFF0000 : c);
-        NativeImageBackedTexture tex = ((OverlayTextureAccessor)mc.gameRenderer.getOverlayTexture()).hugoservice$texture();
-        NativeImage img = tex.getImage();
-        if (img == null) {
+        if (c == null) {
             return;
         }
-        for (int y = 0; y < 8; ++y) {
-            for (int x = 0; x < 16; ++x) {
-                img.setColorArgb(x, y, argb);
+        try {
+            int alpha = Math.round((float)Math.max(5, Math.min(100, Config.INSTANCE.hitStrength)) * 2.55f);
+            int argb = alpha << 24 | c;
+            NativeImageBackedTexture tex = ((OverlayTextureAccessor)mc.gameRenderer.getOverlayTexture()).hugoservice$texture();
+            NativeImage img = tex.getImage();
+            if (img == null) {
+                return;
             }
+            for (int y = 0; y < 8; ++y) {
+                for (int x = 0; x < 16; ++x) {
+                    img.setColorArgb(x, y, argb);
+                }
+            }
+            tex.upload();
         }
-        tex.upload();
+        catch (Throwable t) {
+            HugoService.LOG.warn("Could not update the hit overlay", t);
+        }
     }
 
     private Fx() {

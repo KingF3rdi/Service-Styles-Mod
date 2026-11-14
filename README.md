@@ -2,7 +2,7 @@
 
 Fabric mod for **Minecraft 1.21.6–1.21.11**: mix single objects (crystal, armor, sky, extras) from texture packs and apply them as one pack. Open with **Right Shift**.
 
-Display name **7auction Styles**. Mod id `hugoservice`. Version `1.0.0`.
+Display name **7auction Styles**. Mod id `hugoservice`. Version `1.0.0.1`.
 
 Crystal tiles use the 3D end-crystal model. World extras (spin, opacity, core colour) are included. No knives.
 
