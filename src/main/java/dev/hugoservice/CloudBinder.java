@@ -4,7 +4,7 @@ import java.util.List;
 import net.minecraft.item.Items;
 
 public final class CloudBinder {
-    private static final List<String> NEW_MODULES = List.of("trident", "rails", "tntcart", "elytra", "font");
+    private static final List<String> NEW_MODULES = List.of("trident", "elytra");
 
     private CloudBinder() {
     }
@@ -37,18 +37,16 @@ public final class CloudBinder {
     private static Categories.Category categoryFor(CloudCategories.Def def, List<String> files) {
         String section = switch (def.id()) {
             case "rails" -> "World";
-            case "font" -> "Interface";
             default -> "PvP";
         };
         String iconFile = files.isEmpty() ? "textures/item/paper.png" : files.getFirst();
-        Categories.Look look = def.id().equals("font") ? Categories.Look.WIDE : Categories.Look.FLAT;
+        Categories.Look look = Categories.Look.FLAT;
         Categories.Group group = new Categories.Group(def.id(), def.name(), iconFile, look, null, files);
         var icon = switch (def.id()) {
             case "trident" -> Items.TRIDENT;
             case "rails" -> Items.RAIL;
             case "tntcart" -> Items.TNT_MINECART;
             case "elytra" -> Items.ELYTRA;
-            case "font" -> Items.BOOK;
             default -> Items.PAPER;
         };
         return new Categories.Category(def.id(), def.name(), icon, section, List.of(group));

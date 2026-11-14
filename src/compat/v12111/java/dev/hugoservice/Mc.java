@@ -106,12 +106,11 @@ public final class Mc {
     }
 
     public static Style iconStyle() {
-        return Style.EMPTY.withFont(new StyleSpriteSource.Font(Identifier.of("hugoservice", "icon")));
+        return Style.EMPTY.withFont(VANILLA);
     }
 
     public static Style uiStyle(boolean pixel, boolean aurora, boolean bold) {
-        StyleSpriteSource font = pixel ? PIXEL : (aurora ? VANILLA : (bold ? SMOOTH_BOLD : SMOOTH));
-        return Style.EMPTY.withFont(font);
+        return Style.EMPTY.withFont(VANILLA);
     }
 
     public static boolean matchesOpen(int key, int scancode) {
@@ -172,9 +171,6 @@ public final class Mc {
         });
     }
 
-    private static final StyleSpriteSource SMOOTH = new StyleSpriteSource.Font(Identifier.of("hugoservice", "ui"));
-    private static final StyleSpriteSource SMOOTH_BOLD = new StyleSpriteSource.Font(Identifier.of("hugoservice", "bold"));
-    private static final StyleSpriteSource PIXEL = new StyleSpriteSource.Font(Identifier.ofVanilla("uniform"));
     private static final StyleSpriteSource VANILLA = new StyleSpriteSource.Font(Identifier.ofVanilla("default"));
 
     private static void setSampler(AbstractTexture t, Object sampler) {

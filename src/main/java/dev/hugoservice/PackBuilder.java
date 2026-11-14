@@ -62,7 +62,7 @@ public final class PackBuilder {
             out.put("assets/minecraft/post_effect/entity_outline.json", new String(v, StandardCharsets.UTF_8).replaceAll("(\"name\": \"Radius\",\\s*\"type\": \"float\",\\s*\"value\": )[0-9.]+", "$1" + Math.max(1, cfg.glowWidth) + ".0").getBytes(StandardCharsets.UTF_8));
         }
         for (Categories.Group c : Categories.allGroups()) {
-            if (c.look() == Categories.Look.SKY) continue;
+            if (c.look() == Categories.Look.SKY || c.id().equals("mixes")) continue;
             Styles.Style style = Styles.find(c, cfg.styleOf(c.id()));
             Integer color = cfg.colorOf(c.id());
             if (style.vanilla && color == null) continue;

@@ -249,7 +249,8 @@ public final class StylesCloud {
                 String sha = string(o, "sha256");
                 long size = o.has("size") ? o.get("size").getAsLong() : -1L;
                 if (id == null || category == null || name == null || sha == null || !ID.matcher(id).matches()
-                        || !id.startsWith(category + "_") || CloudCategories.get(category) == null || !SHA.matcher(sha).matches()
+                        || !id.startsWith(category + "_") || CloudCategories.DROP_CLOUD.contains(category)
+                        || CloudCategories.get(category) == null || !SHA.matcher(sha).matches()
                         || size <= 0L || size > MAX_PACK_BYTES || name.isBlank() || name.length() > 40) {
                     continue;
                 }

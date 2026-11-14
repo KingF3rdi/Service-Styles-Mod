@@ -230,6 +230,17 @@ public final class Styles {
     public static List<Style> forGroup(Categories.Group c) {
         ArrayList<Style> out = new ArrayList<Style>();
         out.add(new Style(VANILLA_ID, "Vanilla", "Default look", true, false, null, 0L, Styles::vanilla));
+        if (c.id().equals("mixes")) {
+            for (Pack pack : packs) {
+                String file = pack.path.getFileName().toString();
+                if (!Prebuilds.isPrebuild(file)) {
+                    continue;
+                }
+                int n = pack.entries.size();
+                out.add(new Style("pack:" + file, pack.name, "Pre-built mix · " + n + " textures", false, true, null, pack.modified, pack::read));
+            }
+            return out;
+        }
         int overridden = 0;
         StringBuilder sources = new StringBuilder();
         for (String f : c.files()) {

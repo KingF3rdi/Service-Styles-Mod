@@ -40,7 +40,7 @@ public final class Presence {
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5L)).build();
     private static final Set<UUID> USERS = ConcurrentHashMap.newKeySet();
     private static final Map<UUID, Long> CHECKED = new ConcurrentHashMap<UUID, Long>();
-    private static final Text ICON = Text.literal((String)"\ue000").setStyle(Mc.iconStyle());
+    private static final Text ICON = Text.literal((String)"*").setStyle(Mc.iconStyle());
     private static volatile UUID self;
     private static volatile boolean busy;
     private static int ticks;

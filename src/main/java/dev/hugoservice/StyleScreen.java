@@ -283,7 +283,7 @@ extends Screen {
             this.HOVER_LINE = -2134907137;
             this.SEP = -14800326;
         }
-        fk = this.cfg.pixelFont ? "p" : (this.aurora ? "a" : "s");
+        fk = "v";
         if (!fk.equals(fontKey)) {
             fontKey = fk;
             TEXT_CACHE.clear();
@@ -2670,14 +2670,8 @@ extends Screen {
             Config.save();
         });
         this.text(ctx, this.ellipsize("Off: changes wait for Apply", w), x, y + 20 + ROW, this.DIM);
-        this.toggleRow(ctx, x, y + 20 + ROW + 14, w, "Pixel font", this.cfg.pixelFont, () -> {
-            this.cfg.pixelFont = !this.cfg.pixelFont;
-            TEXT_CACHE.clear();
-            BOLD_CACHE.clear();
-            Config.save();
-        });
-        this.keyRow(ctx, x, y + 20 + ROW * 2 + 14, w, "Menu key", HugoService.OPEN);
-        this.toggleRow(ctx, x, y + 20 + ROW * 3 + 18, w, "Background blur", this.cfg.blur, () -> {
+        this.keyRow(ctx, x, y + 20 + ROW + 14, w, "Menu key", HugoService.OPEN);
+        this.toggleRow(ctx, x, y + 20 + ROW * 2 + 18, w, "Background blur", this.cfg.blur, () -> {
             this.cfg.blur = !this.cfg.blur;
             Config.save();
         });
@@ -2816,6 +2810,10 @@ extends Screen {
             this.cfg.loadout.remove(g.id());
         } else {
             this.cfg.loadout.put(g.id(), s.id);
+            if (s.id.startsWith("pack:") && Prebuilds.isPrebuild(s.id.substring("pack:".length()))) {
+                Prebuilds.applyLoadout(this.cfg, s.id);
+                this.status("Mix: " + s.name);
+            }
         }
         if (s.id.startsWith("cloud:")) {
             this.status("Downloading " + s.name + "…");
@@ -3414,7 +3412,7 @@ extends Screen {
     }
 
     private Style ui() {
-        return Mc.uiStyle(this.cfg.pixelFont, this.aurora, false);
+        return Mc.uiStyle(false, true, false);
     }
 
     private Text t(String s) {
@@ -3435,7 +3433,7 @@ extends Screen {
             if (BOLD_CACHE.size() > 1000) {
                 BOLD_CACHE.clear();
             }
-            cached = Text.literal((String)s).setStyle(Mc.uiStyle(this.cfg.pixelFont, this.aurora, true));
+            cached = Text.literal((String)s).setStyle(Mc.uiStyle(false, true, true));
             BOLD_CACHE.put(s, cached);
         }
         return cached;

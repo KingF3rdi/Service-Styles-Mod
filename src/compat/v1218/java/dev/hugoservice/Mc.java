@@ -69,12 +69,11 @@ public final class Mc {
     }
 
     public static Style iconStyle() {
-        return Style.EMPTY.withFont(Identifier.of("hugoservice", "icon"));
+        return Style.EMPTY.withFont(Identifier.ofVanilla("default"));
     }
 
     public static Style uiStyle(boolean pixel, boolean aurora, boolean bold) {
-        Identifier font = pixel ? Identifier.ofVanilla("uniform") : (aurora ? Identifier.ofVanilla("default") : Identifier.of("hugoservice", bold ? "bold" : "ui"));
-        return Style.EMPTY.withFont(font);
+        return Style.EMPTY.withFont(Identifier.ofVanilla("default"));
     }
 
     public static boolean matchesOpen(int key, int scancode) {

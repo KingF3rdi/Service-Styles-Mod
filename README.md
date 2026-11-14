@@ -36,5 +36,4 @@ The mod jar ends up in `build/libs/`. Install it together with Fabric Loader and
 
 ## Credits
 
-Menu font: [Poppins](https://github.com/itfoundry/Poppins) © The Poppins Project Authors, SIL Open Font License 1.1
-(`LICENSE_Poppins_OFL.txt`).
+UI uses the vanilla Minecraft font.

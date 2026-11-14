@@ -52,6 +52,12 @@ final class Previews {
                 return cloud;
             }
         }
+        if (g.id().equals("mixes")) {
+            BufferedImage mix = Previews.mix(s, tint);
+            if (mix != null) {
+                return mix;
+            }
+        }
         return switch (g.look()) {
             default -> throw new MatchException(null, null);
             case Categories.Look.CUBE -> Previews.cube(g.cube(), s, tint);
@@ -112,6 +118,19 @@ final class Previews {
         return img;
     }
 
+    private static BufferedImage mix(Styles.Style s, Integer tint) throws IOException {
+        for (Categories.Group g : Categories.allGroups()) {
+            if (g.id().equals("mixes") || g.files().isEmpty()) {
+                continue;
+            }
+            BufferedImage img = Previews.flat(g, s, tint);
+            if (img != null) {
+                return img;
+            }
+        }
+        return null;
+    }
+
     private static BufferedImage flat(Categories.Group g, Styles.Style s, Integer tint) throws IOException {
         BufferedImage img = null;
         for (String f : g.files()) {
@@ -124,9 +143,6 @@ final class Previews {
             }
             img = Previews.crop(f, Previews.firstFrame(Images.decode(png)), g);
             break;
-        }
-        if (img == null && g.id().equals("font")) {
-            img = Previews.fontFallback(s);
         }
         if (img == null) {
             return null;
@@ -493,11 +509,6 @@ final class Previews {
             int h = Math.max(1, Math.min(img.getHeight(), (int) Math.round(0.6875 * img.getHeight())));
             return img.getSubimage(x, 0, w, h);
         }
-        if (path.endsWith("font/ascii.png") && img.getHeight() >= 8) {
-            int y = img.getHeight() / 4;
-            int h = Math.max(1, img.getHeight() / 4);
-            return img.getSubimage(0, Math.min(y, img.getHeight() - h), img.getWidth(), h);
-        }
         if (!path.endsWith("gui/container/inventory.png") || img.getWidth() < 256) {
             return img;
         }
@@ -514,26 +525,6 @@ final class Previews {
             return img;
         }
         return img.getSubimage(x, y, w, h);
-    }
-
-    private static BufferedImage fontFallback(Styles.Style s) throws IOException {
-        for (String path : new String[]{"textures/font/ascii.png", "textures/font/ascii_sga.png", "textures/font/accented.png"}) {
-            byte[] png = s.read(path);
-            if (png == null) {
-                png = Styles.vanilla(path);
-            }
-            if (png == null) {
-                continue;
-            }
-            return Previews.crop(path, Previews.firstFrame(Images.decode(png)), Categories.groupById("font"));
-        }
-        BufferedImage out = new BufferedImage(96, 24, 2);
-        Graphics2D g = out.createGraphics();
-        g.setColor(new Color(220, 220, 220));
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        g.drawString("AaBbCc 0123", 4, 16);
-        g.dispose();
-        return out;
     }
 
     private static BufferedImage firstFrame(BufferedImage img) {

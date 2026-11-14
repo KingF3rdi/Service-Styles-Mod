@@ -22,6 +22,7 @@ public final class CloudCategories {
             "crystal", "anchor", "armor", "fire", "sky", "obsidian", "sword", "pickaxe", "glowstone",
             "gap", "pearl", "hotbar", "axe", "totem", "stone", "deepslate", "snow", "grass",
             "inventory", "cosmetics", "extra", "upload", "cloud", "mypack");
+    static final Set<String> DROP_CLOUD = Set.of("cobweb", "shield", "rails", "tntcart", "xpbottle", "windcharge", "font");
     private static volatile List<Def> defs = List.of();
 
     private CloudCategories() {
@@ -95,7 +96,7 @@ public final class CloudCategories {
         String id = CloudCategories.str(o, "id");
         String name = CloudCategories.str(o, "name");
         int slot = o.has("slot") ? o.get("slot").getAsInt() : -1;
-        if (id == null || !ID.matcher(id).matches() || BUILT_IN.contains(id) || slot < 1 || slot > 12
+        if (id == null || !ID.matcher(id).matches() || BUILT_IN.contains(id) || DROP_CLOUD.contains(id) || slot < 1 || slot > 12
                 || name == null || name.isBlank() || name.length() > 20) {
             return null;
         }
