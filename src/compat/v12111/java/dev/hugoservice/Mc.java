@@ -109,6 +109,10 @@ public final class Mc {
         return Style.EMPTY.withFont(VANILLA);
     }
 
+    public static net.minecraft.text.Text iconText() {
+        return net.minecraft.text.Text.object(new net.minecraft.text.object.AtlasTextObjectContents(net.minecraft.util.Atlases.GUI, Identifier.of("hugoservice", "7auction-icon")));
+    }
+
     public static Style uiStyle(boolean pixel, boolean aurora, boolean bold) {
         return Style.EMPTY.withFont(VANILLA);
     }

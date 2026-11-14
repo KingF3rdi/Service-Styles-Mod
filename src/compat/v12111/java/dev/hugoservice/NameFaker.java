@@ -174,18 +174,30 @@ public final class NameFaker {
         if (!hasTag && addTier && tier != null && !tier.isEmpty()) {
             out.append(NameFaker.tierTag(tier)).append((Text)Text.literal((String)" | ").withColor(0x8A8A8A));
         }
-        String t = tier;
-        text.visit((style, s) -> {
-            for (Map.Entry e : m.entrySet()) {
-                s = s.replace((CharSequence)e.getKey(), (CharSequence)e.getValue());
+        NameFaker.copyMapped(out, text, m, tier);
+        return out;
+    }
+
+    private static void copyMapped(MutableText out, Text node, Map<String, String> m, String t) {
+        net.minecraft.text.TextContent content = node.getContent();
+        Style style = node.getStyle();
+        if (content instanceof net.minecraft.text.object.TextObjectContents obj) {
+            out.append(Text.object(obj).setStyle(style));
+        } else if (content instanceof net.minecraft.text.PlainTextContent plain) {
+            String s = plain.string();
+            for (Map.Entry<String, String> e : m.entrySet()) {
+                s = s.replace(e.getKey(), e.getValue());
             }
             if (t != null) {
                 s = t.isEmpty() ? TIER.matcher(s).replaceAll("") : TAG.matcher(s).replaceAll(t);
             }
-            out.append((Text)Text.literal((String)s).setStyle(style));
-            return Optional.empty();
-        }, Style.EMPTY);
-        return out;
+            out.append(Text.literal(s).setStyle(style));
+        } else {
+            out.append(MutableText.of(content).setStyle(style));
+        }
+        for (Text sib : node.getSiblings()) {
+            NameFaker.copyMapped(out, sib, m, t);
+        }
     }
 
     private static Text tierTag(String tier) {

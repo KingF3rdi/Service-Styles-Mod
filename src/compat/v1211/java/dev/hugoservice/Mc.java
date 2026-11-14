@@ -69,6 +69,10 @@ public final class Mc {
         return Style.EMPTY.withFont(Identifier.ofVanilla("default"));
     }
 
+    public static net.minecraft.text.Text iconText() {
+        return net.minecraft.text.Text.literal("\uE000").setStyle(Style.EMPTY.withFont(Identifier.of("hugoservice", "icon")));
+    }
+
     public static Style uiStyle(boolean pixel, boolean aurora, boolean bold) {
         return Style.EMPTY.withFont(Identifier.ofVanilla("default"));
     }

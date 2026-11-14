@@ -13,9 +13,11 @@
     "FogRendererMixin",
     "InGameHudMixin",
     "InGameOverlayRendererMixin",
+    "LivingEntityRendererMixin",
     "MinecraftClientMixin",
     "OverlayTextureAccessor",
     "PlayerEntityMixin",
+    "PlayerListHudMixin",
     "SkyRenderingMixin",
     "WorldRendererMixin"
   ],

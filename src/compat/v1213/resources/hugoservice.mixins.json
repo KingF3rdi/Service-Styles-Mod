@@ -11,9 +11,11 @@
     "EntityMixin",
     "EntityRendererMixin",
     "InGameOverlayRendererMixin",
+    "LivingEntityRendererMixin",
     "MinecraftClientMixin",
     "OverlayTextureAccessor",
-    "PlayerEntityMixin"
+    "PlayerEntityMixin",
+    "PlayerListHudMixin"
   ],
   "injectors": { "defaultRequire": 0 }
 }
