@@ -5,7 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import dev.hugoservice.HandPreview;
 import net.minecraft.client.render.item.HeldItemRenderer;
-import net.minecraft.entity.LivingEntity;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
@@ -26,18 +26,18 @@ public class HandPreviewBlockMixin {
         this.hugoservice$blocking = hand == Hand.MAIN_HAND && preview != null && preview.isOf(Items.SHIELD) && stack.isOf(Items.SHIELD);
     }
 
-    @WrapOperation(method = "renderFirstPersonItem", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/LivingEntity;isUsingItem()Z"))
-    private boolean hugoservice$using(LivingEntity player, Operation<Boolean> original) {
+    @WrapOperation(method = "renderFirstPersonItem", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/AbstractClientPlayerEntity;isUsingItem()Z"))
+    private boolean hugoservice$using(AbstractClientPlayerEntity player, Operation<Boolean> original) {
         return this.hugoservice$blocking || original.call(player);
     }
 
-    @WrapOperation(method = "renderFirstPersonItem", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/LivingEntity;getItemUseTimeLeft()I"))
-    private int hugoservice$timeLeft(LivingEntity player, Operation<Integer> original) {
+    @WrapOperation(method = "renderFirstPersonItem", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/AbstractClientPlayerEntity;getItemUseTimeLeft()I"))
+    private int hugoservice$timeLeft(AbstractClientPlayerEntity player, Operation<Integer> original) {
         return this.hugoservice$blocking ? 72000 : original.call(player);
     }
 
-    @WrapOperation(method = "renderFirstPersonItem", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/LivingEntity;getActiveHand()Lnet/minecraft/util/Hand;"))
-    private Hand hugoservice$activeHand(LivingEntity player, Operation<Hand> original) {
+    @WrapOperation(method = "renderFirstPersonItem", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/AbstractClientPlayerEntity;getActiveHand()Lnet/minecraft/util/Hand;"))
+    private Hand hugoservice$activeHand(AbstractClientPlayerEntity player, Operation<Hand> original) {
         return this.hugoservice$blocking ? Hand.MAIN_HAND : original.call(player);
     }
 }

@@ -173,6 +173,7 @@ extends Screen {
     private int extrasMax;
     private String status;
     private long statusUntil;
+    private long popAt;
     private TextFieldWidget search;
     private TextFieldWidget packName;
     private TextFieldWidget fakeField;
@@ -1377,9 +1378,9 @@ extends Screen {
         int body = this.bodyY;
         int full = this.cx1 - this.cx0;
         boolean split = full >= 480;
-        int setW = split ? (int)StyleScreen.clamp((double)full * 0.42, 200.0, 280.0) : full;
-        int gridW = split ? full - setW - EXTRA_GAP : full;
-        List<Extra> all = this.extraList(setW - EXTRA_PAD * 2);
+        int setW = split ? (int)StyleScreen.clamp((double)full * 0.38, 190.0, 260.0) : full;
+        int gridW = split ? full - setW - UI_PAD : full;
+        List<Extra> all = this.extraList(setW - UI_PAD * 2);
         Extra picked = all.getFirst();
         for (Extra e : all) {
             if (!e.name().equals(this.extraKey)) continue;
@@ -1419,16 +1420,16 @@ extends Screen {
                 this.extraGroup = idx;
                 this.tileScroll = 0.0;
             });
-            x += w + 8;
+            x += w + 5;
         }
-        this.bodyY = y + 22;
+        this.bodyY = y + 20;
         ArrayList<Extra> shown = new ArrayList<Extra>();
         for (Extra e : all) {
             if (this.extraGroup != 0 && !e.group().equals(EXTRA_GROUPS[this.extraGroup])) continue;
             shown.add(e);
         }
-        int gap = TILE_GAP;
-        int cols = Math.max(1, (gridW + gap) / (112 + gap));
+        int gap = 7;
+        int cols = Math.max(1, (gridW + gap) / 124);
         int tw = (gridW - gap * (cols - 1)) / cols;
         int th = 46;
         int rows = (shown.size() + cols - 1) / cols;
@@ -1459,7 +1460,7 @@ extends Screen {
         StyleScreen.round(ctx, x + 6, y + 6, 20.0f, 20.0f, 6.0f, this.FIELD);
         ctx.drawItem(ICONS.computeIfAbsent("extra:" + e.name(), k -> new ItemStack(e.icon())), x + 8, y + 8);
         this.text(ctx, this.ellipsize(e.name(), w - 38), x + 32, y + 7, sel || hov ? this.TEXT : this.MUTED);
-        this.text(ctx, this.ellipsize(e.desc(), w - 38), x + 32, y + 18, this.DIM);
+        this.scaledText(ctx, this.t(this.ellipsize(e.desc(), (int)((float)(w - 38) / 0.75f))), x + 32, y + 18, 0.75f, this.DIM);
         this.clipHit(x, y, w, h, (a, b, btn) -> {
             if (!e.name().equals(this.extraKey)) {
                 this.extrasScroll = 0.0;
@@ -1482,8 +1483,8 @@ extends Screen {
             right -= pw + 4;
         }
         String group = e.group().toUpperCase(Locale.ROOT);
-        if (x + 8 + this.width(group) <= right) {
-            this.text(ctx, group, x + 8, y + h - 14, this.DIM);
+        if ((float)(x + 7) + (float)this.width(group) * 0.7f <= (float)right) {
+            this.scaledText(ctx, this.t(group), x + 7, y + h - 12, 0.7f, this.DIM);
         }
     }
 
@@ -1492,8 +1493,8 @@ extends Screen {
         int top = this.T + 34;
         int bottom = this.bodyB;
         this.glass(ctx, x, top, w, bottom - top, 12.0f, this.PANEL);
-        int px = x + EXTRA_PAD;
-        int pw = w - EXTRA_PAD * 2;
+        int px = x + UI_PAD;
+        int pw = w - UI_PAD * 2;
         this.text(ctx, "EXTRAS  >  " + e.group().toUpperCase(Locale.ROOT), px, top + 10, this.DIM);
         if (back) {
             int bw = this.width("Back") + 18;
@@ -2143,6 +2144,12 @@ extends Screen {
         });
         this.sliderRow(ctx, x, sy + SLIDER_ROW, w, "Totem pop size", this.cfg.popSize, 20, 200, v -> {
             this.cfg.popSize = v;
+            this.beginLive("Totem pop size", v + "%", v, 20, 200);
+            // the pop animation runs 2 s; the size applies every frame, so one pop shows the drag live
+            if (this.client != null && this.client.world != null && System.currentTimeMillis() > this.popAt) {
+                this.popAt = System.currentTimeMillis() + 1900L;
+                this.client.gameRenderer.showFloatingItem(new ItemStack((ItemConvertible)Items.TOTEM_OF_UNDYING));
+            }
         });
         int by = sy + SLIDER_ROW + 24 + 16;
         if (by >= this.bodyY && by + BTN_H <= this.bodyB) {
