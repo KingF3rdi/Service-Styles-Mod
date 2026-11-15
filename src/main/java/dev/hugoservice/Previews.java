@@ -162,6 +162,7 @@ final class Previews {
             if (!itemsOnly && Previews.armorLayer(f)) {
                 return Previews.armorFromLayer(decoded);
             }
+            decoded = Previews.firstFrame(decoded);
             if (itemsOnly && (f.contains("chestplate") || f.contains("helmet"))) {
                 return Previews.crop(f, decoded, g);
             }
@@ -573,8 +574,17 @@ final class Previews {
         return img.getSubimage(x, y, w, h);
     }
 
+    // Animated textures stack their frames vertically; tiles show the first one.
     private static BufferedImage firstFrame(BufferedImage img) {
-        return img;
+        int w = img.getWidth();
+        int h = img.getHeight();
+        return h > w && h % w == 0 ? img.getSubimage(0, 0, w, w) : img;
+    }
+
+    /** A vanilla texture as a menu icon (crisp at any size, unlike a scaled GUI item). */
+    static BufferedImage icon(String path) throws IOException {
+        byte[] png = Styles.vanilla(path);
+        return png == null ? null : Previews.firstFrame(Images.decode(png));
     }
 
     static BufferedImage shade(BufferedImage src, float f) {
