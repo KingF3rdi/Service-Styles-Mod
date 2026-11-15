@@ -57,6 +57,7 @@ implements ClientModInitializer {
                 TotemCounter.reset();
                 client.inGameHud.setOverlayMessage((Text)Text.literal((String)"Totem pops reset"), false);
             }
+            StyleScreen.tickReopen(client);
             Spotify.tick();
             Glint.tick(client);
             if (Brand.KNIVES && INSPECT != null) {

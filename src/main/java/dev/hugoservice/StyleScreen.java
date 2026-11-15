@@ -77,6 +77,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gl.RenderPipelines;
@@ -224,6 +225,17 @@ extends Screen {
     private String handItem;
     private boolean liveHand;
     private String liveLabel = "";
+    private String liveText = "";
+    private static final String[] EXTRA_GROUPS = new String[]{"All", "Combat", "World", "HUD & Menu"};
+    private String extraKey = "";
+    private int extraGroup;
+    private boolean extraOpen;
+    private double tileScroll;
+    private int tileMax;
+    /** left of this x the wheel scrolls the tiles, right of it the settings */
+    private int extraSplitX;
+    private static StyleScreen reopen;
+    private static long reopenAt;
     private int liveValue;
     private int liveMin = 30;
     private int liveMax = 150;
@@ -441,6 +453,7 @@ extends Screen {
     void showExtras(boolean on) {
         this.editor = null;
         this.extras = on;
+        this.extraOpen = false;
         this.crosshairView = false;
         if (!on) {
             this.themesTab = false;
@@ -469,7 +482,7 @@ extends Screen {
     }
 
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        if (this.liveHand && HandPreview.stack() != null) {
+        if (this.liveHand) {
             return;
         }
         if (this.cfg.blur) {
@@ -490,7 +503,7 @@ extends Screen {
         this.mouseY = my;
         this.applyTheme();
         this.hits.clear();
-        if (this.liveHand && HandPreview.stack() != null) {
+        if (this.liveHand) {
             this.hideVanillaFields();
             this.drawLiveHandSlider(ctx);
             super.render(ctx, mx, my, delta);
@@ -594,7 +607,8 @@ extends Screen {
         int total = n * cw + (n - 1) * gap;
         int x0 = (this.width - total) / 2;
         int cy = navY + navH + 10;
-        ItemConvertible[] homeItems = new ItemConvertible[]{Items.END_CRYSTAL, Items.GRASS_BLOCK, Items.PAINTING, Items.REDSTONE};
+        String[] homeItems = new String[]{"textures/item/end_crystal.png", null, "textures/item/painting.png", "textures/item/redstone.png"};
+        String[] smallItems = new String[]{"textures/item/compass_16.png", "textures/item/spyglass.png", "textures/item/bundle.png", "textures/item/pink_dye.png"};
         for (int i = 0; i < n; ++i) {
             int x = x0 + i * (cw + gap);
             int idx = i;
@@ -609,7 +623,7 @@ extends Screen {
             float gh = (float)ch * (1.0f + grow);
             StyleScreen.round(ctx, gx, gy, gw, gh, 8.0f, StyleScreen.lerp(0x22FFFFFF, 0x3AFFFFFF, a));
             StyleScreen.roundOutline(ctx, gx, gy, gw, gh, 8.0f, StyleScreen.lerp(0x55FFFFFF, -1, a), 1.0f);
-            this.drawHomeStack(ctx, new ItemStack(homeItems[i]), gx, gy, gw, gh * 0.62f);
+            this.drawHomeIcon(ctx, homeItems[i], gx, gy, gw, gh * 0.62f);
             MutableText label = Text.literal((String)HOME[i]);
             int lx = Math.round(gx + (gw - (float)this.textRenderer.getWidth((StringVisitable)label)) / 2.0f);
             int ly = Math.round(gy + gh * 0.72f);
@@ -634,8 +648,7 @@ extends Screen {
             float a = this.homeAnim[n + i];
             StyleScreen.round(ctx, sx, sy, bw, smallH, 7.0f, StyleScreen.lerp(0x22FFFFFF, 0x3AFFFFFF, a));
             StyleScreen.roundOutline(ctx, sx, sy, bw, smallH, 7.0f, StyleScreen.lerp(0x55FFFFFF, -1, a), 1.0f);
-            ItemConvertible[] smallItems = new ItemConvertible[]{Items.COMPASS, Items.SPYGLASS, Items.CHEST, Items.PINK_DYE};
-            this.drawHomeStack(ctx, new ItemStack(smallItems[i]), sx, sy - 2, bw, smallH * 0.62f);
+            this.drawHomeIcon(ctx, smallItems[i], sx, sy - 2, bw, smallH * 0.62f);
             MutableText label = Text.literal((String)HOME_SMALL[i]);
             ctx.drawText(this.textRenderer, (Text)label, sx + (bw - this.textRenderer.getWidth((StringVisitable)label)) / 2, sy + smallH / 2 + 6, a > 0.5f ? -1 : this.MUTED, false);
             this.hit(sx, sy, bw, smallH, (mx, my, btn) -> this.openSmall(idx));
@@ -647,14 +660,18 @@ extends Screen {
         ctx.drawText(this.textRenderer, Brand.NAME + " " + version + "   " + theme + " UI   Minecraft " + mcVer, 6, this.height - 12, this.DIM, false);
     }
 
-    private void drawHomeStack(DrawContext ctx, ItemStack stack, float gx, float gy, float gw, float gh) {
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        float s = Math.min(gw, gh) * 0.55f / 16.0f;
-        m.translate(gx + gw / 2.0f - 8.0f * s, gy + gh * 0.22f);
-        m.scale(s, s);
-        ctx.drawItem(stack, 0, 0);
-        m.popMatrix();
+    // Big icons come from the texture, not ctx.drawItem: GUI items are rastered at
+    // 16px x GUI scale and blur when a matrix scales them up. null = the grass block.
+    private void drawHomeIcon(DrawContext ctx, String tex, float gx, float gy, float gw, float gh) {
+        int s = Math.round(Math.min(gw, gh) * 0.55f);
+        int x = Math.round(gx + (gw - (float)s) / 2.0f);
+        int y = Math.round(gy + gh * 0.22f);
+        if (tex == null) {
+            Categories.Group g = StyleScreen.grassGroup();
+            this.drawThumb(ctx, g, this.selected(g), this.cfg.colorOf(g.id()), x, y, s, s, 0, false);
+        } else {
+            this.drawPreview(ctx, "icon|" + tex, () -> Previews.icon(tex), x, y, s, s, 0, false);
+        }
     }
 
     private void scaledText(DrawContext ctx, Text t, float x, float y, float s, int color) {
@@ -791,7 +808,7 @@ extends Screen {
             this.drawThumb(ctx, g, s, tint, x, y, size, size, 0, false);
             return;
         }
-        StyleScreen.item(ctx, c, x + (size - 10) / 2, y + (size - 10) / 2);
+        StyleScreen.item(ctx, c, x + (size - 16) / 2, y + (size - 16) / 2);
     }
 
     private String wornNames(Categories.Category c) {
@@ -1258,43 +1275,250 @@ extends Screen {
         this.button(ctx, x + bw + CHIP_GAP, y, w - bw - CHIP_GAP, b, false, rb);
     }
 
-    private void drawExtras(DrawContext ctx) {
-        this.bold(ctx, "Extras", this.cx0, this.T + 37, this.TEXT);
-        this.text(ctx, "Combat colours, world and menu", this.cx0, this.T + 48, this.MUTED);
-        int inner = this.blockInner();
-        List<Block> extras = new ArrayList<>();
-        if (Brand.KNIVES) {
-            extras.add(new Block(extraGlass(76), this::drawKnifeOptions));
-        }
-        extras.add(new Block(extraGlass(160), this::drawFpsOptions));
-        extras.add(new Block(extraGlass(100), this::drawExplosionOptions));
-        extras.addAll(List.of(new Block(extraGlass(136), (c, x, y, w) -> {
-            this.fxBlock(c, x, y, w, "Hit colour", "hit", "Red flash when hit", Previews::hit);
-            this.sliderRow(c, x, y + 88, w, "Strength", this.cfg.hitStrength, 5, 100, v -> {
-                this.cfg.hitStrength = v;
+    private static String onOff(boolean on) {
+        return on ? "On" : "Off";
+    }
+
+    private static String percent(int v) {
+        return v == 100 ? "Normal" : v + "%";
+    }
+
+    private Extra fxExtra(String name, String group, ItemConvertible icon, String desc, int h, String key, BlockDrawer drawer) {
+        return new Extra(name, group, icon, desc, h, drawer, () -> StyleScreen.onOff(this.cfg.fx(key) != null), () -> {
+            if (!this.cfg.fxOn.remove(key)) {
+                this.cfg.fxOn.add(key);
+            }
+            this.fxChanged(key);
+        });
+    }
+
+    /** Every extra as a tile; w is the width its settings get (some heights depend on it). */
+    private List<Extra> extraList(int w) {
+        Config c = this.cfg;
+        ArrayList<Extra> list = new ArrayList<Extra>();
+        list.add(this.fxExtra("Hit colour", "Combat", Items.REDSTONE, "Flash colour when hit", extraGlass(136), "hit", (ctx, x, y, bw) -> {
+            this.fxBlock(ctx, x, y, bw, "Hit colour", "hit", "Red flash when hit", Previews::hit);
+            this.sliderRow(ctx, x, y + 88, bw, "Strength", c.hitStrength, 5, 100, v -> {
+                c.hitStrength = v;
                 Fx.applyHitColor();
             });
-        }), new Block(extraGlass(108), (c, x, y, w) -> this.fxBlock(c, x, y, w, "Hitbox colour", "hitbox", "Shown with F3 + B", Previews::outline)), new Block(extraGlass(136), (c, x, y, w) -> {
-            this.fxBlock(c, x, y, w, "Block outline", "outline", "Block you look at", Previews::outline);
-            this.sliderRow(c, x, y + 88, w, "Thickness", this.cfg.outlineWidth, 1, 10, v -> {
-                this.cfg.outlineWidth = v;
-            }, String::valueOf);
-        }), new Block(extraGlass(180), (c, x, y, w) -> {
-            this.fxBlock(c, x, y, w, "Player glow", "glow", "Only while visible", Previews::glow);
-            this.toggleRow(c, x, y + 88, w, "Myself (F5)", this.cfg.glowSelf, () -> {
-                this.cfg.glowSelf = !this.cfg.glowSelf;
+        }));
+        list.add(this.fxExtra("Hitbox colour", "Combat", Items.TARGET, "Shown with F3 + B", extraGlass(108), "hitbox", (ctx, x, y, bw) -> this.fxBlock(ctx, x, y, bw, "Hitbox colour", "hitbox", "Shown with F3 + B", Previews::outline)));
+        list.add(this.fxExtra("Player glow", "Combat", Items.ARMOR_STAND, "Outline while visible", extraGlass(180), "glow", (ctx, x, y, bw) -> {
+            this.fxBlock(ctx, x, y, bw, "Player glow", "glow", "Only while visible", Previews::glow);
+            this.toggleRow(ctx, x, y + 88, bw, "Myself (F5)", c.glowSelf, () -> {
+                c.glowSelf = !c.glowSelf;
                 Config.save();
             });
-            this.toggleRow(c, x, y + 88 + ROW, w, "Rainbow", this.cfg.glowRainbow, () -> {
-                this.cfg.glowRainbow = !this.cfg.glowRainbow;
+            this.toggleRow(ctx, x, y + 88 + ROW, bw, "Rainbow", c.glowRainbow, () -> {
+                c.glowRainbow = !c.glowRainbow;
                 Config.save();
             });
-            this.sliderRow(c, x, y + 88 + ROW * 2, w, "Thickness (on Apply)", this.cfg.glowWidth, 1, 8, v -> {
-                this.cfg.glowWidth = v;
+            this.sliderRow(ctx, x, y + 88 + ROW * 2, bw, "Thickness (on Apply)", c.glowWidth, 1, 8, v -> {
+                c.glowWidth = v;
                 this.dirty = true;
             }, String::valueOf);
-        }), new Block(extraGlass(136), this::drawCrystalOptions), new Block(extraGlass(100), this::drawFireFog), new Block(this.handSizeHeight(inner), this::drawHandSize), new Block(extraGlass(100), this::drawKillEffect), new Block(extraGlass(90), this::drawSocialBadge), new Block(extraGlass(this.cfg.glintMode == 2 ? 124 : (this.cfg.glintMode == 1 ? 92 : 64)), this::drawGlint), new Block(extraGlass(this.cfg.anchorGlow != null ? 128 : 100), this::drawAnchorCharge), new Block(extraGlass(196), this::drawShieldStatus), new Block(extraGlass(152), this::drawTotemCounter), new Block(extraGlass(112), this::drawOpacity), new Block(extraGlass(120), this::drawNametags), new Block(this.inventoryHeight(inner), this::drawInventoryTweaks), new Block(extraGlass(220), this::drawNameFaker), new Block(extraGlass(292), this::drawSpotify), new Block(extraGlass(164), this::drawSkyOptions), new Block(this.greyWorldHeight(inner), this::drawGreyWorld), new Block(extraGlass(112), (c, x, y, w) -> this.drawColorBlock(c, StyleScreen.grassGroup(), x, y, w))));
-        this.layoutBlocks(ctx, extras);
+        }));
+        list.add(new Extra("Crystal", "Combat", Items.END_CRYSTAL, "Spin speed and core colour", extraGlass(136), this::drawCrystalOptions, () -> c.crystalSpin == 0 ? "Stopped" : StyleScreen.percent(c.crystalSpin), null));
+        list.add(new Extra("Item size in hand", "Combat", Items.GOLDEN_APPLE, "Size per item, totem pop", this.handSizeHeight(w), this::drawHandSize, () -> c.handSize.isEmpty() && c.popSize == 100 ? "Normal" : "Changed", null));
+        list.add(new Extra("Opacity", "Combat", Items.GLASS, "See-through crystal and shield", extraGlass(112), this::drawOpacity, () -> c.crystalOpacity >= 100 && c.shieldOpacity >= 100 ? "Normal" : "Changed", null));
+        list.add(this.fxExtra("Shield status", "Combat", Items.SHIELD, "Colour when ready or disabled", extraGlass(196), "shield", this::drawShieldStatus));
+        list.add(new Extra("Anchor charge", "Combat", Items.RESPAWN_ANCHOR, "Glow colour, look full", extraGlass(c.anchorGlow != null ? 128 : 100), this::drawAnchorCharge, () -> StyleScreen.onOff(c.anchorGlow != null), () -> {
+            c.anchorGlow = c.anchorGlow == null ? Integer.valueOf(11766015) : null;
+            this.changed();
+        }));
+        list.add(new Extra("Kill effect", "Combat", Items.NETHERITE_SWORD, "Effect when a player dies", extraGlass(100), this::drawKillEffect, () -> KillEffects.NAMES[Math.floorMod(c.killEffect, KillEffects.NAMES.length)], null));
+        list.add(new Extra("Totem counter", "Combat", Items.TOTEM_OF_UNDYING, "Pops over heads, HUD, chat", extraGlass(152), this::drawTotemCounter, () -> StyleScreen.onOff(c.totemPops), () -> {
+            c.totemPops = !c.totemPops;
+            Config.save();
+        }));
+        if (Brand.KNIVES) {
+            list.add(new Extra("Knives", "Combat", Items.IRON_SWORD, "Tricks and sway", extraGlass(76), this::drawKnifeOptions, () -> StyleScreen.onOff(c.knifeTricks), () -> {
+                c.knifeTricks = !c.knifeTricks;
+                Config.save();
+            }));
+        }
+        list.add(this.fxExtra("Block outline", "World", Items.GRASS_BLOCK, "Colour and thickness", extraGlass(136), "outline", (ctx, x, y, bw) -> {
+            this.fxBlock(ctx, x, y, bw, "Block outline", "outline", "Block you look at", Previews::outline);
+            this.sliderRow(ctx, x, y + 88, bw, "Thickness", c.outlineWidth, 1, 10, v -> {
+                c.outlineWidth = v;
+                this.beginLive("Block outline thickness", String.valueOf(v), v, 1, 10);
+            }, String::valueOf);
+        }));
+        list.add(new Extra("Fire & fog", "World", Items.BLAZE_POWDER, "Lower fire, no fog", extraGlass(100), this::drawFireFog, () -> c.fireHeight == 100 && !c.noFog ? "Normal" : "Changed", null));
+        list.add(new Extra("Enchant glint", "World", Items.EXPERIENCE_BOTTLE, "Colour, gradient, rainbow", extraGlass(c.glintMode == 2 ? 124 : (c.glintMode == 1 ? 92 : 64)), this::drawGlint, () -> Glint.MODES[Math.floorMod(c.glintMode, 4)], null));
+        list.add(new Extra("Sky", "World", Items.CLOCK, "Rotation, sun and time", extraGlass(164), this::drawSkyOptions, () -> c.skyTime < 0 ? "Server time" : StyleScreen.clock(c.skyTime), null));
+        list.add(new Extra("Monochrome", "World", Items.GRAY_DYE, "Grey world, keep some colour", this.greyWorldHeight(w), this::drawGreyWorld, () -> StyleScreen.onOff(c.greyWorld), () -> {
+            c.greyWorld = !c.greyWorld;
+            this.changed();
+        }));
+        list.add(new Extra("Grass colour", "World", Items.FERN, "Own grass tint", extraGlass(112), (ctx, x, y, bw) -> this.drawColorBlock(ctx, StyleScreen.grassGroup(), x, y, bw), () -> StyleScreen.onOff(c.colorOf("grass") != null), null));
+        list.add(this.fxExtra("Name tags", "World", Items.NAME_TAG, "Colour and size", extraGlass(120), "nametag", this::drawNametags));
+        list.add(new Extra("Explosions", "World", Items.TNT, "Fewer explosion particles", extraGlass(100), this::drawExplosionOptions, () -> Math.floorMod(c.explosionOptimize, 3) == 0 ? "Off" : "Level " + Math.floorMod(c.explosionOptimize, 3), null));
+        list.add(new Extra("FPS optimizer", "World", Items.SUGAR, "Entity and particle culling", extraGlass(160), this::drawFpsOptions, () -> StyleScreen.onOff(c.fpsCulling), () -> {
+            c.fpsCulling = !c.fpsCulling;
+            Config.save();
+        }));
+        list.add(new Extra("Inventory", "HUD & Menu", Items.CHEST, "Size and player model", this.inventoryHeight(w), this::drawInventoryTweaks, () -> c.inventoryScale == 0 ? "Normal" : c.inventoryScale + "x", null));
+        list.add(new Extra("Name faker", "HUD & Menu", Items.PLAYER_HEAD, "Hide your and enemy names", extraGlass(220), this::drawNameFaker, () -> StyleScreen.onOff(c.fakeOwn), () -> {
+            c.fakeOwn = !c.fakeOwn;
+            Config.save();
+        }));
+        list.add(new Extra("Social badge", "HUD & Menu", Items.WRITABLE_BOOK, "Badge in your inventory", extraGlass(90), this::drawSocialBadge, () -> StyleScreen.onOff(c.badgeOn), () -> {
+            c.badgeOn = !c.badgeOn;
+            Config.save();
+        }));
+        list.add(new Extra("Spotify", "HUD & Menu", Items.MUSIC_DISC_CAT, "Now playing card", extraGlass(292), this::drawSpotify, null, null));
+        return list;
+    }
+
+    /** Extras page: group chips and tiles, the picked tile's settings beside them (or instead of them when narrow). */
+    private void drawExtras(DrawContext ctx) {
+        int body = this.bodyY;
+        int full = this.cx1 - this.cx0;
+        boolean split = full >= 480;
+        int setW = split ? (int)StyleScreen.clamp((double)full * 0.42, 200.0, 280.0) : full;
+        int gridW = split ? full - setW - EXTRA_GAP : full;
+        List<Extra> all = this.extraList(setW - EXTRA_PAD * 2);
+        Extra picked = all.getFirst();
+        for (Extra e : all) {
+            if (!e.name().equals(this.extraKey)) continue;
+            picked = e;
+        }
+        this.extraKey = picked.name();
+        if (!split && this.extraOpen) {
+            this.extraSplitX = this.cx0;
+            this.drawExtraSettings(ctx, picked, this.cx0, full, true);
+            return;
+        }
+        this.extraSplitX = split ? this.cx1 - setW : Integer.MAX_VALUE;
+        this.bold(ctx, "Extras", this.cx0, this.T + 37, this.TEXT);
+        this.text(ctx, this.ellipsize("Click a tile for its settings  ·  the switch turns it on or off", gridW), this.cx0, this.T + 48, this.MUTED);
+        int x = this.cx0;
+        int y = this.T + 60;
+        for (int i = 0; i < EXTRA_GROUPS.length; ++i) {
+            int idx = i;
+            int n = 0;
+            for (Extra e : all) {
+                if (i != 0 && !e.group().equals(EXTRA_GROUPS[i])) continue;
+                ++n;
+            }
+            String label = EXTRA_GROUPS[i] + "  " + n;
+            int w = this.width(label) + 14;
+            if (x > this.cx0 && x + w > this.cx0 + gridW) {
+                x = this.cx0;
+                y += 18;
+            }
+            boolean on = this.extraGroup == i;
+            boolean hov = this.over(x, y, w, 14);
+            if (on || hov) {
+                this.lens(ctx, x, y, w, 14.0f, 7.0f, on ? this.ACCENT_SOFT : 0x14FFFFFF);
+            }
+            this.text(ctx, label, x + 7, y + 3, on ? this.ACCENT_HI : (hov ? this.TEXT : this.MUTED));
+            this.hit(x, y, w, 14, (a, b, btn) -> {
+                this.extraGroup = idx;
+                this.tileScroll = 0.0;
+            });
+            x += w + 8;
+        }
+        this.bodyY = y + 22;
+        ArrayList<Extra> shown = new ArrayList<Extra>();
+        for (Extra e : all) {
+            if (this.extraGroup != 0 && !e.group().equals(EXTRA_GROUPS[this.extraGroup])) continue;
+            shown.add(e);
+        }
+        int gap = TILE_GAP;
+        int cols = Math.max(1, (gridW + gap) / (112 + gap));
+        int tw = (gridW - gap * (cols - 1)) / cols;
+        int th = 46;
+        int rows = (shown.size() + cols - 1) / cols;
+        this.tileMax = Math.max(0, rows * (th + gap) - gap + 4 - (this.bodyB - this.bodyY));
+        this.tileScroll = StyleScreen.clamp(this.tileScroll, 0.0, this.tileMax);
+        ctx.enableScissor(this.cx0 - 2, this.bodyY - 2, this.cx0 + gridW + 2, this.bodyB);
+        for (int i = 0; i < shown.size(); ++i) {
+            int tx = this.cx0 + i % cols * (tw + gap);
+            int ty = this.bodyY + 1 + i / cols * (th + gap) - (int)this.tileScroll;
+            if (ty + th < this.bodyY || ty > this.bodyB) continue;
+            this.drawExtraTile(ctx, shown.get(i), tx, ty, tw, th);
+        }
+        ctx.disableScissor();
+        this.scrollbar(ctx, this.cx0 + gridW + 4, this.bodyY, this.bodyB, this.tileScroll, this.tileMax);
+        this.bodyY = body;
+        if (split) {
+            this.drawExtraSettings(ctx, picked, this.cx1 - setW, setW, false);
+        }
+    }
+
+    private void drawExtraTile(DrawContext ctx, Extra e, int x, int y, int w, int h) {
+        boolean sel = e.name().equals(this.extraKey);
+        boolean hov = this.over(x, y, w, h) && this.mouseY >= this.bodyY && this.mouseY < this.bodyB;
+        this.glass(ctx, x, y, w, h, 9.0f, sel ? this.PANEL_HI : (hov ? this.HOVER : this.PANEL));
+        if (sel) {
+            StyleScreen.roundOutline(ctx, x, y, w, h, 9.0f, this.ACCENT, 1.0f);
+        }
+        StyleScreen.round(ctx, x + 6, y + 6, 20.0f, 20.0f, 6.0f, this.FIELD);
+        ctx.drawItem(ICONS.computeIfAbsent("extra:" + e.name(), k -> new ItemStack(e.icon())), x + 8, y + 8);
+        this.text(ctx, this.ellipsize(e.name(), w - 38), x + 32, y + 7, sel || hov ? this.TEXT : this.MUTED);
+        this.text(ctx, this.ellipsize(e.desc(), w - 38), x + 32, y + 18, this.DIM);
+        this.clipHit(x, y, w, h, (a, b, btn) -> {
+            if (!e.name().equals(this.extraKey)) {
+                this.extrasScroll = 0.0;
+            }
+            this.extraKey = e.name();
+            this.extraOpen = true;
+        });
+        String state = e.state() == null ? null : e.state().get();
+        int right = x + w - 6;
+        if (e.toggle() != null) {
+            this.switchAt(ctx, right - 22, y + h - 17, !"Off".equals(state));
+            // registered after the tile, so the switch wins the click
+            this.clipHit(right - 25, y + h - 20, 28, 18, (a, b, btn) -> e.toggle().run());
+            right -= 26;
+        } else if (state != null) {
+            boolean changed = !state.equals("Normal") && !state.equals("Off") && !state.equals("Vanilla") && !state.equals("Server time");
+            int pw = this.width(state) + 10;
+            StyleScreen.round(ctx, right - pw, y + h - 17, pw, 12.0f, 6.0f, changed ? this.ACCENT_SOFT : this.FIELD);
+            this.text(ctx, state, right - pw + 5, y + h - 15, changed ? this.ACCENT_HI : this.MUTED);
+            right -= pw + 4;
+        }
+        String group = e.group().toUpperCase(Locale.ROOT);
+        if (x + 8 + this.width(group) <= right) {
+            this.text(ctx, group, x + 8, y + h - 14, this.DIM);
+        }
+    }
+
+    /** The settings of one extra in a scrolling panel; back = narrow window, the panel replaces the tiles. */
+    private void drawExtraSettings(DrawContext ctx, Extra e, int x, int w, boolean back) {
+        int top = this.T + 34;
+        int bottom = this.bodyB;
+        this.glass(ctx, x, top, w, bottom - top, 12.0f, this.PANEL);
+        int px = x + EXTRA_PAD;
+        int pw = w - EXTRA_PAD * 2;
+        this.text(ctx, "EXTRAS  >  " + e.group().toUpperCase(Locale.ROOT), px, top + 10, this.DIM);
+        if (back) {
+            int bw = this.width("Back") + 18;
+            this.button(ctx, px + pw - bw, top + 5, bw, "Back", false, () -> {
+                this.extraOpen = false;
+            });
+        }
+        int y = top + (back ? 30 : 22);
+        this.text(ctx, this.ellipsize(e.desc(), pw), px, y, this.MUTED);
+        ctx.fill(px, y + 12, px + pw, y + 13, this.SEP);
+        int clipTop = y + 16;
+        int clipBottom = bottom - 6;
+        int bodyTop = this.bodyY;
+        int bodyBottom = this.bodyB;
+        // the controls clip their clicks to bodyY..bodyB
+        this.bodyY = clipTop;
+        this.bodyB = clipBottom;
+        ctx.enableScissor(x, clipTop, x + w, clipBottom);
+        e.drawer().draw(ctx, px, clipTop + 8 - (int)this.extrasScroll, pw);
+        ctx.disableScissor();
+        this.bodyY = bodyTop;
+        this.bodyB = bodyBottom;
+        this.extrasMax = Math.max(0, e.h() - EXTRA_PAD + 8 - (clipBottom - clipTop));
+        this.extrasScroll = StyleScreen.clamp(this.extrasScroll, 0.0, this.extrasMax);
+        this.scrollbar(ctx, x + w - 7, clipTop, clipBottom, this.extrasScroll, this.extrasMax);
     }
 
     private void drawKnifeOptions(DrawContext ctx, int x, int y, int w) {
@@ -1428,6 +1652,7 @@ extends Screen {
         this.drawPreview(ctx, "op|crystal|" + cs.id + "|" + co, () -> Previews.alpha(Previews.render(crystal, cs, null), co), x, y + 18, 26, 26, 2, false);
         this.sliderRow(ctx, x + 30, y + 18, half - 30, "End crystal", co, 10, 100, v -> {
             this.cfg.crystalOpacity = v;
+            this.beginLive("End crystal opacity", v + "%", v, 10, 100);
         });
         int sx = x + half + 8;
         StyleScreen.round(ctx, sx, y + 18, 26.0f, 26.0f, 6.0f, -2147086824);
@@ -1469,6 +1694,7 @@ extends Screen {
         });
         this.sliderRow(ctx, x, y + 80, w, "Size", this.cfg.nametagSize, 50, 200, v -> {
             this.cfg.nametagSize = v;
+            this.beginLive("Name tag size", v + "%", v, 50, 200);
         });
     }
 
@@ -1722,6 +1948,7 @@ extends Screen {
         if (!server) {
             this.sliderRow(ctx, x, y + 20 + ROW * 4, w, "Time", this.cfg.skyTime, 0, 23999, v -> {
                 this.cfg.skyTime = v;
+                this.beginLive("Sky time", StyleScreen.clock(v), v, 0, 23999);
             }, StyleScreen::clock);
         } else {
             this.text(ctx, this.ellipsize("Pick a skybox under Collections \u00b7 Sky", w), x, y + 20 + ROW * 4, this.DIM);
@@ -1739,18 +1966,48 @@ extends Screen {
             return;
         }
         HandPreview.show(stack);
+        this.beginLive(label, value + "%", value, min, max);
+    }
+
+    /** While a slider is dragged the menu hides, so the change shows in the world; only the slider stays. */
+    private void beginLive(String label, String shown, int value, int min, int max) {
+        if (this.client == null || this.client.world == null) {
+            return;
+        }
         this.liveHand = true;
         this.liveLabel = label;
+        this.liveText = shown;
         this.liveValue = value;
         this.liveMin = min;
         this.liveMax = max;
+    }
+
+    /** Closes the menu so an effect plays in the world, and opens it again where it was. */
+    private void showInWorld(Runnable effect, long ms) {
+        if (this.client != null && this.client.world != null) {
+            reopen = this;
+            reopenAt = System.currentTimeMillis() + ms;
+            this.client.setScreen(null);
+        }
+        effect.run();
+    }
+
+    public static void tickReopen(MinecraftClient client) {
+        if (reopen == null || System.currentTimeMillis() < reopenAt) {
+            return;
+        }
+        StyleScreen screen = reopen;
+        reopen = null;
+        if (client.currentScreen == null && client.world != null) {
+            client.setScreen((Screen)screen);
+        }
     }
 
     private void drawLiveHandSlider(DrawContext ctx) {
         int w = Math.min(360, Math.max(180, this.width - 48));
         int x = (this.width - w) / 2;
         int y = this.height - 52;
-        String shown = this.liveValue + "%";
+        String shown = this.liveText;
         StyleScreen.round(ctx, x - 10, y - 20, w + 20, 44, 10, 0xC8000000);
         this.text(ctx, this.ellipsize(this.liveLabel, w - this.width(shown) - 4), x, y - 12, this.TEXT);
         this.text(ctx, shown, x + w - this.width(shown), y - 12, this.ACCENT_HI);
@@ -1786,6 +2043,7 @@ extends Screen {
         this.section(ctx, "Crystal", x, y);
         this.sliderRow(ctx, x, y + 18, w, "Spin speed", this.cfg.crystalSpin, 0, 1000, v -> {
             this.cfg.crystalSpin = v;
+            this.beginLive("Crystal spin speed", v == 0 ? "Stopped" : v + "%", v, 0, 1000);
         }, v -> v == 0 ? "Stopped" : v + "%");
         int by = y + 46;
         if (by >= this.bodyY && by + 17 <= this.bodyB) {
@@ -1816,6 +2074,7 @@ extends Screen {
         this.section(ctx, "Fire & fog", x, y);
         this.sliderRow(ctx, x, y + 18, w, "Fire height", this.cfg.fireHeight, 10, 100, v -> {
             this.cfg.fireHeight = v;
+            this.beginLive("Fire height", v + "%", v, 10, 100);
         });
         this.toggleRow(ctx, x, y + 48, w, "No fog", this.cfg.noFog, () -> {
             this.cfg.noFog = !this.cfg.noFog;
@@ -1887,7 +2146,7 @@ extends Screen {
         });
         int by = sy + SLIDER_ROW + 24 + 16;
         if (by >= this.bodyY && by + BTN_H <= this.bodyB) {
-            this.pairButtons(ctx, x, by, w, "Test pop", TotemCounter::testPop, "Reset all", () -> {
+            this.pairButtons(ctx, x, by, w, "Test pop", () -> this.showInWorld(TotemCounter::testPop, 2200L), "Reset all", () -> {
                 this.cfg.handSize.clear();
                 this.cfg.popSize = 100;
                 Config.save();
@@ -1954,7 +2213,7 @@ extends Screen {
         int by = y + 58;
         ClientPlayerEntity class_7462 = player = this.client == null ? null : this.client.player;
         if (by >= this.bodyY && by + 17 <= this.bodyB && player != null && this.cfg.killEffect > 0) {
-            this.button(ctx, x, by, 0, "Try it", false, () -> KillEffects.play(this.cfg.killEffect, Mc.pos(player).add(player.getRotationVector().multiply(5.0, 0.0, 5.0)), (PlayerEntity)player));
+            this.button(ctx, x, by, 0, "Try it", false, () -> this.showInWorld(() -> KillEffects.play(this.cfg.killEffect, Mc.pos(player).add(player.getRotationVector().multiply(5.0, 0.0, 5.0)), (PlayerEntity)player), 2500L));
         }
     }
 
@@ -3219,6 +3478,8 @@ extends Screen {
         double d = -v * 24.0;
         if (mx < (double)this.sideR) {
             this.sideScroll = StyleScreen.clamp(this.sideScroll + d, 0.0, this.sideMax);
+        } else if (this.extras && mx < (double)this.extraSplitX) {
+            this.tileScroll = StyleScreen.clamp(this.tileScroll + d, 0.0, this.tileMax);
         } else if (this.extras || this.crosshairView) {
             this.extrasScroll = StyleScreen.clamp(this.extrasScroll + d, 0.0, this.extrasMax);
         } else {
@@ -3313,6 +3574,10 @@ extends Screen {
         float bw = ((float)w - (float)pad * 2.0f) * (float)sf;
         float bh = ((float)h - (float)pad * 2.0f) * (float)sf;
         float k = Math.min(bw / (float)th.w(), bh / (float)th.h());
+        if (k >= 3.0f) {
+            // pixel art: whole-number zoom, or texels come out in uneven widths
+            k = (float)Math.floor(k);
+        }
         int dw = Math.max(1, Math.round((float)th.w() * k));
         int dh = Math.max(1, Math.round((float)th.h() * k));
         Matrix3x2fStack m = ctx.getMatrices();
@@ -3349,10 +3614,14 @@ extends Screen {
         int tx = x + w - tw;
         String l = this.ellipsize(label, Math.max(8, w - tw - 8));
         this.text(ctx, l, x, y + 4, this.TEXT);
-        StyleScreen.round(ctx, tx, y + 3, tw, 12.0f, 6.0f, on ? this.TOGGLE_ON : this.TRACK);
-        StyleScreen.roundOutline(ctx, tx, y + 3, tw, 12.0f, 6.0f, on ? 0x66FFFFFF : 0x30FFFFFF, 0.0f);
-        StyleScreen.round(ctx, on ? (float)tx + 11.5f : (float)tx + 1.5f, (float)y + 4.5f, 9.0f, 9.0f, 4.5f, on ? -1 : this.DIM);
+        this.switchAt(ctx, tx, y + 3, on);
         this.clipHit(x, y, w, TOGGLE_H, (a, b, btn) -> r.run());
+    }
+
+    private void switchAt(DrawContext ctx, int tx, int y, boolean on) {
+        StyleScreen.round(ctx, tx, y, 22.0f, 12.0f, 6.0f, on ? this.TOGGLE_ON : this.TRACK);
+        StyleScreen.roundOutline(ctx, tx, y, 22.0f, 12.0f, 6.0f, on ? 0x66FFFFFF : 0x30FFFFFF, 0.0f);
+        StyleScreen.round(ctx, on ? (float)tx + 11.5f : (float)tx + 1.5f, (float)y + 1.5f, 9.0f, 9.0f, 4.5f, on ? -1 : this.DIM);
     }
 
     private void scrollbar(DrawContext ctx, int x, int top, int bottom, double scroll, int max) {
@@ -3529,13 +3798,9 @@ extends Screen {
         m.popMatrix();
     }
 
+    // GUI items are rastered at 16px x GUI scale, so they are only sharp unscaled.
     private static void item(DrawContext ctx, Categories.Category c, int x, int y) {
-        Matrix3x2fStack m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate((float)x, (float)y);
-        m.scale(0.625f, 0.625f);
-        ctx.drawItem(ICONS.computeIfAbsent(c.id(), k -> new ItemStack((ItemConvertible)c.icon())), 0, 0);
-        m.popMatrix();
+        ctx.drawItem(ICONS.computeIfAbsent(c.id(), k -> new ItemStack((ItemConvertible)c.icon())), x, y);
     }
 
     private static int lerp(int a, int b, float t) {
@@ -3695,6 +3960,10 @@ extends Screen {
     }
 
     private record Block(int h, BlockDrawer drawer) {
+    }
+
+    /** One extra: a tile plus its settings. state "Off" = switched off; toggle null = the tile shows state as a value. */
+    private record Extra(String name, String group, ItemConvertible icon, String desc, int h, BlockDrawer drawer, Supplier<String> state, Runnable toggle) {
     }
 
     private static interface BlockDrawer {
