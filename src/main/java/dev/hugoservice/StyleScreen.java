@@ -1256,6 +1256,24 @@ extends Screen {
         return Math.max(4, (CHIP_H - 8) / 2);
     }
 
+    private int swatchCols(int w) {
+        return Math.max(1, (w + CHIP_GAP) / (CHIP_PAD + CHIP_GAP));
+    }
+
+    private int swatchRows(int w) {
+        int cols = this.swatchCols(w);
+        return (SWATCHES.length + cols - 1) / cols;
+    }
+
+    private int colorPickerH(int w) {
+        int rows = this.swatchRows(w);
+        return rows * CHIP_H + (rows - 1) * CHIP_GAP + EXTRA_GAP + 8;
+    }
+
+    private int fxBlockH(int w) {
+        return 18 + 56 + EXTRA_GAP + this.colorPickerH(w);
+    }
+
     private int measureChipRows(int w, String[] labels) {
         int cx = 0;
         int rows = 1;
@@ -1296,35 +1314,38 @@ extends Screen {
     /** Every extra as a tile; w is the width its settings get (some heights depend on it). */
     private List<Extra> extraList(int w) {
         Config c = this.cfg;
+        int fx = this.fxBlockH(w);
+        int ph = this.colorPickerH(w);
         ArrayList<Extra> list = new ArrayList<Extra>();
-        list.add(this.fxExtra("Hit colour", "Combat", Items.REDSTONE, "Flash colour when hit", extraGlass(136), "hit", (ctx, x, y, bw) -> {
+        list.add(this.fxExtra("Hit colour", "Combat", Items.REDSTONE, "Flash colour when hit", extraCard(fx + EXTRA_GAP + 24), "hit", (ctx, x, y, bw) -> {
             this.fxBlock(ctx, x, y, bw, "Hit colour", "hit", "Red flash when hit", Previews::hit);
-            this.sliderRow(ctx, x, y + 88, bw, "Strength", c.hitStrength, 5, 100, v -> {
+            this.sliderRow(ctx, x, y + this.fxBlockH(bw) + EXTRA_GAP, bw, "Strength", c.hitStrength, 5, 100, v -> {
                 c.hitStrength = v;
                 Fx.applyHitColor();
             });
         }));
-        list.add(this.fxExtra("Hitbox colour", "Combat", Items.TARGET, "Shown with F3 + B", extraGlass(108), "hitbox", (ctx, x, y, bw) -> this.fxBlock(ctx, x, y, bw, "Hitbox colour", "hitbox", "Shown with F3 + B", Previews::outline)));
-        list.add(this.fxExtra("Player glow", "Combat", Items.ARMOR_STAND, "Outline while visible", extraGlass(180), "glow", (ctx, x, y, bw) -> {
+        list.add(this.fxExtra("Hitbox colour", "Combat", Items.TARGET, "Shown with F3 + B", extraCard(fx), "hitbox", (ctx, x, y, bw) -> this.fxBlock(ctx, x, y, bw, "Hitbox colour", "hitbox", "Shown with F3 + B", Previews::outline)));
+        list.add(this.fxExtra("Player glow", "Combat", Items.ARMOR_STAND, "Outline while visible", extraCard(fx + EXTRA_GAP + ROW + TOGGLE_H + EXTRA_GAP + 24), "glow", (ctx, x, y, bw) -> {
             this.fxBlock(ctx, x, y, bw, "Player glow", "glow", "Only while visible", Previews::glow);
-            this.toggleRow(ctx, x, y + 88, bw, "Myself (F5)", c.glowSelf, () -> {
+            int gy = y + this.fxBlockH(bw) + EXTRA_GAP;
+            this.toggleRow(ctx, x, gy, bw, "Myself (F5)", c.glowSelf, () -> {
                 c.glowSelf = !c.glowSelf;
                 Config.save();
             });
-            this.toggleRow(ctx, x, y + 88 + ROW, bw, "Rainbow", c.glowRainbow, () -> {
+            this.toggleRow(ctx, x, gy + ROW, bw, "Rainbow", c.glowRainbow, () -> {
                 c.glowRainbow = !c.glowRainbow;
                 Config.save();
             });
-            this.sliderRow(ctx, x, y + 88 + ROW * 2, bw, "Thickness (on Apply)", c.glowWidth, 1, 8, v -> {
+            this.sliderRow(ctx, x, gy + ROW + TOGGLE_H + EXTRA_GAP, bw, "Thickness (on Apply)", c.glowWidth, 1, 8, v -> {
                 c.glowWidth = v;
                 this.dirty = true;
             }, String::valueOf);
         }));
-        list.add(new Extra("Crystal", "Combat", Items.END_CRYSTAL, "Spin speed and core colour", extraGlass(136), this::drawCrystalOptions, () -> c.crystalSpin == 0 ? "Stopped" : StyleScreen.percent(c.crystalSpin), null));
+        list.add(new Extra("Crystal", "Combat", Items.END_CRYSTAL, "Spin speed and core colour", extraCard(18 + SLIDER_ROW + BTN_H + EXTRA_GAP + TOGGLE_H + (c.crystalCore != null ? EXTRA_GAP + ph : 12)), this::drawCrystalOptions, () -> c.crystalSpin == 0 ? "Stopped" : StyleScreen.percent(c.crystalSpin), null));
         list.add(new Extra("Item size in hand", "Combat", Items.GOLDEN_APPLE, "Size per item, totem pop", this.handSizeHeight(w), this::drawHandSize, () -> c.handSize.isEmpty() && c.popSize == 100 ? "Normal" : "Changed", null));
         list.add(new Extra("Opacity", "Combat", Items.GLASS, "See-through crystal and shield", extraGlass(112), this::drawOpacity, () -> c.crystalOpacity >= 100 && c.shieldOpacity >= 100 ? "Normal" : "Changed", null));
-        list.add(this.fxExtra("Shield status", "Combat", Items.SHIELD, "Colour when ready or disabled", extraGlass(196), "shield", this::drawShieldStatus));
-        list.add(new Extra("Anchor charge", "Combat", Items.RESPAWN_ANCHOR, "Glow colour, look full", extraGlass(c.anchorGlow != null ? 128 : 100), this::drawAnchorCharge, () -> StyleScreen.onOff(c.anchorGlow != null), () -> {
+        list.add(this.fxExtra("Shield status", "Combat", Items.SHIELD, "Colour when ready or disabled", extraCard(18 + 56 + EXTRA_GAP + 12 + ph + EXTRA_GAP + 12 + ph), "shield", this::drawShieldStatus));
+        list.add(new Extra("Anchor charge", "Combat", Items.RESPAWN_ANCHOR, "Glow colour, look full", extraCard(18 + TOGGLE_H + (c.anchorGlow != null ? EXTRA_GAP + ph : 0) + EXTRA_GAP + TOGGLE_H + ROW + 12), this::drawAnchorCharge, () -> StyleScreen.onOff(c.anchorGlow != null), () -> {
             c.anchorGlow = c.anchorGlow == null ? Integer.valueOf(11766015) : null;
             this.changed();
         }));
@@ -1339,22 +1360,22 @@ extends Screen {
                 Config.save();
             }));
         }
-        list.add(this.fxExtra("Block outline", "World", Items.GRASS_BLOCK, "Colour and thickness", extraGlass(136), "outline", (ctx, x, y, bw) -> {
+        list.add(this.fxExtra("Block outline", "World", Items.GRASS_BLOCK, "Colour and thickness", extraCard(fx + EXTRA_GAP + 24), "outline", (ctx, x, y, bw) -> {
             this.fxBlock(ctx, x, y, bw, "Block outline", "outline", "Block you look at", Previews::outline);
-            this.sliderRow(ctx, x, y + 88, bw, "Thickness", c.outlineWidth, 1, 10, v -> {
+            this.sliderRow(ctx, x, y + this.fxBlockH(bw) + EXTRA_GAP, bw, "Thickness", c.outlineWidth, 1, 10, v -> {
                 c.outlineWidth = v;
                 this.beginLive("Block outline thickness", String.valueOf(v), v, 1, 10);
             }, String::valueOf);
         }));
         list.add(new Extra("Fire & fog", "World", Items.BLAZE_POWDER, "Lower fire, no fog", extraGlass(100), this::drawFireFog, () -> c.fireHeight == 100 && !c.noFog ? "Normal" : "Changed", null));
-        list.add(new Extra("Enchant glint", "World", Items.EXPERIENCE_BOTTLE, "Colour, gradient, rainbow", extraGlass(c.glintMode == 2 ? 124 : (c.glintMode == 1 ? 92 : 64)), this::drawGlint, () -> Glint.MODES[Math.floorMod(c.glintMode, 4)], null));
+        list.add(new Extra("Enchant glint", "World", Items.EXPERIENCE_BOTTLE, "Colour, gradient, rainbow", extraCard(18 + CHIP_H + (c.glintMode == 1 || c.glintMode == 2 ? EXTRA_GAP + ph : 0) + (c.glintMode == 2 ? EXTRA_GAP + 12 + ph : 0)), this::drawGlint, () -> Glint.MODES[Math.floorMod(c.glintMode, 4)], null));
         list.add(new Extra("Sky", "World", Items.CLOCK, "Rotation, sun and time", extraGlass(164), this::drawSkyOptions, () -> c.skyTime < 0 ? "Server time" : StyleScreen.clock(c.skyTime), null));
         list.add(new Extra("Monochrome", "World", Items.GRAY_DYE, "Grey world, keep some colour", this.greyWorldHeight(w), this::drawGreyWorld, () -> StyleScreen.onOff(c.greyWorld), () -> {
             c.greyWorld = !c.greyWorld;
             this.changed();
         }));
-        list.add(new Extra("Grass colour", "World", Items.FERN, "Own grass tint", extraGlass(112), (ctx, x, y, bw) -> this.drawColorBlock(ctx, StyleScreen.grassGroup(), x, y, bw), () -> StyleScreen.onOff(c.colorOf("grass") != null), null));
-        list.add(this.fxExtra("Name tags", "World", Items.NAME_TAG, "Colour and size", extraGlass(120), "nametag", this::drawNametags));
+        list.add(new Extra("Grass colour", "World", Items.FERN, "Own grass tint", extraCard(18 + TOGGLE_H + EXTRA_GAP + 56 + EXTRA_GAP + ph + 14), (ctx, x, y, bw) -> this.drawColorBlock(ctx, StyleScreen.grassGroup(), x, y, bw), () -> StyleScreen.onOff(c.colorOf("grass") != null), null));
+        list.add(this.fxExtra("Name tags", "World", Items.NAME_TAG, "Colour and size", extraCard(fx + EXTRA_GAP + 24), "nametag", this::drawNametags));
         list.add(new Extra("Explosions", "World", Items.TNT, "Fewer explosion particles", extraGlass(100), this::drawExplosionOptions, () -> Math.floorMod(c.explosionOptimize, 3) == 0 ? "Off" : "Level " + Math.floorMod(c.explosionOptimize, 3), null));
         list.add(new Extra("FPS optimizer", "World", Items.SUGAR, "Entity and particle culling", extraGlass(160), this::drawFpsOptions, () -> StyleScreen.onOff(c.fpsCulling), () -> {
             c.fpsCulling = !c.fpsCulling;
@@ -1382,9 +1403,9 @@ extends Screen {
         int body = this.bodyY;
         int full = this.cx1 - this.cx0;
         boolean split = full >= 480;
-        int setW = split ? (int)StyleScreen.clamp((double)full * 0.38, 190.0, 260.0) : full;
-        int gridW = split ? full - setW - UI_PAD : full;
-        List<Extra> all = this.extraList(setW - UI_PAD * 2);
+        int setW = split ? (int)StyleScreen.clamp((double)full * 0.42, 200.0, 280.0) : full;
+        int gridW = split ? full - setW - EXTRA_GAP : full;
+        List<Extra> all = this.extraList(setW - EXTRA_PAD * 2);
         Extra picked = all.getFirst();
         for (Extra e : all) {
             if (!e.name().equals(this.extraKey)) continue;
@@ -1497,8 +1518,8 @@ extends Screen {
         int top = this.T + 34;
         int bottom = this.bodyB;
         this.glass(ctx, x, top, w, bottom - top, 12.0f, this.PANEL);
-        int px = x + UI_PAD;
-        int pw = w - UI_PAD * 2;
+        int px = x + EXTRA_PAD;
+        int pw = w - EXTRA_PAD * 2;
         this.text(ctx, "EXTRAS  >  " + e.group().toUpperCase(Locale.ROOT), px, top + 10, this.DIM);
         if (back) {
             int bw = this.width("Back") + 18;
@@ -1624,16 +1645,16 @@ extends Screen {
         Integer color = this.cfg.fx(key);
         int shown = this.cfg.fxColorOf(key);
         this.previewBox(ctx, "fx|" + title + "|" + shown, () -> preview.make(shown), x, y + 18, color != null);
-        int rx = x + 56 + UI_GAP;
-        int rw = w - 56 - UI_GAP;
+        int rx = x + 56 + EXTRA_GAP;
+        int rw = w - 56 - EXTRA_GAP;
         this.toggleRow(ctx, rx, y + 18, rw, "Enabled", color != null, () -> {
             if (!this.cfg.fxOn.remove(key)) {
                 this.cfg.fxOn.add(key);
             }
             this.fxChanged(key);
         });
-        this.text(ctx, this.ellipsize(hint, rw), rx, y + 18 + TOGGLE_H, this.DIM);
-        this.colorPicker(ctx, rx, y + 18 + TOGGLE_H + 14, rw, shown, rgb -> {
+        this.text(ctx, this.ellipsize(hint, rw), rx, y + 18 + TOGGLE_H + 4, this.DIM);
+        this.colorPicker(ctx, x, y + 18 + 56 + EXTRA_GAP, w, shown, rgb -> {
             this.cfg.fxColor.put(key, rgb);
             this.cfg.fxOn.add(key);
             this.fxChanged(key);
@@ -1694,20 +1715,20 @@ extends Screen {
         ctx.fill(-tw / 2 - 2, -6, tw / 2 + 2, 5, 0x40000000);
         ctx.drawText(this.textRenderer, name, -tw / 2, -4, 0xFF000000 | (color == null ? 0xFFFFFF : color), false);
         m.popMatrix();
-        int rx = x + 56 + 8;
-        int rw = w - 56 - 8;
+        int rx = x + 56 + EXTRA_GAP;
+        int rw = w - 56 - EXTRA_GAP;
         this.toggleRow(ctx, rx, y + 18, rw, "Own colour", color != null, () -> {
             if (!this.cfg.fxOn.remove("nametag")) {
                 this.cfg.fxOn.add("nametag");
             }
             Config.save();
         });
-        this.colorPicker(ctx, rx, y + 34, rw, this.cfg.fxColorOf("nametag"), rgb -> {
+        this.colorPicker(ctx, x, y + 18 + 56 + EXTRA_GAP, w, this.cfg.fxColorOf("nametag"), rgb -> {
             this.cfg.fxColor.put("nametag", rgb);
             this.cfg.fxOn.add("nametag");
             Config.save();
         });
-        this.sliderRow(ctx, x, y + 80, w, "Size", this.cfg.nametagSize, 50, 200, v -> {
+        this.sliderRow(ctx, x, y + this.fxBlockH(w) + EXTRA_GAP, w, "Size", this.cfg.nametagSize, 50, 200, v -> {
             this.cfg.nametagSize = v;
             this.beginLive("Name tag size", v + "%", v, 50, 200);
         });
@@ -2060,28 +2081,29 @@ extends Screen {
             this.cfg.crystalSpin = v;
             this.beginLive("Crystal spin speed", v == 0 ? "Stopped" : v + "%", v, 0, 1000);
         }, v -> v == 0 ? "Stopped" : v + "%");
-        int by = y + 46;
-        if (by >= this.bodyY && by + 17 <= this.bodyB) {
+        int by = y + 18 + SLIDER_ROW;
+        if (by >= this.bodyY && by + BTN_H <= this.bodyB) {
             int bx = x + this.button(ctx, x, by, 0, "Stop", false, () -> {
                 this.cfg.crystalSpin = 0;
                 Config.save();
-            }) + UI_GAP;
+            }) + CHIP_GAP;
             this.button(ctx, bx, by, 0, "Reset", false, () -> {
                 this.cfg.crystalSpin = 100;
                 Config.save();
             });
         }
-        this.toggleRow(ctx, x, y + 68, w, "Own core colour", this.cfg.crystalCore != null, () -> {
+        int ty = by + BTN_H + EXTRA_GAP;
+        this.toggleRow(ctx, x, ty, w, "Own core colour", this.cfg.crystalCore != null, () -> {
             this.cfg.crystalCore = this.cfg.crystalCore == null ? Integer.valueOf(16735432) : null;
             Config.save();
         });
         if (this.cfg.crystalCore != null) {
-            this.colorPicker(ctx, x, y + 84, w, this.cfg.crystalCore, rgb -> {
+            this.colorPicker(ctx, x, ty + TOGGLE_H + EXTRA_GAP, w, this.cfg.crystalCore, rgb -> {
                 this.cfg.crystalCore = rgb;
                 Config.save();
             });
         } else {
-            this.text(ctx, this.ellipsize("The core inside the glass", w), x, y + 86, this.DIM);
+            this.text(ctx, this.ellipsize("The core inside the glass", w), x, ty + TOGGLE_H + 4, this.DIM);
         }
     }
 
@@ -2180,15 +2202,17 @@ extends Screen {
         this.chipRow(ctx, x, y + 18, w, "Glint", Glint.MODES[Math.floorMod(this.cfg.glintMode, 4)], btn -> {
             this.cfg.glintMode = Math.floorMod(this.cfg.glintMode + (btn == 1 ? -1 : 1), 4);
         });
+        int cy = y + 18 + CHIP_H + EXTRA_GAP;
         if (this.cfg.glintMode == 1 || this.cfg.glintMode == 2) {
-            this.colorPicker(ctx, x, y + 40, w, this.cfg.glintColor, rgb -> {
+            this.colorPicker(ctx, x, cy, w, this.cfg.glintColor, rgb -> {
                 this.cfg.glintColor = rgb;
                 Config.save();
             });
+            cy += this.colorPickerH(w) + EXTRA_GAP;
         }
         if (this.cfg.glintMode == 2) {
-            this.text(ctx, "Fades to", x, y + 68, this.MUTED);
-            this.colorPicker(ctx, x, y + 78, w, this.cfg.glintColor2, rgb -> {
+            this.text(ctx, "Fades to", x, cy, this.MUTED);
+            this.colorPicker(ctx, x, cy + 12, w, this.cfg.glintColor2, rgb -> {
                 this.cfg.glintColor2 = rgb;
                 Config.save();
             });
@@ -2197,17 +2221,17 @@ extends Screen {
 
     private void drawAnchorCharge(DrawContext ctx, int x, int y, int w) {
         this.section(ctx, "Anchor charge", x, y);
-        this.toggleRow(ctx, x, y + 17, w, "Own glow colour", this.cfg.anchorGlow != null, () -> {
+        this.toggleRow(ctx, x, y + 18, w, "Own glow colour", this.cfg.anchorGlow != null, () -> {
             this.cfg.anchorGlow = this.cfg.anchorGlow == null ? Integer.valueOf(11766015) : null;
             this.changed();
         });
-        int ry = y + 33;
+        int ry = y + 18 + TOGGLE_H + EXTRA_GAP;
         if (this.cfg.anchorGlow != null) {
             this.colorPicker(ctx, x, ry, w, this.cfg.anchorGlow, rgb -> {
                 this.cfg.anchorGlow = rgb;
                 this.changed();
             });
-            ry += 24;
+            ry += this.colorPickerH(w) + EXTRA_GAP;
         }
         this.toggleRow(ctx, x, ry, w, "Look full at 1 charge", this.cfg.anchorFullAtOne, () -> {
             this.cfg.anchorFullAtOne = !this.cfg.anchorFullAtOne;
@@ -2217,7 +2241,7 @@ extends Screen {
             this.cfg.anchorGlowPixels = !this.cfg.anchorGlowPixels;
             this.changed();
         });
-        this.text(ctx, this.ellipsize("Charge lights glow in the dark  \u00b7  on Apply", w), x, ry + 33, this.DIM);
+        this.text(ctx, this.ellipsize("Charge lights glow in the dark  \u00b7  on Apply", w), x, ry + ROW + TOGGLE_H + 4, this.DIM);
     }
 
     private void drawKillEffect(DrawContext ctx, int x, int y, int w) {
@@ -2272,24 +2296,25 @@ extends Screen {
         int ready = this.cfg.fxColorOf("shield");
         int off = this.cfg.fxColorOf("shield_off");
         this.previewBox(ctx, "fx|shield|" + ready + "|" + off, () -> Previews.shield(ready, off), x, y + 18, on);
-        int rx = x + 56 + UI_GAP;
-        int rw = w - 56 - UI_GAP;
+        int rx = x + 56 + EXTRA_GAP;
+        int rw = w - 56 - EXTRA_GAP;
         this.toggleRow(ctx, rx, y + 18, rw, "Enabled", on, () -> {
             if (!this.cfg.fxOn.remove("shield")) {
                 this.cfg.fxOn.add("shield");
             }
             Config.save();
         });
-        this.text(ctx, this.ellipsize("Your shield, first person", rw), rx, y + 18 + TOGGLE_H, this.DIM);
-        int cy = y + 18 + 56 + UI_GAP;
+        this.text(ctx, this.ellipsize("Your shield, first person", rw), rx, y + 18 + TOGGLE_H + 4, this.DIM);
+        int cy = y + 18 + 56 + EXTRA_GAP;
         this.text(ctx, "Ready", x, cy, this.MUTED);
         this.colorPicker(ctx, x, cy + 12, w, ready, rgb -> {
             this.cfg.fxColor.put("shield", rgb);
             this.cfg.fxOn.add("shield");
             Config.save();
         });
-        this.text(ctx, "Disabled by axe", x, cy + 12 + 32, this.MUTED);
-        this.colorPicker(ctx, x, cy + 12 + 44, w, off, rgb -> {
+        int oy = cy + 12 + this.colorPickerH(w) + EXTRA_GAP;
+        this.text(ctx, "Disabled by axe", x, oy, this.MUTED);
+        this.colorPicker(ctx, x, oy + 12, w, off, rgb -> {
             this.cfg.fxColor.put("shield_off", rgb);
             this.cfg.fxOn.add("shield");
             Config.save();
@@ -2303,31 +2328,30 @@ extends Screen {
         Config.save();
     }
 
-    private int colorPickerH() {
-        return 11 + 6 + 8;
-    }
-
     private void colorPicker(DrawContext ctx, int x, int y, int w, Integer current, IntConsumer set) {
         float[] hsb;
         int n = SWATCHES.length;
-        int sw = Math.max(8, (w - (n - 1) * DOT_GAP) / n);
+        int cols = this.swatchCols(w);
+        int rows = this.swatchRows(w);
+        int sw = Math.max(CHIP_PAD, (w - (cols - 1) * CHIP_GAP) / cols);
         for (int i = 0; i < n; ++i) {
             int rgb = SWATCHES[i];
-            int bx = x + i * (sw + DOT_GAP);
-            float r = Math.min(sw, 11) / 2.0f;
+            int bx = x + i % cols * (sw + CHIP_GAP);
+            int by = y + i / cols * (CHIP_H + CHIP_GAP);
+            float r = Math.min(sw, CHIP_H) / 2.0f;
             if (current != null && rgb == current) {
-                StyleScreen.roundOutline(ctx, (float)bx - 1.5f, (float)y - 1.5f, sw + 3, 14.0f, r + 1.5f, -1, 1.0f);
-            } else if (this.over(bx, y, sw, 11)) {
-                StyleScreen.roundOutline(ctx, (float)bx - 1.5f, (float)y - 1.5f, sw + 3, 14.0f, r + 1.5f, -2130706433, 1.0f);
+                StyleScreen.roundOutline(ctx, (float)bx - 1.5f, (float)by - 1.5f, sw + 3, CHIP_H + 3, r + 1.5f, -1, 1.0f);
+            } else if (this.over(bx, by, sw, CHIP_H)) {
+                StyleScreen.roundOutline(ctx, (float)bx - 1.5f, (float)by - 1.5f, sw + 3, CHIP_H + 3, r + 1.5f, -2130706433, 1.0f);
             }
-            StyleScreen.round(ctx, bx, y, sw, 11.0f, r, 0xFF000000 | rgb);
+            StyleScreen.round(ctx, bx, by, sw, CHIP_H, r, 0xFF000000 | rgb);
             if ((rgb >> 16 & 0xFF) + (rgb >> 8 & 0xFF) + (rgb & 0xFF) < 300) {
-                StyleScreen.rim(ctx, bx, y, sw, 11.0f, r, 0x70FFFFFF);
+                StyleScreen.rim(ctx, bx, by, sw, CHIP_H, r, 0x70FFFFFF);
             }
-            this.clipHit(bx, y, sw, 11, (a, b, btn) -> set.accept(rgb));
+            this.clipHit(bx, by, sw, CHIP_H, (a, b, btn) -> set.accept(rgb));
         }
-        int ry = y + 17;
-        int rw = sw * n + (n - 1) * DOT_GAP;
+        int ry = y + rows * CHIP_H + (rows - 1) * CHIP_GAP + EXTRA_GAP;
+        int rw = cols * sw + (cols - 1) * CHIP_GAP;
         ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Thumbs.rainbow(), x, ry, 0.0f, 0.0f, rw, 8, 128, 1, 128, 1);
         if (current != null && (hsb = Color.RGBtoHSB(current >> 16 & 0xFF, current >> 8 & 0xFF, current & 0xFF, null))[1] > 0.6f && hsb[1] < 0.8f && hsb[2] > 0.95f) {
             float mx2 = (float)x + hsb[0] * (float)(rw - 1);
@@ -2345,7 +2369,7 @@ extends Screen {
     }
 
     private int crosshairHeight(int w) {
-        return extraCard(16 + 15 * this.cellSize(w) + 8 + 24 + 16);
+        return extraCard(16 + 15 * this.cellSize(w) + EXTRA_GAP + this.colorPickerH(w));
     }
 
     private void drawCrosshairTab(DrawContext ctx) {
@@ -2353,7 +2377,7 @@ extends Screen {
         this.text(ctx, this.ellipsize("Your own crosshair, drawn by the mod  \u00b7  changes show at once", this.cx1 - this.cx0), this.cx0, this.T + 48, this.MUTED);
         int inner = this.blockInner();
         boolean pixel = this.cfg.chStyle.equals("pixel");
-        this.layoutBlocks(ctx, List.of(new Block(this.chMainHeight(inner), this::drawChMain), new Block(this.chPresetsHeight(inner), this::drawChPresets), pixel ? new Block(this.crosshairHeight(inner), this::drawCrosshairPainter) : new Block(extraGlass(160), this::drawChShape), new Block(extraGlass(this.cfg.chGradient ? 148 : 118), this::drawChColour), new Block(extraGlass(128), this::drawChIndicator)));
+        this.layoutBlocks(ctx, List.of(new Block(this.chMainHeight(inner), this::drawChMain), new Block(this.chPresetsHeight(inner), this::drawChPresets), pixel ? new Block(this.crosshairHeight(inner), this::drawCrosshairPainter) : new Block(extraGlass(160), this::drawChShape), new Block(this.chColourHeight(inner), this::drawChColour), new Block(this.chIndicatorHeight(inner), this::drawChIndicator)));
     }
 
     private int chMainHeight(int w) {
@@ -2462,26 +2486,43 @@ extends Screen {
         }, v -> v == 0 ? "Off" : v + " px");
     }
 
+    private int chColourHeight(int w) {
+        int ph = this.colorPickerH(w);
+        int h = 18 + ph + EXTRA_GAP + SLIDER_ROW + TOGGLE_H;
+        if (this.cfg.chGradient) {
+            h += EXTRA_GAP + 12 + ph;
+        }
+        return extraCard(h);
+    }
+
     private void drawChColour(DrawContext ctx, int x, int y, int w) {
         this.section(ctx, "Colour", x, y);
-        this.colorPicker(ctx, x, y + 18, w, this.cfg.chColor, rgb -> {
+        int cy = y + 18;
+        this.colorPicker(ctx, x, cy, w, this.cfg.chColor, rgb -> {
             this.cfg.chColor = rgb;
             this.painted = true;
         });
-        this.sliderRow(ctx, x, y + 50, w, "Opacity", this.cfg.chAlpha, 10, 100, v -> {
+        cy += this.colorPickerH(w) + EXTRA_GAP;
+        this.sliderRow(ctx, x, cy, w, "Opacity", this.cfg.chAlpha, 10, 100, v -> {
             this.cfg.chAlpha = v;
         });
-        this.toggleRow(ctx, x, y + 78, w, "Gradient", this.cfg.chGradient, () -> {
+        cy += SLIDER_ROW;
+        this.toggleRow(ctx, x, cy, w, "Gradient", this.cfg.chGradient, () -> {
             this.cfg.chGradient = !this.cfg.chGradient;
             Config.save();
         });
         if (this.cfg.chGradient) {
-            this.text(ctx, "Fades to", x, y + 94, this.MUTED);
-            this.colorPicker(ctx, x, y + 104, w, this.cfg.chColor2, rgb -> {
+            cy += TOGGLE_H + EXTRA_GAP;
+            this.text(ctx, "Fades to", x, cy, this.MUTED);
+            this.colorPicker(ctx, x, cy + 12, w, this.cfg.chColor2, rgb -> {
                 this.cfg.chColor2 = rgb;
                 this.painted = true;
             });
         }
+    }
+
+    private int chIndicatorHeight(int w) {
+        return extraCard(20 + ROW * 2 + TOGGLE_H + EXTRA_GAP + this.colorPickerH(w));
     }
 
     private void drawChIndicator(DrawContext ctx, int x, int y, int w) {
@@ -2498,7 +2539,7 @@ extends Screen {
             this.cfg.chEntityMarker = !this.cfg.chEntityMarker;
             Config.save();
         });
-        this.colorPicker(ctx, x, y + 20 + ROW * 3, w, this.cfg.chEntityColor, rgb -> {
+        this.colorPicker(ctx, x, y + 20 + ROW * 2 + TOGGLE_H + EXTRA_GAP, w, this.cfg.chEntityColor, rgb -> {
             this.cfg.chEntityColor = rgb;
             this.painted = true;
         });
@@ -2585,7 +2626,7 @@ extends Screen {
         });
         this.text(ctx, "L paint", bx, gy + 58, this.DIM);
         this.text(ctx, "R erase", bx, gy + 69, this.DIM);
-        this.colorPicker(ctx, x, gy + G + 8, w, this.cfg.paintColor, rgb -> {
+        this.colorPicker(ctx, x, gy + G + EXTRA_GAP, w, this.cfg.paintColor, rgb -> {
             this.cfg.paintColor = rgb;
         });
     }
@@ -3155,50 +3196,22 @@ extends Screen {
     }
 
     private void drawColorBlock(DrawContext ctx, Categories.Group g, int x, int y, int w) {
-        float[] hsb;
         Categories.Category owner = Categories.ALL.stream().filter(c -> c.groups().contains(g)).findFirst().orElse(this.cat);
         this.section(ctx, (String)(owner.groups().size() > 1 ? owner.name() + " \u00b7 " + g.name() : g.name()), x, y);
         Integer color = this.cfg.colorOf(g.id());
-        this.toggleRow(ctx, x, y + 16, w, "Own colour", color != null, () -> {
+        this.toggleRow(ctx, x, y + 18, w, "Own colour", color != null, () -> {
             if (!this.cfg.ownColorOn.remove(g.id())) {
                 this.cfg.ownColorOn.add(g.id());
             }
             this.changed();
         });
-        int py = y + 31;
-        int ps = 49;
-        StyleScreen.roundGradient(ctx, x, py, ps, ps, 7.0f, this.CARD_TOP, this.CARD_BOT, true, true);
-        this.drawThumb(ctx, g, this.selected(g), color, x, py, ps, ps, 4, false);
-        int sx = x + ps + 8;
-        int sw = (w - ps - 8 - 12) / 4;
-        int current = color == null ? -1 : color;
-        for (int i = 0; i < 8; ++i) {
-            int rgb = SWATCHES[i];
-            int bx = sx + i % 4 * (sw + 4);
-            int by = py + i / 4 * 14;
-            if (rgb == current) {
-                StyleScreen.roundOutline(ctx, (float)bx - 1.5f, (float)by - 1.5f, sw + 3, 13.0f, 5.5f, -1, 1.0f);
-            } else if (this.over(bx, by, sw, 10)) {
-                StyleScreen.roundOutline(ctx, (float)bx - 1.5f, (float)by - 1.5f, sw + 3, 13.0f, 5.5f, -2130706433, 1.0f);
-            }
-            StyleScreen.round(ctx, bx, by, sw, 10.0f, 4.0f, 0xFF000000 | rgb);
-            this.clipHit(bx, by, sw, 10, (a, b, btn) -> this.setColor(g, rgb));
-        }
-        int rx = sx;
-        int ry = py + 31;
-        int rw = w - ps - 8;
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Thumbs.rainbow(), rx, ry, 0.0f, 0.0f, rw, 6, 128, 1, 128, 1);
-        if (color != null && (hsb = Color.RGBtoHSB(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF, null))[1] > 0.6f && hsb[1] < 0.8f && hsb[2] > 0.95f) {
-            float mx2 = (float)rx + hsb[0] * (float)(rw - 1);
-            StyleScreen.round(ctx, mx2 - 3.0f, (float)ry - 1.5f, 6.0f, 9.0f, 3.0f, -1);
-            StyleScreen.round(ctx, mx2 - 2.0f, (float)ry - 0.5f, 4.0f, 7.0f, 2.0f, 0xFF000000 | color);
-        }
-        this.dragHit(rx, ry - 3, rw, 12, (mx, my, btn) -> {
-            float h = (float)StyleScreen.clamp((mx - (double)rx) / (double)Math.max(1, rw - 1), 0.0, 0.999);
-            this.setColor(g, Color.HSBtoRGB(h, 0.7f, 1.0f) & 0xFFFFFF);
-        });
+        int py = y + 18 + TOGGLE_H + EXTRA_GAP;
+        StyleScreen.roundGradient(ctx, x, py, 56.0f, 56.0f, 7.0f, this.CARD_TOP, this.CARD_BOT, true, true);
+        this.drawThumb(ctx, g, this.selected(g), color, x, py, 56, 56, 5, false);
+        int cy = py + 56 + EXTRA_GAP;
+        this.colorPicker(ctx, x, cy, w, color, rgb -> this.setColor(g, rgb));
         String hex = color == null ? "Off" : String.format("#%06X", color);
-        this.text(ctx, hex, sx, py + 41, color == null ? this.DIM : this.MUTED);
+        this.text(ctx, hex, x, cy + this.colorPickerH(w) + 4, color == null ? this.DIM : this.MUTED);
     }
 
     private void setColor(Categories.Group g, int rgb) {
