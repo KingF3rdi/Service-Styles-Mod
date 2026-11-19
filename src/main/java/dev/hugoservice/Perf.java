@@ -55,6 +55,9 @@ public final class Perf {
             if (mc.player == null || entity == mc.player) {
                 return false;
             }
+            if (mc.world == null || mc.world.getEntityById(entity.getId()) != entity) {
+                return false;
+            }
             double max = Math.max(16, Config.INSTANCE.cullDistance);
             return entity.squaredDistanceTo((Entity) mc.player) > max * max;
         } catch (Throwable ignored) {
