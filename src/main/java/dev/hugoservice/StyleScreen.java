@@ -787,6 +787,7 @@ extends Screen {
                 x += bw + gap;
             }
             yy += h + 4;
+            if (!center) break; // the header has room for one row; a second one sat on the Extras / Themes buttons
         }
         return yy - y;
     }
@@ -857,7 +858,9 @@ extends Screen {
         int sx = x0 + 5;
         int sy = top + 5;
         int sw = w - 10;
-        int half = sw / 2;
+        // split by label width, so "Collections" is not cut off next to the shorter "Extras"
+        int cw = this.width("Collections") + 12;
+        int half = sw * cw / (cw + this.width("Extras") + 12);
         StyleScreen.round(ctx, sx, sy, sw, 18.0f, 9.0f, this.FIELD);
         this.lens(ctx, this.extras ? (float)(sx + half) : (float)sx, sy, this.extras ? (float)(sw - half) : (float)half, 18.0f, 9.0f, this.ACCENT_SOFT);
         this.segment(ctx, sx, sy, half, "Collections", !this.extras, () -> this.showExtras(false));
