@@ -1477,9 +1477,9 @@ extends Screen {
     private void drawExtraTile(DrawContext ctx, Extra e, int x, int y, int w, int h) {
         boolean sel = e.name().equals(this.extraKey);
         boolean hov = this.over(x, y, w, h) && this.mouseY >= this.bodyY && this.mouseY < this.bodyB;
-        this.glass(ctx, x, y, w, h, 9.0f, sel ? this.PANEL_HI : (hov ? this.HOVER : this.PANEL));
-        if (sel) {
-            StyleScreen.roundOutline(ctx, x, y, w, h, 9.0f, this.ACCENT, 1.0f);
+        this.glass(ctx, x, y, w, h, 6.0f, sel ? this.PANEL_HI : (hov ? this.HOVER : this.PANEL));
+        if (sel) { // same corner as glass() draws (it caps at 6), else the tile's edge shows outside the outline
+            StyleScreen.roundOutline(ctx, x, y, w, h, 6.0f, this.ACCENT, 1.0f);
         }
         StyleScreen.round(ctx, x + 6, y + 6, 20.0f, 20.0f, 6.0f, this.FIELD);
         ctx.drawItem(ICONS.computeIfAbsent("extra:" + e.name(), k -> new ItemStack(e.icon())), x + 8, y + 8);
@@ -3128,7 +3128,7 @@ extends Screen {
         boolean hov = this.over(kx, y, kw, BTN_H);
         this.lens(ctx, kx, y, kw, BTN_H, 9.0f, waiting ? this.ACCENT_SOFT : (hov ? this.HOVER : this.PANEL_HI));
         if (waiting) {
-            StyleScreen.roundOutline(ctx, kx, y, kw, BTN_H, 9.0f, this.ACCENT, 0.0f);
+            StyleScreen.roundOutline(ctx, kx, y, kw, BTN_H, 4.0f, this.ACCENT, 0.0f); // lens() caps corners at 4
         }
         this.text(ctx, key, kx + 8, y + 5, waiting ? this.ACCENT_HI : this.TEXT);
         this.clipHit(kx, y, kw, BTN_H, (a, b, btn) -> {
