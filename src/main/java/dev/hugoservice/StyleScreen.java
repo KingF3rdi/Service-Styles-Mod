@@ -1384,10 +1384,6 @@ extends Screen {
             c.fpsCulling = !c.fpsCulling;
             Config.save();
         }));
-        list.add(new Extra("Spawners", "World", Items.SPAWNER, "Spin toward both cages", extraGlass(100), this::drawSpawnerOptions, () -> StyleScreen.onOff(c.spawnerSpin), () -> {
-            c.spawnerSpin = !c.spawnerSpin;
-            Config.save();
-        }));
         list.add(new Extra("Inventory", "HUD & Menu", Items.CHEST, "Size and player model", this.inventoryHeight(w), this::drawInventoryTweaks, () -> c.inventoryScale == 0 ? "Normal" : c.inventoryScale + "x", null));
         list.add(new Extra("Name faker", "HUD & Menu", Items.PLAYER_HEAD, "Hide your and enemy names", extraGlass(220), this::drawNameFaker, () -> StyleScreen.onOff(c.fakeOwn), () -> {
             c.fakeOwn = !c.fakeOwn;
@@ -1575,16 +1571,6 @@ extends Screen {
         }, String::valueOf);
         this.text(ctx, this.ellipsize("Vanilla hooks only. Safe with Sodium and VulkanMod.", w), x, y + 17 + ROW * 2, this.DIM);
         this.text(ctx, this.ellipsize("Does not patch those mods; a missed mixin never crashes.", w), x, y + 17 + ROW * 2 + 12, this.DIM);
-    }
-
-    private void drawSpawnerOptions(DrawContext ctx, int x, int y, int w) {
-        this.section(ctx, "Spawners", x, y);
-        this.toggleRow(ctx, x, y + 17, w, "Keep spinning when far", this.cfg.spawnerSpin, () -> {
-            this.cfg.spawnerSpin = !this.cfg.spawnerSpin;
-            Config.save();
-        });
-        this.text(ctx, this.ellipsize("Vanilla only turns the cage you are standing next to.", w), x, y + 17 + ROW, this.DIM);
-        this.text(ctx, this.ellipsize("On keeps both spawners turning, even across the map.", w), x, y + 17 + ROW + 12, this.DIM);
     }
 
     private void drawExplosionOptions(DrawContext ctx, int x, int y, int w) {

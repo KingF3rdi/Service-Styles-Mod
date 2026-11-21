@@ -120,7 +120,6 @@ public final class Config {
     public boolean knifeSway = true;
     public boolean fpsCulling = false;
     public int cullDistance = 64;
-    public boolean spawnerSpin = true;
     public int explosionOptimize = 0;
     public boolean skyNightFade = true;
     public int skyTime = -1;
@@ -211,10 +210,6 @@ public final class Config {
         }
         if (this.uiVersion < 3) {
             this.uiVersion = 3;
-        }
-        if (this.uiVersion < 4) {
-            this.spawnerSpin = true;
-            this.uiVersion = 4;
         }
         if (this.fakeName == null || this.fakeName.isBlank()) {
             this.fakeName = "Player";
