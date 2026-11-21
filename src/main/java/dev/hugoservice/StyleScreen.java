@@ -200,7 +200,7 @@ extends Screen {
     private static final String[] HOME_ICON;
     private static final String[] HOME_SMALL;
     private static final String[] HOME_SMALL_ICON;
-    private static final Identifier LOGO = Identifier.of((String)"hugoservice", (String)"gui/logo.png");
+    private static final Identifier LOGO = Identifier.of((String)"hugoservice", (String)"textures/gui/logo.png");
     private static final Link[] LINKS = StyleScreen.links();
     private static final int ROW_H = 26;
     private static final int UI_GAP = 8;
