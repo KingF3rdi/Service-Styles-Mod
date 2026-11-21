@@ -62,6 +62,10 @@ processResources {
 	filesMatching("hugoservice/BUILD.txt") {
 		expand "product_name": productName, "product_knives": pinguu ? "3D knives, lyrics 20 blocks in front of the skin." : "No knives."
 	}
+	// 7auction has no knives: its knife renderer is never registered, so the knife model only logged an error
+	if (!pinguu) {
+		exclude "assets/hugoservice/items/knife.json", "assets/hugoservice/models/item/knife.json"
+	}
 }
 
 tasks.withType(JavaCompile).configureEach {
