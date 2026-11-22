@@ -166,6 +166,7 @@ extends Screen {
     private final float[] homeAnim;
     private Pick hovered;
     private Pick zoomed;
+    private String confirmDelete;
     private double gridScroll;
     private double sideScroll;
     private double extrasScroll;
@@ -1267,7 +1268,13 @@ extends Screen {
         if (editable) {
             this.button(ctx, ix, ty + 32 + BTN_H + UI_GAP, iw, "Edit texture", false, () -> this.openEditor(p));
         }
-        if ((hy = this.B - 38 - (hints = new String[]{"Click  select", "Right-click  zoom", "F  favorite", HugoService.OPEN.getBoundKeyLocalizedText().getString() + "  open / close"}).length * 11) > ty + (editable ? 32 + 2 * (BTN_H + UI_GAP) : 32 + BTN_H + UI_GAP)) {
+        String packFile = p.style().id.startsWith("pack:") ? p.style().id.substring("pack:".length()) : "";
+        boolean deletable = p.group().id().equals("mixes") && (Prebuilds.isOwn(packFile) || Marketplace.isMarket(packFile));
+        if (deletable) {
+            boolean sure = p.style().id.equals(this.confirmDelete);
+            this.button(ctx, ix, ty + 32 + BTN_H + UI_GAP, iw, sure ? "Sure? Delete" : "Delete", false, () -> this.deleteMix(p.style()));
+        }
+        if ((hy = this.B - 38 - (hints = new String[]{"Click  select", "Right-click  zoom", "F  favorite", HugoService.OPEN.getBoundKeyLocalizedText().getString() + "  open / close"}).length * 11) > ty + (editable || deletable ? 32 + 2 * (BTN_H + UI_GAP) : 32 + BTN_H + UI_GAP)) {
             for (int i = 0; i < hints.length; ++i) {
                 this.text(ctx, hints[i], ix, hy + i * 11, this.DIM);
             }
@@ -3419,9 +3426,29 @@ extends Screen {
         String name = this.packName.getText();
         this.runAsync(() -> PackBuilder.collect(snap, name + " - made with " + Brand.NAME), files -> {
             Path p = PackBuilder.saveZip(files, name);
-            this.status("Saved " + String.valueOf(p.getFileName()) + " to resourcepacks");
+            this.status("Saved \"" + Prebuilds.displayName(p.getFileName().toString(), name) + "\" to Mixes");
             this.rescan();
         });
+    }
+
+    /** Your own or a marketplace mix (second click): removes its file; what it set goes back to vanilla. */
+    private void deleteMix(Styles.Style s) {
+        if (!s.id.equals(this.confirmDelete)) {
+            this.confirmDelete = s.id;
+            return;
+        }
+        this.confirmDelete = null;
+        try {
+            Files.deleteIfExists(Config.UPLOADS.resolve(s.id.substring("pack:".length())));
+        } catch (IOException e) {
+            this.status("Could not delete " + s.name + ": " + e.getMessage());
+            return;
+        }
+        this.cfg.loadout.values().removeIf(s.id::equals);
+        this.zoomed = null;
+        this.rescan();
+        this.changed();
+        this.status("Deleted " + s.name);
     }
 
     private void reset() {

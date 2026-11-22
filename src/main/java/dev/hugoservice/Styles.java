@@ -217,7 +217,7 @@ public final class Styles {
                     });
                 }
             }
-            Pack pack = new Pack(p, zip, Marketplace.nameFor(p.getFileName().toString(), (name = p.getFileName().toString().replaceAll("(?i)\\.zip$", "").replaceAll("\u00a7.", "").replace('_', ' ').trim()).isEmpty() ? "Pack" : name), stamp, Files.getLastModifiedTime(p, new LinkOption[0]).toMillis(), Map.copyOf(entries));
+            Pack pack = new Pack(p, zip, Prebuilds.displayName(p.getFileName().toString(), (name = p.getFileName().toString().replaceAll("(?i)\\.zip$", "").replaceAll("\u00a7.", "").replace('_', ' ').trim()).isEmpty() ? "Pack" : name), stamp, Files.getLastModifiedTime(p, new LinkOption[0]).toMillis(), Map.copyOf(entries));
             PACK_CACHE.put(p, pack);
             return pack;
         }
@@ -251,7 +251,7 @@ public final class Styles {
                     continue;
                 }
                 int n = pack.entries.size();
-                out.add(new Style("pack:" + file, pack.name, "Pre-built mix · " + n + " textures", false, true, null, pack.modified, pack::read));
+                out.add(new Style("pack:" + file, pack.name, (Prebuilds.isOwn(file) ? "Your mix" : "Pre-built mix") + " · " + n + " textures", false, true, null, pack.modified, pack::read));
             }
             return out;
         }

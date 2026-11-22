@@ -420,12 +420,13 @@ public final class PackBuilder {
         }
     }
 
+    /** Saves your mix as preset_<name>.zip in the packs folder, where it shows up in Mixes (Export writes a plain zip). */
     public static Path saveZip(Map<String, byte[]> files, String name) throws IOException {
         String clean = name.replaceAll("[\\\\/:*?\"<>|]", "").trim();
         if (clean.isEmpty()) {
             clean = "My Mix";
         }
-        return PackBuilder.writeZip(files, MinecraftClient.getInstance().getResourcePackDir().resolve(clean + ".zip"));
+        return PackBuilder.writeZip(files, Config.UPLOADS.resolve(Prebuilds.OWN + clean + ".zip"));
     }
 
     public static Path writeZip(Map<String, byte[]> files, Path target) throws IOException {

@@ -20,9 +20,27 @@ final class Prebuilds {
     private Prebuilds() {
     }
 
+    /** Mixes you save with "Save pack": preset_<name>.zip in the packs folder. */
+    static final String OWN = "preset_";
+
+    static boolean isOwn(String fileName) {
+        return fileName != null && fileName.startsWith(OWN) && fileName.endsWith(".zip");
+    }
+
+    /** List name for a pack file: your mix's own name, a marketplace mix's name, else the file-based one. */
+    static String displayName(String fileName, String fallback) {
+        if (isOwn(fileName)) {
+            return fileName.substring(OWN.length(), fileName.length() - ".zip".length()).replace('_', ' ').trim();
+        }
+        return Marketplace.nameFor(fileName, fallback);
+    }
+
     static boolean isPrebuild(String fileName) {
         if (fileName == null) {
             return false;
+        }
+        if (isOwn(fileName)) {
+            return true; // saved by you
         }
         if (Marketplace.isMarket(fileName)) {
             return true; // installed from the marketplace
