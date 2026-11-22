@@ -64,6 +64,11 @@ public final class PackBuilder {
             }
         }
         out.putAll(mix);
+        // your kill sound (Extras > Kill effect > Custom .ogg) rides in the built pack as hugoservice:kill_custom
+        if (cfg.killSound == KillEffects.CUSTOM_SOUND && Files.isRegularFile(KillEffects.customSoundFile())) {
+            out.put("assets/hugoservice/sounds/kill_custom.ogg", Files.readAllBytes(KillEffects.customSoundFile()));
+            out.put("assets/hugoservice/sounds.json", "{\"kill_custom\": {\"sounds\": [\"hugoservice:kill_custom\"]}}".getBytes(StandardCharsets.UTF_8));
+        }
         if (cfg.greyWorld) {
             PackBuilder.addGreyWorld(cfg, out);
         }

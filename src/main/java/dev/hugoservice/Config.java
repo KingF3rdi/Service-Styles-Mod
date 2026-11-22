@@ -82,6 +82,8 @@ public final class Config {
     public int chColor2 = 4884223;
     public int killEffect = 0;
     public boolean killOnlyMine = true;
+    public int killSound = 0;
+    public int killVolume = 100;
     public int spotifyScale = 100;
     public boolean spotifyPeek = false;
     public boolean badgeOn = false;

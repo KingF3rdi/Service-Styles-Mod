@@ -1461,7 +1461,7 @@ extends Screen {
             c.anchorGlow = c.anchorGlow == null ? Integer.valueOf(11766015) : null;
             this.changed();
         }));
-        list.add(new Extra("Kill effect", "Combat", Items.NETHERITE_SWORD, "Effect when a player dies", extraGlass(100 + this.chipsH(w, KillEffects.NAMES) - CHIP_H + EXTRA_GAP), this::drawKillEffect, () -> KillEffects.NAMES[Math.floorMod(c.killEffect, KillEffects.NAMES.length)], null));
+        list.add(new Extra("Kill effect", "Combat", Items.NETHERITE_SWORD, "Effect when a player dies", this.killHeight(w), this::drawKillEffect, () -> KillEffects.NAMES[Math.floorMod(c.killEffect, KillEffects.NAMES.length)], null));
         list.add(new Extra("Totem counter", "Combat", Items.TOTEM_OF_UNDYING, "Pops over heads, HUD, chat", extraGlass(152), this::drawTotemCounter, () -> StyleScreen.onOff(c.totemPops), () -> {
             c.totemPops = !c.totemPops;
             Config.save();
@@ -2367,11 +2367,50 @@ extends Screen {
             this.cfg.killOnlyMine = !this.cfg.killOnlyMine;
             Config.save();
         });
-        int by = ty + 20;
+        int sy = ty + 26;
+        this.text(ctx, "Kill sound", x, sy, this.MUTED);
+        int vy = sy + 12 + this.pickChips(ctx, x, sy + 12, w, KillEffects.SOUNDS, Math.floorMod(this.cfg.killSound, KillEffects.SOUNDS.length), i -> {
+            this.cfg.killSound = i;
+            if (i > 1 && i != KillEffects.CUSTOM_SOUND) {
+                KillEffects.killSound(this.client, i); // hear it when picked
+            }
+        }) + EXTRA_GAP;
+        this.sliderRow(ctx, x, vy, w, "Sound volume", this.cfg.killVolume, 0, 100, v -> {
+            this.cfg.killVolume = v;
+        });
+        int by = vy + SLIDER_ROW;
+        if (this.cfg.killSound == KillEffects.CUSTOM_SOUND) {
+            boolean has = Files.isRegularFile(KillEffects.customSoundFile());
+            int bw = this.button(ctx, x, by, 0, has ? "Change .ogg" : "Choose .ogg", false, this::pickKillSound);
+            this.text(ctx, this.ellipsize(has ? "Plays after Apply" : "Any .ogg sound file", w - bw - 6), x + bw + 6, by + 5, this.DIM);
+            by += BTN_H + EXTRA_GAP;
+        }
         ClientPlayerEntity class_7462 = player = this.client == null ? null : this.client.player;
-        if (by >= this.bodyY && by + 17 <= this.bodyB && player != null && this.cfg.killEffect > 0) {
+        if (by >= this.bodyY && by + 17 <= this.bodyB && player != null && (this.cfg.killEffect > 0 || this.cfg.killSound > 1)) {
             this.button(ctx, x, by, 0, "Try it", false, () -> this.showInWorld(() -> KillEffects.play(this.cfg.killEffect, Mc.pos(player).add(player.getRotationVector().multiply(5.0, 0.0, 5.0)), (PlayerEntity)player), 2500L));
         }
+    }
+
+    /** Height of the kill effect card: drawKillEffect's rows, plus room for Try it. */
+    private int killHeight(int w) {
+        int by = 18 + this.chipsH(w, KillEffects.NAMES) + EXTRA_GAP + 26 + 12 + this.chipsH(w, KillEffects.SOUNDS) + EXTRA_GAP + SLIDER_ROW
+                + (this.cfg.killSound == KillEffects.CUSTOM_SOUND ? BTN_H + EXTRA_GAP : 0);
+        return extraGlass(by + 42);
+    }
+
+    /** Copies your .ogg to config/hugoservice/kill_sound.ogg; the next Apply puts it in the pack. */
+    private void pickKillSound() {
+        this.fileDialog("Kill sound", null, false, "Sound (*.ogg)", picked -> {
+            try {
+                Files.createDirectories(Config.DIR);
+                Files.copy(Path.of(picked.split("\\|")[0]), KillEffects.customSoundFile(), StandardCopyOption.REPLACE_EXISTING);
+                this.cfg.killSound = KillEffects.CUSTOM_SOUND;
+                this.changed();
+                this.status(this.cfg.applyInstantly ? "Kill sound set" : "Kill sound set - press Apply to load it");
+            } catch (IOException | RuntimeException e) {
+                this.status("Could not use that file: " + e.getMessage());
+            }
+        }, "*.ogg");
     }
 
     private void drawSocialBadge(DrawContext ctx, int x, int y, int w) {
