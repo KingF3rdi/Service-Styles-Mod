@@ -862,7 +862,7 @@ extends Screen {
             }
             boolean sel = c == this.cat && !this.extras && !this.crosshairView && !this.marketView;
             String worn = this.wornNames(c);
-            this.sideRow(ctx, x0, w, ry, listTop, bottom, sel, c.name(), worn, !worn.equals("Vanilla"), String.valueOf(this.count(c)), (ix, iy) -> this.collectionIcon(ctx, c, (int)ix + 1, (int)iy + 1, 14), () -> this.selectCategory(c));
+            this.sideRow(ctx, x0, w, ry, listTop, bottom, sel, c.name(), worn, !worn.equals("Vanilla"), String.valueOf(this.count(c)), (ix, iy) -> this.collectionIcon(ctx, c, (int)ix + 2, (int)iy + 2, 12), () -> this.selectCategory(c));
             ry += 28;
         }
         ctx.disableScissor();
@@ -3963,12 +3963,12 @@ extends Screen {
         StyleScreen.smallItem(ctx, ICONS.computeIfAbsent(c.id(), k -> new ItemStack((ItemConvertible)c.icon())), cx, cy);
     }
 
-    // ponytail: GUI items are rastered at 16px x GUI scale, so 14px skips a texel row here and there; draw from the texture if it shows
+    // ponytail: GUI items are rastered at 16px x GUI scale, so 12px skips texel rows at odd GUI scales; draw from the texture if it shows
     private static void smallItem(DrawContext ctx, ItemStack stack, float cx, float cy) {
         Matrix3x2fStack m = ctx.getMatrices();
         m.pushMatrix();
         m.translate(cx, cy);
-        m.scale(0.875f, 0.875f);
+        m.scale(0.75f, 0.75f);
         ctx.drawItem(stack, -8, -8);
         m.popMatrix();
     }
