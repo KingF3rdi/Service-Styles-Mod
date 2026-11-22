@@ -5,11 +5,9 @@ plugins {
 version = project.mod_version
 group = project.maven_group
 
-def productKey = (project.findProperty('product') ?: '7auction').toString()
-def pinguu = productKey != '7auction'
-def productName = pinguu ? 'PinguuTxw Styles' : '7auction Styles'
-def productAuthor = pinguu ? 'PinguuTxw' : '7auction'
-def productJar = pinguu ? 'PinguuTxw-Styles' : '7auction-Styles'
+def productName = '7auction Styles'
+def productAuthor = '7auction'
+def productJar = '7auction-Styles'
 
 base {
 	archivesName = productJar
@@ -60,12 +58,10 @@ processResources {
 		expand "product_name": productName
 	}
 	filesMatching("hugoservice/BUILD.txt") {
-		expand "product_name": productName, "product_knives": pinguu ? "3D knives, lyrics 20 blocks in front of the skin." : "No knives."
+		expand "product_name": productName, "product_knives": "No knives."
 	}
-	// 7auction has no knives: its knife renderer is never registered, so the knife model only logged an error
-	if (!pinguu) {
-		exclude "assets/hugoservice/items/knife.json", "assets/hugoservice/models/item/knife.json"
-	}
+	// no knives: the knife renderer is never registered, so the knife model would only log an error
+	exclude "assets/hugoservice/items/knife.json", "assets/hugoservice/models/item/knife.json"
 }
 
 tasks.withType(JavaCompile).configureEach {
