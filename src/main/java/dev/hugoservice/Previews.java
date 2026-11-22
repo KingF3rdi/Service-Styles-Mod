@@ -126,17 +126,9 @@ final class Previews {
     }
 
     private static BufferedImage flat(Categories.Group g, Styles.Style s, Integer tint) throws IOException {
-        BufferedImage img = null;
-        for (String f : g.files()) {
-            if (f == null || f.contains("$")) {
-                continue;
-            }
-            byte[] png = s.read(f);
-            if (png == null) {
-                continue;
-            }
-            img = Previews.crop(f, Previews.firstFrame(Images.decode(png)), g);
-            break;
+        BufferedImage img = Previews.pickFlat(g, s, true);
+        if (img == null) {
+            img = Previews.pickFlat(g, s, false);
         }
         if (img == null) {
             return null;
@@ -146,6 +138,66 @@ final class Previews {
         }
         Images.stripPlate(img);
         return img;
+    }
+
+    private static BufferedImage pickFlat(Categories.Group g, Styles.Style s, boolean itemsOnly) throws IOException {
+        BufferedImage fallback = null;
+        String fallbackPath = null;
+        for (String f : g.files()) {
+            if (f == null || f.contains("$")) {
+                continue;
+            }
+            boolean item = f.contains("/item/") || f.contains("textures/item/");
+            if (item != itemsOnly) {
+                continue;
+            }
+            byte[] png = s.read(f);
+            if (png == null && s.vanilla) {
+                png = Styles.vanilla(f);
+            }
+            if (png == null) {
+                continue;
+            }
+            BufferedImage decoded = Images.decode(png);
+            if (!itemsOnly && Previews.armorLayer(f)) {
+                return Previews.armorFromLayer(decoded);
+            }
+            if (itemsOnly && (f.contains("chestplate") || f.contains("helmet"))) {
+                return Previews.crop(f, decoded, g);
+            }
+            if (fallback == null) {
+                fallback = decoded;
+                fallbackPath = f;
+            }
+        }
+        if (fallback == null) {
+            return null;
+        }
+        if (!itemsOnly && Previews.armorLayer(fallbackPath)) {
+            return Previews.armorFromLayer(fallback);
+        }
+        return Previews.crop(fallbackPath, fallback, g);
+    }
+
+    private static boolean armorLayer(String path) {
+        return path.contains("entity/equipment") || path.contains("models/armor");
+    }
+
+    private static BufferedImage armorFromLayer(BufferedImage layer) {
+        int w = layer.getWidth();
+        int h = layer.getHeight();
+        int k = Math.max(1, w / 64);
+        if (w < 64 || h < 32) {
+            return layer;
+        }
+        BufferedImage out = new BufferedImage(16 * k, 32 * k, 2);
+        Graphics2D g = out.createGraphics();
+        g.drawImage(layer.getSubimage(8 * k, 8 * k, 8 * k, 8 * k), 4 * k, 0, null);
+        g.drawImage(layer.getSubimage(20 * k, 20 * k, 8 * k, 12 * k), 4 * k, 8 * k, null);
+        g.drawImage(layer.getSubimage(44 * k, 20 * k, 4 * k, 12 * k), 0, 8 * k, null);
+        g.drawImage(layer.getSubimage(44 * k, 20 * k, 4 * k, 12 * k), 12 * k, 8 * k, null);
+        g.dispose();
+        return out;
     }
 
     private static BufferedImage cube(Categories.Cube c, Styles.Style s, Integer tint) throws IOException {
@@ -522,9 +574,7 @@ final class Previews {
     }
 
     private static BufferedImage firstFrame(BufferedImage img) {
-        int w = img.getWidth();
-        int h = img.getHeight();
-        return h > w && h % w == 0 ? img.getSubimage(0, 0, w, w) : img;
+        return img;
     }
 
     static BufferedImage shade(BufferedImage src, float f) {

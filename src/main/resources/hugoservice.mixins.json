@@ -15,6 +15,7 @@
     "EntityRendererMixin",
     "FogRendererMixin",
     "InGameHudMixin",
+    "LivingEntityRendererMixin",
     "InGameOverlayRendererMixin",
     "MinecraftClientMixin",
     "OverlayTextureAccessor",

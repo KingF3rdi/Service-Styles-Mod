@@ -203,12 +203,16 @@ extends Screen {
     private static final int ROW_H = 26;
     private static final int UI_GAP = 8;
     private static final int UI_PAD = 12;
+    private static final int EXTRA_PAD = 16;
+    private static final int EXTRA_GAP = 16;
     private static final int BTN_H = 20;
     private static final int TOGGLE_H = 20;
     private static final int ROW = 24;
-    private static final int CHIP_GAP = 6;
-    private static final int CHIP_H = 16;
-    private static final int TILE_GAP = 8;
+    private static final int CHIP_GAP = 12;
+    private static final int CHIP_H = 20;
+    private static final int CHIP_PAD = 18;
+    private static final int TILE_GAP = 12;
+    private static final int SLIDER_ROW = 36;
     private static final int DOT_GAP = 4;
     private static final String[] SORTS;
     private static final int FX_H = 92;
@@ -218,6 +222,11 @@ extends Screen {
     private static final String[] CORNERS;
     private static final String[] SIDES;
     private String handItem;
+    private boolean liveHand;
+    private String liveLabel = "";
+    private int liveValue;
+    private int liveMin = 30;
+    private int liveMax = 150;
     private static final Crosshair.Spec CROSSHAIR_ICON;
     private static final String[] CH_STYLE_NAMES;
     private static final int CH_CARD = 44;
@@ -454,7 +463,15 @@ extends Screen {
         return false;
     }
 
+    public static boolean coversWorld() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client != null && client.currentScreen instanceof StyleScreen;
+    }
+
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        if (this.liveHand && HandPreview.stack() != null) {
+            return;
+        }
         if (this.cfg.blur) {
             super.renderBackground(ctx, mouseX, mouseY, delta);
         } else {
@@ -463,6 +480,8 @@ extends Screen {
     }
 
     public void removed() {
+        HandPreview.clear();
+        this.liveHand = false;
         Config.save();
     }
 
@@ -471,6 +490,13 @@ extends Screen {
         this.mouseY = my;
         this.applyTheme();
         this.hits.clear();
+        if (this.liveHand && HandPreview.stack() != null) {
+            this.hideVanillaFields();
+            this.drawLiveHandSlider(ctx);
+            super.render(ctx, mx, my, delta);
+            Shapes.flush();
+            return;
+        }
         Thumbs.upload();
         this.hovered = null;
         this.fakeField.visible = false;
@@ -780,26 +806,26 @@ extends Screen {
 
     private void sideRow(DrawContext ctx, int x0, int w, int ry, int listTop, int bottom, boolean sel, String name, String sub, boolean picked, String right, BiConsumer<Integer, Integer> icon, Runnable open) {
         boolean hov;
-        boolean bl = hov = this.over(x0 + 4, ry, w - 8, 25) && this.mouseY >= listTop && this.mouseY < bottom;
+        boolean bl = hov = this.over(x0 + 4, ry, w - 8, 27) && this.mouseY >= listTop && this.mouseY < bottom;
         if (sel) {
-            this.lens(ctx, x0 + 4, ry, w - 8, 25.0f, 7.0f, this.PANEL_HI);
+            this.lens(ctx, x0 + 4, ry, w - 8, 27.0f, 7.0f, this.PANEL_HI);
         } else if (hov) {
-            StyleScreen.round(ctx, x0 + 4, ry, w - 8, 25.0f, 7.0f, 0x10FFFFFF);
+            StyleScreen.round(ctx, x0 + 4, ry, w - 8, 27.0f, 7.0f, 0x10FFFFFF);
         }
         if (sel) {
-            StyleScreen.round(ctx, x0 + 4, ry + 7, 2.0f, 11.0f, 1.0f, this.ACCENT);
+            StyleScreen.round(ctx, x0 + 4, ry + 8, 2.0f, 11.0f, 1.0f, this.ACCENT);
         }
-        StyleScreen.round(ctx, x0 + 9, ry + 3, 20.0f, 20.0f, 6.0f, this.FIELD);
-        icon.accept(x0 + 11, ry + 5);
+        StyleScreen.round(ctx, x0 + 9, ry + 4, 20.0f, 20.0f, 6.0f, this.FIELD);
+        icon.accept(x0 + 11, ry + 6);
         int tx = x0 + 34;
         int tw = this.sideR - 10 - tx - (right.isEmpty() ? 0 : this.width(right) + 4);
-        this.text(ctx, this.ellipsize(name, tw), tx, ry + 4, sel || hov ? this.TEXT : this.MUTED);
-        this.text(ctx, this.ellipsize(sub, tw), tx, ry + 14, picked ? (sel ? this.ACCENT_HI : this.MUTED) : this.DIM);
+        this.text(ctx, this.ellipsize(name, tw), tx, ry + 5, sel || hov ? this.TEXT : this.MUTED);
+        this.text(ctx, this.ellipsize(sub, tw), tx, ry + 15, picked ? (sel ? this.ACCENT_HI : this.MUTED) : this.DIM);
         if (!right.isEmpty()) {
-            this.text(ctx, right, this.sideR - 10 - this.width(right), ry + 9, sel ? this.ACCENT : this.DIM);
+            this.text(ctx, right, this.sideR - 10 - this.width(right), ry + 10, sel ? this.ACCENT : this.DIM);
         }
         int y0 = Math.max(ry, listTop);
-        int y1 = Math.min(ry + 26, bottom);
+        int y1 = Math.min(ry + 28, bottom);
         if (y1 > y0) {
             this.hit(x0 + 4, y0, w - 8, y1 - y0, (a, b, btn) -> open.run());
         }
@@ -824,19 +850,19 @@ extends Screen {
         ctx.enableScissor(x0, listTop, this.sideR, bottom);
         int ry = listTop - (int)this.sideScroll;
         boolean chSel = this.crosshairView && !this.extras;
-        this.sideRow(ctx, x0, w, ry, listTop, bottom, chSel, "Crosshair", (String)(this.cfg.chOn ? "On  \u00b7  " + this.cfg.chStyle : "Off"), this.cfg.chOn, "", (ix, iy) -> Crosshair.draw(ctx, CROSSHAIR_ICON, ix + 8, iy + 8, chSel ? this.ACCENT & 0xFFFFFF : 15135487, false, null), this::openCrosshair);
-        ry += 28;
+            this.sideRow(ctx, x0, w, ry, listTop, bottom, chSel, "Crosshair", (String)(this.cfg.chOn ? "On  \u00b7  " + this.cfg.chStyle : "Off"), this.cfg.chOn, "", (ix, iy) -> Crosshair.draw(ctx, CROSSHAIR_ICON, ix + 8, iy + 8, chSel ? this.ACCENT & 0xFFFFFF : 15135487, false, null), this::openCrosshair);
+        ry += 30;
         String section = null;
         for (Categories.Category c : Categories.ALL) {
             if (!c.section().equals(section)) {
                 section = c.section();
-                this.text(ctx, section.toUpperCase(Locale.ROOT), x0 + 10, ry + 4, this.DIM);
-                ry += 15;
+                this.text(ctx, section.toUpperCase(Locale.ROOT), x0 + 10, ry + 6, this.DIM);
+                ry += 18;
             }
             boolean sel = c == this.cat && !this.extras && !this.crosshairView;
             String worn = this.wornNames(c);
             this.sideRow(ctx, x0, w, ry, listTop, bottom, sel, c.name(), worn, !worn.equals("Vanilla"), String.valueOf(this.count(c)), (ix, iy) -> this.collectionIcon(ctx, c, (int)ix, (int)iy, 16), () -> this.selectCategory(c));
-            ry += 26;
+            ry += 28;
         }
         ctx.disableScissor();
         this.sideMax = Math.max(0, (int)((double)ry + this.sideScroll) - listTop - (bottom - listTop));
@@ -881,10 +907,10 @@ extends Screen {
         for (int i = -1; i < this.cat.groups().size(); ++i) {
             Categories.Group g = i < 0 ? null : this.cat.groups().get(i);
             String name = g == null ? "All" : g.name();
-            int w = this.width(name) + 12;
+            int w = this.width(name) + 14;
             if (x + w > limit) {
                 x = this.cx0;
-                y += 17;
+                y += 18;
                 limit = this.cx1;
             }
             boolean on = g == null ? this.groupFilter == null : g.id().equals(this.groupFilter);
@@ -897,7 +923,7 @@ extends Screen {
                 this.groupFilter = g == null ? null : g.id();
                 this.gridScroll = 0.0;
             });
-            x += w + 4;
+            x += w + 8;
         }
         return this.bodyY + (y - (this.T + 56));
     }
@@ -954,7 +980,7 @@ extends Screen {
                 if (lx < this.cx1) {
                     ctx.fill(lx, y + 6, this.cx1, y + 7, this.SEP);
                 }
-                y += 16;
+                y += 18;
             }
             Styles.Style active = this.selected(g);
             for (int i = 0; i < list.size(); ++i) {
@@ -965,7 +991,7 @@ extends Screen {
                 this.drawCard(ctx, g, s, s.id.equals(active.id), x, cy, cw, th, ch);
             }
             shownAny += list.size();
-            y += (list.size() + cols - 1) / cols * (ch + gap) + (sections ? 6 : 0);
+            y += (list.size() + cols - 1) / cols * (ch + gap) + (sections ? 10 : 0);
         }
         ctx.disableScissor();
         this.gridMax = Math.max(0, (int)((double)y + this.gridScroll) - this.gridTop - (this.bodyB - this.gridTop));
@@ -1189,14 +1215,34 @@ extends Screen {
 
     private int blockInner() {
         int cols = this.blockCols();
-        return (this.cx1 - this.cx0 - 10 * (cols - 1)) / cols - UI_PAD * 2;
+        return (this.cx1 - this.cx0 - EXTRA_GAP * (cols - 1)) / cols - EXTRA_PAD * 2;
+    }
+
+    private static int extraCard(int content) {
+        return EXTRA_PAD * 2 + content;
+    }
+
+    private static int extraGlass(int oldHeight) {
+        return oldHeight + (EXTRA_PAD - UI_PAD) * 2;
+    }
+
+    private int chipW(String label) {
+        return this.width(label) + CHIP_PAD;
+    }
+
+    private int chipTextX() {
+        return CHIP_PAD / 2;
+    }
+
+    private int chipTextY() {
+        return Math.max(4, (CHIP_H - 8) / 2);
     }
 
     private int measureChipRows(int w, String[] labels) {
         int cx = 0;
         int rows = 1;
         for (String n : labels) {
-            int cw = this.width(n) + 14;
+            int cw = this.chipW(n);
             if (cx > 0 && cx + cw > w) {
                 ++rows;
                 cx = 0;
@@ -1207,9 +1253,9 @@ extends Screen {
     }
 
     private void pairButtons(DrawContext ctx, int x, int y, int w, String a, Runnable ra, String b, Runnable rb) {
-        int bw = (w - UI_GAP) / 2;
+        int bw = (w - CHIP_GAP) / 2;
         this.button(ctx, x, y, bw, a, false, ra);
-        this.button(ctx, x + bw + UI_GAP, y, w - bw - UI_GAP, b, false, rb);
+        this.button(ctx, x + bw + CHIP_GAP, y, w - bw - CHIP_GAP, b, false, rb);
     }
 
     private void drawExtras(DrawContext ctx) {
@@ -1218,22 +1264,22 @@ extends Screen {
         int inner = this.blockInner();
         List<Block> extras = new ArrayList<>();
         if (Brand.KNIVES) {
-            extras.add(new Block(76, this::drawKnifeOptions));
+            extras.add(new Block(extraGlass(76), this::drawKnifeOptions));
         }
-        extras.add(new Block(160, this::drawFpsOptions));
-        extras.add(new Block(100, this::drawExplosionOptions));
-        extras.addAll(List.of(new Block(136, (c, x, y, w) -> {
+        extras.add(new Block(extraGlass(160), this::drawFpsOptions));
+        extras.add(new Block(extraGlass(100), this::drawExplosionOptions));
+        extras.addAll(List.of(new Block(extraGlass(136), (c, x, y, w) -> {
             this.fxBlock(c, x, y, w, "Hit colour", "hit", "Red flash when hit", Previews::hit);
             this.sliderRow(c, x, y + 88, w, "Strength", this.cfg.hitStrength, 5, 100, v -> {
                 this.cfg.hitStrength = v;
                 Fx.applyHitColor();
             });
-        }), new Block(108, (c, x, y, w) -> this.fxBlock(c, x, y, w, "Hitbox colour", "hitbox", "Shown with F3 + B", Previews::outline)), new Block(136, (c, x, y, w) -> {
+        }), new Block(extraGlass(108), (c, x, y, w) -> this.fxBlock(c, x, y, w, "Hitbox colour", "hitbox", "Shown with F3 + B", Previews::outline)), new Block(extraGlass(136), (c, x, y, w) -> {
             this.fxBlock(c, x, y, w, "Block outline", "outline", "Block you look at", Previews::outline);
             this.sliderRow(c, x, y + 88, w, "Thickness", this.cfg.outlineWidth, 1, 10, v -> {
                 this.cfg.outlineWidth = v;
             }, String::valueOf);
-        }), new Block(180, (c, x, y, w) -> {
+        }), new Block(extraGlass(180), (c, x, y, w) -> {
             this.fxBlock(c, x, y, w, "Player glow", "glow", "Only while visible", Previews::glow);
             this.toggleRow(c, x, y + 88, w, "Myself (F5)", this.cfg.glowSelf, () -> {
                 this.cfg.glowSelf = !this.cfg.glowSelf;
@@ -1247,7 +1293,7 @@ extends Screen {
                 this.cfg.glowWidth = v;
                 this.dirty = true;
             }, String::valueOf);
-        }), new Block(136, this::drawCrystalOptions), new Block(100, this::drawFireFog), new Block(this.handSizeHeight(inner), this::drawHandSize), new Block(100, this::drawKillEffect), new Block(90, this::drawSocialBadge), new Block(this.cfg.glintMode == 2 ? 124 : (this.cfg.glintMode == 1 ? 92 : 64), this::drawGlint), new Block(this.cfg.anchorGlow != null ? 128 : 100, this::drawAnchorCharge), new Block(196, this::drawShieldStatus), new Block(152, this::drawTotemCounter), new Block(112, this::drawOpacity), new Block(120, this::drawNametags), new Block(this.inventoryHeight(inner), this::drawInventoryTweaks), new Block(220, this::drawNameFaker), new Block(292, this::drawSpotify), new Block(164, this::drawSkyOptions), new Block(this.greyWorldHeight(inner), this::drawGreyWorld), new Block(112, (c, x, y, w) -> this.drawColorBlock(c, StyleScreen.grassGroup(), x, y, w))));
+        }), new Block(extraGlass(136), this::drawCrystalOptions), new Block(extraGlass(100), this::drawFireFog), new Block(this.handSizeHeight(inner), this::drawHandSize), new Block(extraGlass(100), this::drawKillEffect), new Block(extraGlass(90), this::drawSocialBadge), new Block(extraGlass(this.cfg.glintMode == 2 ? 124 : (this.cfg.glintMode == 1 ? 92 : 64)), this::drawGlint), new Block(extraGlass(this.cfg.anchorGlow != null ? 128 : 100), this::drawAnchorCharge), new Block(extraGlass(196), this::drawShieldStatus), new Block(extraGlass(152), this::drawTotemCounter), new Block(extraGlass(112), this::drawOpacity), new Block(extraGlass(120), this::drawNametags), new Block(this.inventoryHeight(inner), this::drawInventoryTweaks), new Block(extraGlass(220), this::drawNameFaker), new Block(extraGlass(292), this::drawSpotify), new Block(extraGlass(164), this::drawSkyOptions), new Block(this.greyWorldHeight(inner), this::drawGreyWorld), new Block(extraGlass(112), (c, x, y, w) -> this.drawColorBlock(c, StyleScreen.grassGroup(), x, y, w))));
         this.layoutBlocks(ctx, extras);
     }
 
@@ -1289,10 +1335,10 @@ extends Screen {
 
     private void layoutBlocks(DrawContext ctx, List<Block> blocks) {
         int areaW = this.cx1 - this.cx0;
-        int gap = 10;
+        int gap = EXTRA_GAP;
         int cols = this.blockCols();
         int colW = (areaW - gap * (cols - 1)) / cols;
-        int inner = colW - UI_PAD * 2;
+        int inner = colW - EXTRA_PAD * 2;
         int[] colY = new int[cols];
         ctx.enableScissor(this.cx0 - 2, this.bodyY - 2, this.cx1 + 2, this.bodyB);
         int base = this.bodyY - (int)this.extrasScroll;
@@ -1306,7 +1352,7 @@ extends Screen {
             int y = base + colY[c];
             if (y + b.h() >= this.bodyY && y <= this.bodyB) {
                 this.glass(ctx, x, y, colW, b.h(), 10.0f, this.PANEL);
-                b.drawer().draw(ctx, x + UI_PAD, y + UI_PAD, inner);
+                b.drawer().draw(ctx, x + EXTRA_PAD, y + EXTRA_PAD, inner);
             }
             int n = c;
             colY[n] = colY[n] + (b.h() + gap);
@@ -1388,6 +1434,7 @@ extends Screen {
         this.drawPreview(ctx, "op|shield|" + so, () -> Previews.alpha(Previews.shieldFace(), so), sx, y + 18, 26, 26, 2, false);
         this.sliderRow(ctx, sx + 30, y + 18, half - 30, "Shield", so, 10, 100, v -> {
             this.cfg.shieldOpacity = v;
+            this.beginHandPreview("shield", "Shield", v, 10, 100);
         });
         this.text(ctx, this.ellipsize("Shield: your own, first person", w), x, y + 54, this.DIM);
         this.text(ctx, this.ellipsize("Crystal: all end crystals", w), x, y + 66, this.DIM);
@@ -1425,33 +1472,51 @@ extends Screen {
         });
     }
 
+    private int inventoryChipsHeight(int w) {
+        int cx = 0;
+        int rows = 1;
+        for (int s : INV_SCALES) {
+            String label = s == 0 ? "Normal" : s + "x";
+            int cw = this.chipW(label);
+            if (cx > 0 && cx + cw > w) {
+                ++rows;
+                cx = 0;
+            }
+            cx += cw + CHIP_GAP;
+        }
+        return rows * (CHIP_H + CHIP_GAP) - CHIP_GAP;
+    }
+
     private int inventoryHeight(int w) {
-        return 82;
+        int chips = this.inventoryChipsHeight(w);
+        return extraCard(18 + 14 + chips + 16 + TOGGLE_H);
     }
 
     private void drawInventoryTweaks(DrawContext ctx, int x, int y, int w) {
         this.section(ctx, "Inventory", x, y);
-        this.text(ctx, "Size while a container is open", x, y + 17, this.MUTED);
-        int cx = x;
-        int cy = y + 29;
+        this.text(ctx, "Size while a container is open", x, y + 18, this.MUTED);
+        int cx = 0;
+        int cy = y + 32;
         for (int s : INV_SCALES) {
-            Object label = s == 0 ? "Normal" : s + "x";
-            int cw = this.width((String)label) + 14;
-            if (cx > x && cx + cw > x + w) {
-                cx = x;
+            String label = s == 0 ? "Normal" : s + "x";
+            int cw = this.chipW(label);
+            if (cx > 0 && cx + cw > w) {
+                cx = 0;
                 cy += CHIP_H + CHIP_GAP;
             }
+            int bx = x + cx;
             boolean on = this.cfg.inventoryScale == s;
-            boolean hov = this.over(cx, cy, cw, CHIP_H);
-            this.lens(ctx, cx, cy, cw, CHIP_H, 8.0f, on ? this.ACCENT_SOFT : (hov ? this.HOVER : this.PANEL_HI));
-            this.text(ctx, (String)label, cx + 7, cy + 4, on ? this.ACCENT_HI : this.MUTED);
-            this.clipHit(cx, cy, cw, CHIP_H, (a, b, btn) -> {
+            boolean hov = this.over(bx, cy, cw, CHIP_H);
+            this.lens(ctx, bx, cy, cw, CHIP_H, 8.0f, on ? this.ACCENT_SOFT : (hov ? this.HOVER : this.PANEL_HI));
+            this.text(ctx, label, bx + this.chipTextX(), cy + this.chipTextY(), on ? this.ACCENT_HI : this.MUTED);
+            this.clipHit(bx, cy, cw, CHIP_H, (a, b, btn) -> {
                 this.cfg.inventoryScale = s;
                 Config.save();
             });
             cx += cw + CHIP_GAP;
         }
-        this.toggleRow(ctx, x, y + 56, w, "Hide inventory model", this.cfg.hideInventoryModel, () -> {
+        int toggleY = y + 32 + this.inventoryChipsHeight(w) + 16;
+        this.toggleRow(ctx, x, toggleY, w, "Hide inventory model", this.cfg.hideInventoryModel, () -> {
             this.cfg.hideInventoryModel = !this.cfg.hideInventoryModel;
             Config.save();
         });
@@ -1624,12 +1689,12 @@ extends Screen {
     }
 
     private void chipRow(DrawContext ctx, int x, int y, int w, String label, String value, IntConsumer step) {
-        this.text(ctx, label, x, y + 3, this.TEXT);
-        int cw = this.width(value) + 16;
+        this.text(ctx, label, x, y + this.chipTextY(), this.TEXT);
+        int cw = this.chipW(value);
         int cx = x + w - cw;
-        this.lens(ctx, cx, y, cw, 14.0f, 7.0f, this.over(cx, y, cw, 14) ? this.HOVER : this.PANEL_HI);
-        this.text(ctx, value, cx + 8, y + 3, this.TEXT);
-        this.clipHit(cx, y, cw, 14, (a, b, btn) -> {
+        this.lens(ctx, cx, y, cw, CHIP_H, 8.0f, this.over(cx, y, cw, CHIP_H) ? this.HOVER : this.PANEL_HI);
+        this.text(ctx, value, cx + this.chipTextX(), y + this.chipTextY(), this.TEXT);
+        this.clipHit(cx, y, cw, CHIP_H, (a, b, btn) -> {
             step.accept(btn);
             Config.save();
         });
@@ -1666,6 +1731,34 @@ extends Screen {
     private static String clock(int ticks) {
         int minutes = (int)(((double)ticks / 1000.0 + 6.0) % 24.0 * 60.0);
         return String.format("%02d:%02d", minutes / 60, minutes % 60);
+    }
+
+    private void beginHandPreview(String itemId, String label, int value, int min, int max) {
+        ItemStack stack = HandSize.preview(itemId);
+        if (stack.isEmpty()) {
+            return;
+        }
+        HandPreview.show(stack);
+        this.liveHand = true;
+        this.liveLabel = label;
+        this.liveValue = value;
+        this.liveMin = min;
+        this.liveMax = max;
+    }
+
+    private void drawLiveHandSlider(DrawContext ctx) {
+        int w = Math.min(360, Math.max(180, this.width - 48));
+        int x = (this.width - w) / 2;
+        int y = this.height - 52;
+        String shown = this.liveValue + "%";
+        StyleScreen.round(ctx, x - 10, y - 20, w + 20, 44, 10, 0xC8000000);
+        this.text(ctx, this.ellipsize(this.liveLabel, w - this.width(shown) - 4), x, y - 12, this.TEXT);
+        this.text(ctx, shown, x + w - this.width(shown), y - 12, this.ACCENT_HI);
+        int ty = y + 8;
+        float f = (float)(this.liveValue - this.liveMin) / (float)Math.max(1, this.liveMax - this.liveMin);
+        StyleScreen.round(ctx, x, ty, w, 4.0f, 2.0f, this.TRACK);
+        StyleScreen.round(ctx, x, ty, Math.max(4.0f, (float)w * f), 4.0f, 2.0f, this.ACCENT);
+        StyleScreen.round(ctx, (float)x + (float)w * f - 4.0f, ty - 2, 8.0f, 8.0f, 4.0f, -1);
     }
 
     private void sliderRow(DrawContext ctx, int x, int y, int w, String label, int value, int min, int max, IntConsumer set) {
@@ -1735,7 +1828,7 @@ extends Screen {
         int cx = 0;
         int rows = 1;
         for (HandSize.Entry e : HandSize.ITEMS) {
-            int cw = this.width(e.label()) + 14;
+            int cw = this.chipW(e.label());
             if (cx > 0 && cx + cw > w) {
                 ++rows;
                 cx = 0;
@@ -1746,7 +1839,8 @@ extends Screen {
     }
 
     private int handSizeHeight(int w) {
-        return 18 + this.handChipsHeight(w) + UI_GAP + 28 + 28 + UI_GAP + BTN_H;
+        int chips = this.handChipsHeight(w);
+        return extraCard(18 + chips + 16 + SLIDER_ROW + 24 + 16 + BTN_H);
     }
 
     private void drawHandSize(DrawContext ctx, int x, int y, int w) {
@@ -1755,7 +1849,7 @@ extends Screen {
         int cy = y + 18;
         HandSize.Entry picked = HandSize.ITEMS.getFirst();
         for (HandSize.Entry e : HandSize.ITEMS) {
-            int cw = this.width(e.label()) + 14;
+            int cw = this.chipW(e.label());
             if (cx > 0 && cx + cw > w) {
                 cx = 0;
                 cy += CHIP_H + CHIP_GAP;
@@ -1768,28 +1862,30 @@ extends Screen {
                 picked = e;
             }
             this.lens(ctx, bx, cy, cw, CHIP_H, 8.0f, on ? this.ACCENT_SOFT : (hov ? this.HOVER : this.PANEL_HI));
-            this.text(ctx, e.label(), bx + 7, cy + 4, on ? this.ACCENT_HI : (changed ? this.TEXT : this.MUTED));
+            this.text(ctx, e.label(), bx + this.chipTextX(), cy + this.chipTextY(), on ? this.ACCENT_HI : (changed ? this.TEXT : this.MUTED));
             if (changed) {
-                StyleScreen.round(ctx, bx + cw - 4, cy + 2, 3.0f, 3.0f, 1.5f, -9508952);
+                StyleScreen.round(ctx, bx + cw - 5, cy + 3, 4.0f, 4.0f, 2.0f, -9508952);
             }
             this.clipHit(bx, cy, cw, CHIP_H, (a, b, btn) -> {
                 this.handItem = e.id();
             });
             cx += cw + CHIP_GAP;
         }
-        int sy = y + 18 + this.handChipsHeight(w) + UI_GAP;
-        String id = picked.id();
-        this.sliderRow(ctx, x, sy, w, picked.label() + " size in hand", this.cfg.handSize.getOrDefault(id, 100), 30, 150, v -> {
+        int sy = y + 18 + this.handChipsHeight(w) + 16;
+        HandSize.Entry liveItem = picked;
+        String id = liveItem.id();
+        this.sliderRow(ctx, x, sy, w, liveItem.label() + " size in hand", this.cfg.handSize.getOrDefault(id, 100), 30, 150, v -> {
             if (v == 100) {
                 this.cfg.handSize.remove(id);
             } else {
                 this.cfg.handSize.put(id, v);
             }
+            this.beginHandPreview(id, liveItem.label() + " size in hand", v, 30, 150);
         });
-        this.sliderRow(ctx, x, sy + 28, w, "Totem pop size", this.cfg.popSize, 20, 200, v -> {
+        this.sliderRow(ctx, x, sy + SLIDER_ROW, w, "Totem pop size", this.cfg.popSize, 20, 200, v -> {
             this.cfg.popSize = v;
         });
-        int by = sy + 56;
+        int by = sy + SLIDER_ROW + 24 + 16;
         if (by >= this.bodyY && by + BTN_H <= this.bodyB) {
             this.pairButtons(ctx, x, by, w, "Test pop", TotemCounter::testPop, "Reset all", () -> {
                 this.cfg.handSize.clear();
@@ -1969,7 +2065,7 @@ extends Screen {
     }
 
     private int crosshairHeight(int w) {
-        return 16 + 15 * this.cellSize(w) + 8 + 24 + 16;
+        return extraCard(16 + 15 * this.cellSize(w) + 8 + 24 + 16);
     }
 
     private void drawCrosshairTab(DrawContext ctx) {
@@ -1977,11 +2073,12 @@ extends Screen {
         this.text(ctx, this.ellipsize("Your own crosshair, drawn by the mod  \u00b7  changes show at once", this.cx1 - this.cx0), this.cx0, this.T + 48, this.MUTED);
         int inner = this.blockInner();
         boolean pixel = this.cfg.chStyle.equals("pixel");
-        this.layoutBlocks(ctx, List.of(new Block(this.chMainHeight(inner), this::drawChMain), new Block(this.chPresetsHeight(inner), this::drawChPresets), pixel ? new Block(this.crosshairHeight(inner), this::drawCrosshairPainter) : new Block(160, this::drawChShape), new Block(this.cfg.chGradient ? 148 : 118, this::drawChColour), new Block(128, this::drawChIndicator)));
+        this.layoutBlocks(ctx, List.of(new Block(this.chMainHeight(inner), this::drawChMain), new Block(this.chPresetsHeight(inner), this::drawChPresets), pixel ? new Block(this.crosshairHeight(inner), this::drawCrosshairPainter) : new Block(extraGlass(160), this::drawChShape), new Block(extraGlass(this.cfg.chGradient ? 148 : 118), this::drawChColour), new Block(extraGlass(128), this::drawChIndicator)));
     }
 
     private int chMainHeight(int w) {
-        return 20 + TOGGLE_H + 14 + this.measureChipRows(w, CH_STYLE_NAMES) * (CHIP_H + CHIP_GAP);
+        int rows = this.measureChipRows(w, CH_STYLE_NAMES);
+        return extraCard(18 + TOGGLE_H + 16 + rows * CHIP_H + (rows - 1) * CHIP_GAP);
     }
 
     private void drawChMain(DrawContext ctx, int x, int y, int w) {
@@ -1996,7 +2093,7 @@ extends Screen {
         for (int i = 0; i < CH_STYLE_NAMES.length; ++i) {
             String n = CH_STYLE_NAMES[i];
             String id = Crosshair.STYLES.get(i);
-            int cw = this.width(n) + 14;
+            int cw = this.chipW(n);
             if (cx > 0 && cx + cw > w) {
                 cx = 0;
                 cy += CHIP_H + CHIP_GAP;
@@ -2005,7 +2102,7 @@ extends Screen {
             boolean on = this.cfg.chStyle.equals(id);
             boolean hov = this.over(bx, cy, cw, CHIP_H);
             this.lens(ctx, bx, cy, cw, CHIP_H, 8.0f, on ? this.ACCENT_SOFT : (hov ? this.HOVER : this.PANEL_HI));
-            this.text(ctx, n, bx + 7, cy + 4, on ? this.ACCENT_HI : this.TEXT);
+            this.text(ctx, n, bx + this.chipTextX(), cy + this.chipTextY(), on ? this.ACCENT_HI : this.TEXT);
             this.clipHit(bx, cy, cw, CHIP_H, (a, b, btn) -> {
                 this.cfg.chStyle = id;
                 this.cfg.chOn = true;
@@ -2023,7 +2120,7 @@ extends Screen {
     private int chPresetsHeight(int w) {
         int tile = this.chPresetTile(w);
         int rows = (Crosshair.PRESETS.size() + 2) / 3;
-        return 20 + rows * (tile + 16);
+        return extraCard(20 + rows * (tile + 16));
     }
 
     private void drawChPresets(DrawContext ctx, int x, int y, int w) {
@@ -2733,14 +2830,14 @@ extends Screen {
         int cx = 0;
         int rows = 1;
         for (Categories.KeepGroup g : Categories.KEEP_GROUPS) {
-            int cw = this.width(g.name()) + 12;
-            if (cx + cw > w) {
+            int cw = this.chipW(g.name());
+            if (cx > 0 && cx + cw > w) {
                 ++rows;
                 cx = 0;
             }
-            cx += cw + UI_GAP;
+            cx += cw + CHIP_GAP;
         }
-        return 64 + rows * 20;
+        return extraCard(20 + TOGGLE_H + 14 + rows * CHIP_H + (rows - 1) * CHIP_GAP);
     }
 
     private void drawGreyWorld(DrawContext ctx, int x, int y, int w) {
@@ -2751,19 +2848,19 @@ extends Screen {
         });
         this.text(ctx, "Keep colour", x, y + 20 + ROW, this.MUTED);
         int cx = 0;
-        int cy = y + 20 + ROW + 14;
+        int cy = y + 20 + ROW + 16;
         for (Categories.KeepGroup g : Categories.KEEP_GROUPS) {
-            int cw = this.width(g.name()) + 12;
-            if (cx + cw > w) {
+            int cw = this.chipW(g.name());
+            if (cx > 0 && cx + cw > w) {
                 cx = 0;
-                cy += 20;
+                cy += CHIP_H + CHIP_GAP;
             }
             boolean on = this.cfg.keepColour.contains(g.name());
             int bx = x + cx;
-            boolean hov = this.over(bx, cy, cw, 16);
-            this.lens(ctx, bx, cy, cw, 16.0f, 8.0f, on ? this.ACCENT_SOFT : (hov ? this.HOVER : this.PANEL_HI));
-            this.text(ctx, g.name(), bx + 6, cy + 4, on ? this.ACCENT_HI : this.MUTED);
-            this.clipHit(bx, cy, cw, 16, (a, b, btn) -> {
+            boolean hov = this.over(bx, cy, cw, CHIP_H);
+            this.lens(ctx, bx, cy, cw, CHIP_H, 8.0f, on ? this.ACCENT_SOFT : (hov ? this.HOVER : this.PANEL_HI));
+            this.text(ctx, g.name(), bx + this.chipTextX(), cy + this.chipTextY(), on ? this.ACCENT_HI : this.MUTED);
+            this.clipHit(bx, cy, cw, CHIP_H, (a, b, btn) -> {
                 if (!this.cfg.keepColour.remove(g.name())) {
                     this.cfg.keepColour.add(g.name());
                 }
@@ -2773,7 +2870,7 @@ extends Screen {
                     Config.save();
                 }
             });
-            cx += cw + UI_GAP;
+            cx += cw + CHIP_GAP;
         }
     }
 
@@ -3092,6 +3189,8 @@ extends Screen {
 
     void hsMouseReleased() {
         this.dragging = null;
+        HandPreview.clear();
+        this.liveHand = false;
         if (this.editor != null) {
             this.editor.endStroke();
         }
