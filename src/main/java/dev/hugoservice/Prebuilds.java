@@ -13,7 +13,9 @@ final class Prebuilds {
             "Gabi_Violet_Private.zip",
             "Spear_Mace_Pack.zip",
             "cowarted_purple.zip",
-            "navik_silver_private.zip");
+            "navik_silver_private.zip",
+            "Ika_Christmas_Pack.zip",
+            "Gray_Cowarted_Mashup.zip");
 
     private Prebuilds() {
     }
@@ -21,6 +23,9 @@ final class Prebuilds {
     static boolean isPrebuild(String fileName) {
         if (fileName == null) {
             return false;
+        }
+        if (Marketplace.isMarket(fileName)) {
+            return true; // installed from the marketplace
         }
         String n = fileName.toLowerCase(Locale.ROOT);
         for (String f : FILES) {

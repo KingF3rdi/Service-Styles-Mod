@@ -21,6 +21,7 @@ package dev.hugoservice.mixin;
 import dev.hugoservice.Config;
 import dev.hugoservice.Fx;
 import dev.hugoservice.Mc;
+import dev.hugoservice.StyleScreen;
 import net.minecraft.client.util.Window;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -37,8 +38,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value={MinecraftClient.class})
 public class MinecraftClientMixin {
-    @Unique
-    private boolean hugoservice$invScaled;
 
     @Inject(method={"hasOutline"}, at={@At(value="HEAD")}, cancellable=true)
     private void hugoservice$glow(Entity entity, CallbackInfoReturnable<Boolean> cir) {
@@ -50,28 +49,35 @@ public class MinecraftClientMixin {
         }
     }
 
-    @ModifyArg(method={"onResolutionChanged"}, index=0, at={@At(value="INVOKE", target="Lnet/minecraft/client/util/Window;calculateScaleFactor(IZ)I")})
-    private int hugoservice$inventoryScale(int scale) {
-        int s = Config.INSTANCE.inventoryScale;
-        return s > 0 && ((MinecraftClient)(Object)this).currentScreen instanceof HandledScreen ? s : scale;
+    @ModifyArg(method={"onResolutionChanged"}, index=0, at={@At(value="INVOKE", target="Lnet/minecraft/client/util/Window;setScaleFactor(I)V")})
+    private int hugoservice$screenScale(int base) {
+        MinecraftClient mc = (MinecraftClient)(Object)this;
+        return MinecraftClientMixin.hugoservice$factorFor(mc, mc.currentScreen, base);
     }
 
     @Inject(method={"setScreen"}, at={@At(value="TAIL")})
     private void hugoservice$rescale(Screen screen, CallbackInfo ci) {
-        boolean want;
         MinecraftClient mc = (MinecraftClient)(Object)this;
-        boolean bl = want = Config.INSTANCE.inventoryScale > 0 && screen instanceof HandledScreen;
-        if (want == this.hugoservice$invScaled) {
+        Window w = mc.getWindow();
+        int base = w.calculateScaleFactor((Integer)mc.options.getGuiScale().getValue(), mc.forcesUnicodeFont());
+        int want = MinecraftClientMixin.hugoservice$factorFor(mc, screen, base);
+        if (want == w.getScaleFactor()) {
             return;
         }
-        this.hugoservice$invScaled = want;
-        Window w = mc.getWindow();
-        int base = (Integer)mc.options.getGuiScale().getValue();
-        w.setScaleFactor(w.calculateScaleFactor(want ? Config.INSTANCE.inventoryScale : base, mc.forcesUnicodeFont()));
+        w.setScaleFactor(want);
         if (mc.currentScreen != null) {
             Mc.resizeScreen(mc.currentScreen, mc, w.getScaledWidth(), w.getScaledHeight());
         }
         mc.mouse.onResolutionChanged();
+    }
+
+    /** GUI scale while this screen is open: the inventory size option for containers, a fitting one for the menu. */
+    @Unique
+    private static int hugoservice$factorFor(MinecraftClient mc, Screen screen, int base) {
+        if (Config.INSTANCE.inventoryScale > 0 && screen instanceof HandledScreen) {
+            return mc.getWindow().calculateScaleFactor(Config.INSTANCE.inventoryScale, mc.forcesUnicodeFont());
+        }
+        return screen instanceof StyleScreen ? StyleScreen.fitScale(mc.getWindow(), base) : base;
     }
 }
 

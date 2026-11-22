@@ -7,7 +7,8 @@
     "EndCrystalEntityRendererMixin",
     "HandPreviewBlockMixin",
     "HandPreviewMixin",
-    "HeldItemRendererMixin"
+    "HeldItemRendererMixin",
+    "ShieldModelRendererMixin"
   ],
   "injectors": { "defaultRequire": 0 }
 }

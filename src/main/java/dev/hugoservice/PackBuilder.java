@@ -44,7 +44,7 @@ import net.minecraft.resource.ResourcePackManager;
 public final class PackBuilder {
     public static final String ACTIVE = Brand.NAME;
     public static final String ACTIVE_ID = "file/" + Brand.NAME;
-    static final String[] LEGACY_ACTIVE = {"HugoService-Active", "SkellyHole-Active", "SkellyHole Styles", "7auction Styles", "PinguuTxw Styles"};
+    static final String[] LEGACY_ACTIVE = {"HugoService-Active", "SkellyHole-Active", "SkellyHole Styles", "7auction Styles"};
 
     public static Map<String, byte[]> collect(Config cfg, String description) throws IOException {
         byte[] v;
@@ -52,6 +52,18 @@ public final class PackBuilder {
         String desc = description == null || description.isBlank() ? Brand.NAME : description;
         out.put("pack.mcmeta", PackBuilder.mcmeta(desc));
         out.put("pack.png", Images.encode(PackBuilder.packIcon()));
+        // A picked mix brings its whole pack (chests, particles, models, its own items), not only the collections'
+        // textures. A collection set back to vanilla drops the mix's files for it; picks go on top below.
+        Map<String, byte[]> mix = PackBuilder.mixFiles(Styles.packPath(cfg.loadout.get("mixes")));
+        for (Categories.Group c : Categories.allGroups()) {
+            if (!mix.isEmpty() && Styles.find(c, cfg.styleOf(c.id())).vanilla && cfg.colorOf(c.id()) == null) {
+                for (String file : c.files()) {
+                    mix.remove("assets/minecraft/" + file);
+                    mix.remove("assets/minecraft/" + file + ".mcmeta");
+                }
+            }
+        }
+        out.putAll(mix);
         if (cfg.greyWorld) {
             PackBuilder.addGreyWorld(cfg, out);
         }
@@ -85,6 +97,28 @@ public final class PackBuilder {
             }
         }
         return out;
+    }
+
+    /** Every file under assets/ of a mix pack, minus fonts and shaders (left out of built packs everywhere). */
+    static Map<String, byte[]> mixFiles(Path zip) {
+        LinkedHashMap<String, byte[]> files = new LinkedHashMap<String, byte[]>();
+        if (zip == null || !Files.isRegularFile(zip)) {
+            return files;
+        }
+        try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(zip.toFile())) {
+            for (ZipEntry e : java.util.Collections.list(z.entries())) {
+                String n = e.getName().replace('\\', '/');
+                if (e.isDirectory() || !n.startsWith("assets/") || n.contains("..") || n.contains("/font/") || n.contains("/shaders/")) {
+                    continue;
+                }
+                try (InputStream in = z.getInputStream(e)) {
+                    files.put(n, in.readAllBytes());
+                }
+            }
+        } catch (IOException e) {
+            HugoService.LOG.warn("Mix pack {} not readable: {}", zip, e.toString());
+        }
+        return files;
     }
 
     /** Fill a missing group file from a sibling of the same kind (diamond sword from netherite, spear in-hand, crystal beam). */

@@ -151,6 +151,7 @@ extends Screen {
     private KeyBinding waitingKey;
     private String groupFilter;
     private boolean crosshairView;
+    private boolean marketView;
     private TextureEditor editor;
     private int editTool;
     private boolean editMirror;
@@ -340,16 +341,17 @@ extends Screen {
         this.search.setText(q);
         this.search.setChangedListener(s -> {
             this.gridScroll = 0.0;
+            this.tileScroll = 0.0;
             this.hovered = null;
         });
         this.search.visible = !this.extras && this.editor == null;
-        this.addDrawableChild(this.search);
+        this.addSelectableChild(this.search);
         int nameW = Math.max(64, Math.min(120, (this.R - this.L) / 6));
         this.packName = new TextFieldWidget(this.textRenderer, this.R - 142 - nameW + 8, this.B - 22, nameW - 14, 10, (Text)Text.literal((String)"Pack name"));
         this.styleField(this.packName);
         this.packName.setMaxLength(48);
         this.packName.setText(n);
-        this.addDrawableChild(this.packName);
+        this.addSelectableChild(this.packName);
         this.fakeField = new TextFieldWidget(this.textRenderer, 0, 0, 80, 10, (Text)Text.literal((String)"Fake name"));
         this.styleField(this.fakeField);
         this.fakeField.setMaxLength(16);
@@ -360,7 +362,7 @@ extends Screen {
             }
         });
         this.fakeField.visible = false;
-        this.addDrawableChild(this.fakeField);
+        this.addSelectableChild(this.fakeField);
         this.enemyField = new TextFieldWidget(this.textRenderer, 0, 0, 80, 10, (Text)Text.literal((String)"Enemy name"));
         this.styleField(this.enemyField);
         this.enemyField.setMaxLength(16);
@@ -370,7 +372,7 @@ extends Screen {
             this.cfg.fakeEnemyName = s.trim();
         });
         this.enemyField.visible = false;
-        this.addDrawableChild(this.enemyField);
+        this.addSelectableChild(this.enemyField);
         this.badgeField = new TextFieldWidget(this.textRenderer, 0, 0, 80, 10, (Text)Text.literal((String)"Badge name"));
         this.styleField(this.badgeField);
         this.badgeField.setMaxLength(24);
@@ -380,7 +382,7 @@ extends Screen {
             this.cfg.badgeName = s.trim();
         });
         this.badgeField.visible = false;
-        this.addDrawableChild(this.badgeField);
+        this.addSelectableChild(this.badgeField);
         this.urlField = new TextFieldWidget(this.textRenderer, 0, 0, 80, 10, (Text)Text.literal((String)"Server URL"));
         this.styleField(this.urlField);
         this.urlField.setMaxLength(200);
@@ -390,7 +392,7 @@ extends Screen {
             this.cfg.presenceUrl = s.trim();
         });
         this.urlField.visible = false;
-        this.addDrawableChild(this.urlField);
+        this.addSelectableChild(this.urlField);
         this.spotifyField = new TextFieldWidget(this.textRenderer, 0, 0, 80, 10, (Text)Text.literal((String)"Spotify Client ID"));
         this.styleField(this.spotifyField);
         this.spotifyField.setMaxLength(64);
@@ -400,7 +402,7 @@ extends Screen {
             this.cfg.spotifyClientId = s.trim();
         });
         this.spotifyField.visible = false;
-        this.addDrawableChild(this.spotifyField);
+        this.addSelectableChild(this.spotifyField);
         String en = this.editName != null ? this.editName.getText() : "";
         this.editName = new TextFieldWidget(this.textRenderer, 0, this.T + 39, 80, 10, (Text)Text.literal((String)"Style name"));
         this.styleField(this.editName);
@@ -408,7 +410,7 @@ extends Screen {
         this.editName.setText(en);
         this.editName.setPlaceholder((Text)this.t("Name your drawing...").copy().withColor(this.DIM & 0xFFFFFF));
         this.editName.visible = false;
-        this.addDrawableChild(this.editName);
+        this.addSelectableChild(this.editName);
         this.hexField = new TextFieldWidget(this.textRenderer, 0, 0, 60, 10, (Text)Text.literal((String)"Hex colour"));
         this.styleField(this.hexField);
         this.hexField.setMaxLength(7);
@@ -420,7 +422,7 @@ extends Screen {
             }
         });
         this.hexField.visible = false;
-        this.addDrawableChild(this.hexField);
+        this.addSelectableChild(this.hexField);
         if (this.home) {
             this.search.visible = false;
         }
@@ -452,16 +454,19 @@ extends Screen {
     }
 
     void showExtras(boolean on) {
+        if (this.search != null && on != this.extras) {
+            this.search.setText(""); // a style filter would hide every extra, and the other way round
+        }
         this.editor = null;
         this.extras = on;
         this.extraOpen = false;
         this.crosshairView = false;
+        this.marketView = false;
         if (!on) {
             this.themesTab = false;
         }
-        boolean bl = this.search.visible = !on;
-        if (on) {
-            this.search.setFocused(false);
+        if (this.getFocused() == this.search) {
+            this.setFocused(null);
         }
     }
 
@@ -479,7 +484,7 @@ extends Screen {
 
     public static boolean coversWorld() {
         MinecraftClient client = MinecraftClient.getInstance();
-        return client != null && client.currentScreen instanceof StyleScreen;
+        return client != null && client.currentScreen instanceof StyleScreen s && !s.liveHand; // a dragged slider shows the world
     }
 
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -488,8 +493,9 @@ extends Screen {
         }
         if (this.cfg.blur) {
             super.renderBackground(ctx, mouseX, mouseY, delta);
+            ctx.fill(0, 0, this.width, this.height, 0x70000000);
         } else {
-            ctx.fill(0, 0, this.width, this.height, -2013265920);
+            ctx.fill(0, 0, this.width, this.height, 0xC8000000);
         }
     }
 
@@ -505,7 +511,6 @@ extends Screen {
         this.applyTheme();
         this.hits.clear();
         if (this.liveHand) {
-            this.hideVanillaFields();
             this.drawLiveHandSlider(ctx);
             super.render(ctx, mx, my, delta);
             Shapes.flush();
@@ -538,6 +543,8 @@ extends Screen {
                     this.drawExtras(ctx);
                 } else if (this.crosshairView) {
                     this.drawCrosshairTab(ctx);
+                } else if (this.marketView) {
+                    this.drawMarket(ctx);
                 } else {
                     this.drawGrid(ctx);
                 }
@@ -547,39 +554,8 @@ extends Screen {
                 this.drawBottomBar(ctx);
             }
         }
-        this.hideVanillaFields();
         super.render(ctx, mx, my, delta);
         Shapes.flush();
-    }
-
-    private void hideVanillaFields() {
-        if (this.search != null) {
-            this.search.visible = false;
-        }
-        if (this.packName != null) {
-            this.packName.visible = false;
-        }
-        if (this.fakeField != null) {
-            this.fakeField.visible = false;
-        }
-        if (this.enemyField != null) {
-            this.enemyField.visible = false;
-        }
-        if (this.badgeField != null) {
-            this.badgeField.visible = false;
-        }
-        if (this.urlField != null) {
-            this.urlField.visible = false;
-        }
-        if (this.spotifyField != null) {
-            this.spotifyField.visible = false;
-        }
-        if (this.editName != null) {
-            this.editName.visible = false;
-        }
-        if (this.hexField != null) {
-            this.hexField.visible = false;
-        }
     }
 
     private void drawHome(DrawContext ctx, float delta) {
@@ -810,7 +786,7 @@ extends Screen {
             this.drawThumb(ctx, g, s, tint, x, y, size, size, 0, false);
             return;
         }
-        StyleScreen.item(ctx, c, x + (size - 16) / 2, y + (size - 16) / 2);
+        StyleScreen.item(ctx, c, x + size / 2.0f, y + size / 2.0f);
     }
 
     private String wornNames(Categories.Category c) {
@@ -862,7 +838,7 @@ extends Screen {
         int cw = this.width("Collections") + 12;
         int half = sw * cw / (cw + this.width("Extras") + 12);
         StyleScreen.round(ctx, sx, sy, sw, 18.0f, 9.0f, this.FIELD);
-        this.lens(ctx, this.extras ? (float)(sx + half) : (float)sx, sy, this.extras ? (float)(sw - half) : (float)half, 18.0f, 9.0f, this.ACCENT_SOFT);
+        this.pill(ctx, this.extras ? (float)(sx + half) : (float)sx, sy, this.extras ? (float)(sw - half) : (float)half, 18.0f, 9.0f, this.ACCENT_SOFT);
         this.segment(ctx, sx, sy, half, "Collections", !this.extras, () -> this.showExtras(false));
         this.segment(ctx, sx + half, sy, sw - half, "Extras", this.extras, () -> this.showExtras(true));
         int listTop = sy + 26;
@@ -873,6 +849,10 @@ extends Screen {
         boolean chSel = this.crosshairView && !this.extras;
             this.sideRow(ctx, x0, w, ry, listTop, bottom, chSel, "Crosshair", (String)(this.cfg.chOn ? "On  \u00b7  " + this.cfg.chStyle : "Off"), this.cfg.chOn, "", (ix, iy) -> Crosshair.draw(ctx, CROSSHAIR_ICON, ix + 8, iy + 8, chSel ? this.ACCENT & 0xFFFFFF : 15135487, false, null), this::openCrosshair);
         ry += 30;
+        boolean mSel = this.marketView && !this.extras;
+        int shared = Marketplace.presets().size();
+        this.sideRow(ctx, x0, w, ry, listTop, bottom, mSel, "Marketplace", shared == 0 ? "Shared mixes" : shared + (shared == 1 ? " shared mix" : " shared mixes"), mSel, "", (ix, iy) -> StyleScreen.smallItem(ctx, ICONS.computeIfAbsent("market", k -> new ItemStack((ItemConvertible)Items.EMERALD)), ix + 8, iy + 8), this::openMarket);
+        ry += 30;
         String section = null;
         for (Categories.Category c : Categories.ALL) {
             if (!c.section().equals(section)) {
@@ -880,9 +860,9 @@ extends Screen {
                 this.text(ctx, section.toUpperCase(Locale.ROOT), x0 + 10, ry + 6, this.DIM);
                 ry += 18;
             }
-            boolean sel = c == this.cat && !this.extras && !this.crosshairView;
+            boolean sel = c == this.cat && !this.extras && !this.crosshairView && !this.marketView;
             String worn = this.wornNames(c);
-            this.sideRow(ctx, x0, w, ry, listTop, bottom, sel, c.name(), worn, !worn.equals("Vanilla"), String.valueOf(this.count(c)), (ix, iy) -> this.collectionIcon(ctx, c, (int)ix, (int)iy, 16), () -> this.selectCategory(c));
+            this.sideRow(ctx, x0, w, ry, listTop, bottom, sel, c.name(), worn, !worn.equals("Vanilla"), String.valueOf(this.count(c)), (ix, iy) -> this.collectionIcon(ctx, c, (int)ix + 1, (int)iy + 1, 14), () -> this.selectCategory(c));
             ry += 28;
         }
         ctx.disableScissor();
@@ -969,7 +949,7 @@ extends Screen {
         int segW = Math.max(this.width("All"), this.width(favLabel)) + 14;
         int gx = sx - 8 - segW * 2;
         StyleScreen.round(ctx, gx, this.T + 34, segW * 2, 17.0f, 8.5f, this.FIELD);
-        this.lens(ctx, this.favOnly ? (float)(gx + segW) : (float)gx, this.T + 34, segW, 17.0f, 8.5f, this.ACCENT_SOFT);
+        this.pill(ctx, this.favOnly ? (float)(gx + segW) : (float)gx, this.T + 34, segW, 17.0f, 8.5f, this.ACCENT_SOFT);
         this.segment(ctx, gx, this.T + 34, segW, "All", !this.favOnly, () -> {
             this.favOnly = false;
             this.gridScroll = 0.0;
@@ -1066,11 +1046,103 @@ extends Screen {
         }
     }
 
+    void openMarket() {
+        this.showExtras(false);
+        this.marketView = true;
+        this.extrasScroll = 0.0;
+        Marketplace.refresh();
+    }
+
+    /** Marketplace page: shared mixes from the mod's GitHub repo, one row each with Install / Use. */
+    private void drawMarket(DrawContext ctx) {
+        int w = this.cx1 - this.cx0;
+        this.bold(ctx, "Marketplace", this.cx0, this.T + 37, this.TEXT);
+        String share = "Share yours";
+        int bw = this.width(share) + 18;
+        this.button(ctx, this.cx1 - bw, this.T + 34, bw, share, false, () -> this.openLink("https://github.com/KingF3rdi/Service-Styles-Mod/tree/main/marketplace#share-your-mix"));
+        this.text(ctx, this.ellipsize("Shared mixes  ·  installed ones show up in Mixes", w - bw - 8), this.cx0, this.T + 48, this.MUTED);
+        List<Marketplace.Preset> all = Marketplace.presets();
+        String note = !Marketplace.state().isEmpty() ? Marketplace.state() : (all.isEmpty() ? "No shared mixes yet - be the first: Share yours" : "");
+        if (!note.isEmpty()) {
+            this.text(ctx, this.ellipsize(note, w), this.cx0, this.bodyY + 4, this.DIM);
+            return;
+        }
+        int rowH = 58;
+        int gap = EXTRA_GAP;
+        this.extrasMax = Math.max(0, all.size() * (rowH + gap) - gap - (this.bodyB - this.bodyY));
+        this.extrasScroll = StyleScreen.clamp(this.extrasScroll, 0.0, this.extrasMax);
+        String using = this.cfg.loadout.get("mixes");
+        ctx.enableScissor(this.cx0 - 2, this.bodyY - 2, this.cx1 + 2, this.bodyB);
+        for (int i = 0; i < all.size(); ++i) {
+            Marketplace.Preset p = all.get(i);
+            int y = this.bodyY + i * (rowH + gap) - (int)this.extrasScroll;
+            if (y + rowH < this.bodyY || y > this.bodyB) continue;
+            this.glass(ctx, this.cx0, y, w, rowH, 6.0f, this.PANEL);
+            java.nio.file.Path img = Marketplace.previewFile(p);
+            boolean hasImg = java.nio.file.Files.exists(img);
+            StyleScreen.round(ctx, this.cx0 + 6, y + 6, rowH - 12, rowH - 12, 6.0f, this.FIELD);
+            if (hasImg) {
+                this.drawPreview(ctx, "market|" + p.id(), () -> javax.imageio.ImageIO.read(img.toFile()), this.cx0 + 6, y + 6, rowH - 12, rowH - 12, 2, false);
+            } else {
+                StyleScreen.smallItem(ctx, ICONS.computeIfAbsent("market", k -> new ItemStack((ItemConvertible)Items.EMERALD)), this.cx0 + rowH / 2.0f, y + rowH / 2.0f);
+            }
+            boolean installed = Marketplace.installed(p);
+            boolean inUse = installed && ("pack:" + Marketplace.PREFIX + p.id() + ".zip").equals(using);
+            String label = inUse ? "In use" : (installed ? "Use" : "Install");
+            int lw = this.width("Install") + 18;
+            int tx = this.cx0 + rowH + 2;
+            int tw = w - rowH - 2 - lw - 12;
+            this.text(ctx, this.ellipsize(p.name(), tw), tx, y + 8, this.TEXT);
+            this.text(ctx, this.ellipsize(p.author().isEmpty() ? "Shared mix" : "by " + p.author(), tw), tx, y + 20, this.MUTED);
+            this.text(ctx, this.ellipsize(p.desc(), tw), tx, y + 34, this.DIM);
+            if (y + 20 + BTN_H <= this.bodyB && y + 20 >= this.bodyY) {
+                this.button(ctx, this.cx1 - lw - 8, y + 20, lw, label, !inUse, () -> {
+                    if (installed) {
+                        this.useMarket(p);
+                    } else {
+                        this.installMarket(p);
+                    }
+                });
+            }
+        }
+        ctx.disableScissor();
+        this.scrollbar(ctx, this.cx1 + 4, this.bodyY, this.bodyB, this.extrasScroll, this.extrasMax);
+    }
+
+    private void installMarket(Marketplace.Preset p) {
+        if (this.busy) {
+            return;
+        }
+        this.busy = true;
+        this.status("Downloading " + p.name() + "...");
+        this.runAsync(() -> {
+            Marketplace.install(p);
+            return p;
+        }, done -> {
+            this.rescan();
+            this.useMarket(done);
+        });
+    }
+
+    /** Picks the installed mix in Mixes, which applies its styles everywhere like a bundled mix. */
+    private void useMarket(Marketplace.Preset p) {
+        String id = "pack:" + Marketplace.PREFIX + p.id() + ".zip";
+        Categories.Group mixes = StyleScreen.groupById("mixes");
+        for (Styles.Style s : this.lists.getOrDefault("mixes", List.of())) {
+            if (s.id.equals(id)) {
+                this.pick(mixes, s);
+                return;
+            }
+        }
+        this.status("Installed " + p.name() + " - it is in Mixes");
+    }
+
     void openCrosshair() {
         this.showExtras(false);
         this.crosshairView = true;
-        this.search.visible = false;
-        this.search.setFocused(false);
+        if (this.getFocused() == this.search) {
+            this.setFocused(null);
+        }
         this.extrasScroll = 0.0;
     }
 
@@ -1277,6 +1349,36 @@ extends Screen {
         return 18 + 56 + EXTRA_GAP + this.colorPickerH(w);
     }
 
+    private int chipsH(int w, String[] labels) {
+        int rows = this.measureChipRows(w, labels);
+        return rows * CHIP_H + (rows - 1) * CHIP_GAP;
+    }
+
+    /** Every option as a chip, the current one lit; returns the height used. */
+    private int pickChips(DrawContext ctx, int x, int y, int w, String[] labels, int current, IntConsumer pick) {
+        int cx = 0;
+        int cy = y;
+        for (int i = 0; i < labels.length; ++i) {
+            int idx = i;
+            int cw = this.chipW(labels[i]);
+            if (cx > 0 && cx + cw > w) {
+                cx = 0;
+                cy += CHIP_H + CHIP_GAP;
+            }
+            int bx = x + cx;
+            boolean on = i == current;
+            boolean hov = this.over(bx, cy, cw, CHIP_H);
+            this.lens(ctx, bx, cy, cw, CHIP_H, 8.0f, on ? this.ACCENT_SOFT : (hov ? this.HOVER : this.PANEL_HI));
+            this.text(ctx, labels[i], bx + this.chipTextX(), cy + this.chipTextY(), on ? this.ACCENT_HI : this.TEXT);
+            this.clipHit(bx, cy, cw, CHIP_H, (a, b, btn) -> {
+                pick.accept(idx);
+                Config.save();
+            });
+            cx += cw + CHIP_GAP;
+        }
+        return cy + CHIP_H - y;
+    }
+
     private int measureChipRows(int w, String[] labels) {
         int cx = 0;
         int rows = 1;
@@ -1352,7 +1454,7 @@ extends Screen {
             c.anchorGlow = c.anchorGlow == null ? Integer.valueOf(11766015) : null;
             this.changed();
         }));
-        list.add(new Extra("Kill effect", "Combat", Items.NETHERITE_SWORD, "Effect when a player dies", extraGlass(100), this::drawKillEffect, () -> KillEffects.NAMES[Math.floorMod(c.killEffect, KillEffects.NAMES.length)], null));
+        list.add(new Extra("Kill effect", "Combat", Items.NETHERITE_SWORD, "Effect when a player dies", extraGlass(100 + this.chipsH(w, KillEffects.NAMES) - CHIP_H + EXTRA_GAP), this::drawKillEffect, () -> KillEffects.NAMES[Math.floorMod(c.killEffect, KillEffects.NAMES.length)], null));
         list.add(new Extra("Totem counter", "Combat", Items.TOTEM_OF_UNDYING, "Pops over heads, HUD, chat", extraGlass(152), this::drawTotemCounter, () -> StyleScreen.onOff(c.totemPops), () -> {
             c.totemPops = !c.totemPops;
             Config.save();
@@ -1397,6 +1499,10 @@ extends Screen {
         return list;
     }
 
+    private static boolean finds(Extra e, String q) {
+        return q.isEmpty() || (e.name() + " " + e.desc() + " " + e.group()).toLowerCase(Locale.ROOT).contains(q);
+    }
+
     /** Extras page: group chips and tiles, the picked tile's settings beside them (or instead of them when narrow). */
     private void drawExtras(DrawContext ctx) {
         int body = this.bodyY;
@@ -1418,14 +1524,17 @@ extends Screen {
         }
         this.extraSplitX = split ? this.cx1 - setW : Integer.MAX_VALUE;
         this.bold(ctx, "Extras", this.cx0, this.T + 37, this.TEXT);
-        this.text(ctx, this.ellipsize("Click a tile for its settings  ·  the switch turns it on or off", gridW), this.cx0, this.T + 48, this.MUTED);
+        int qw = Math.min(132, Math.max(72, gridW / 3));
+        this.clickField(ctx, this.search, this.cx0 + gridW - qw, this.T + 34, qw, 17, "Search");
+        String q = this.search.getText().trim().toLowerCase(Locale.ROOT);
+        this.text(ctx, this.ellipsize("Click a tile for its settings  ·  the switch turns it on or off", gridW - qw - 8), this.cx0, this.T + 48, this.MUTED);
         int x = this.cx0;
         int y = this.T + 60;
         for (int i = 0; i < EXTRA_GROUPS.length; ++i) {
             int idx = i;
             int n = 0;
             for (Extra e : all) {
-                if (i != 0 && !e.group().equals(EXTRA_GROUPS[i])) continue;
+                if (i != 0 && !e.group().equals(EXTRA_GROUPS[i]) || !StyleScreen.finds(e, q)) continue;
                 ++n;
             }
             String label = EXTRA_GROUPS[i] + "  " + n;
@@ -1449,8 +1558,11 @@ extends Screen {
         this.bodyY = y + 20;
         ArrayList<Extra> shown = new ArrayList<Extra>();
         for (Extra e : all) {
-            if (this.extraGroup != 0 && !e.group().equals(EXTRA_GROUPS[this.extraGroup])) continue;
+            if (this.extraGroup != 0 && !e.group().equals(EXTRA_GROUPS[this.extraGroup]) || !StyleScreen.finds(e, q)) continue;
             shown.add(e);
+        }
+        if (shown.isEmpty()) {
+            this.text(ctx, "No extras match \"" + q + "\"", this.cx0, this.bodyY + 4, this.DIM);
         }
         int gap = 7;
         int cols = Math.max(1, (gridW + gap) / 124);
@@ -1482,7 +1594,7 @@ extends Screen {
             StyleScreen.roundOutline(ctx, x, y, w, h, 6.0f, this.ACCENT, 1.0f);
         }
         StyleScreen.round(ctx, x + 6, y + 6, 20.0f, 20.0f, 6.0f, this.FIELD);
-        ctx.drawItem(ICONS.computeIfAbsent("extra:" + e.name(), k -> new ItemStack(e.icon())), x + 8, y + 8);
+        StyleScreen.smallItem(ctx, ICONS.computeIfAbsent("extra:" + e.name(), k -> new ItemStack(e.icon())), x + 16, y + 16);
         this.text(ctx, this.ellipsize(e.name(), w - 38), x + 32, y + 7, sel || hov ? this.TEXT : this.MUTED);
         this.scaledText(ctx, this.t(this.ellipsize(e.desc(), (int)((float)(w - 38) / 0.75f))), x + 32, y + 18, 0.75f, this.DIM);
         this.clipHit(x, y, w, h, (a, b, btn) -> {
@@ -1677,6 +1789,7 @@ extends Screen {
         this.drawPreview(ctx, "op|crystal|" + cs.id + "|" + co, () -> Previews.alpha(Previews.render(crystal, cs, null), co), x, y + 18, 26, 26, 2, false);
         this.sliderRow(ctx, x + 30, y + 18, half - 30, "End crystal", co, 10, 100, v -> {
             this.cfg.crystalOpacity = v;
+            HandPreview.scene(HandPreview.Scene.CRYSTALS);
             this.beginLive("End crystal opacity", v + "%", v, 10, 100);
         });
         int sx = x + half + 8;
@@ -1719,6 +1832,7 @@ extends Screen {
         });
         this.sliderRow(ctx, x, y + this.fxBlockH(w) + EXTRA_GAP, w, "Size", this.cfg.nametagSize, 50, 200, v -> {
             this.cfg.nametagSize = v;
+            HandPreview.scene(HandPreview.Scene.NAMETAG);
             this.beginLive("Name tag size", v + "%", v, 50, 200);
         });
     }
@@ -1817,7 +1931,8 @@ extends Screen {
         field.setX(x + 7);
         field.setY(fy + 3);
         field.setWidth(Math.max(10, w - 14));
-        field.visible = false;
+        // drawn here, not by vanilla (input-only child), but a hidden field ignores typing
+        field.visible = true;
         String q = field.getText();
         boolean empty = q == null || q.isEmpty();
         String shown = empty && !field.isFocused() ? placeholder : (q == null ? "" : q);
@@ -1855,7 +1970,7 @@ extends Screen {
         boolean auto = Spotify.auto();
         int half = w / 2;
         StyleScreen.round(ctx, x, y + 16, w, 18.0f, 9.0f, this.FIELD);
-        this.lens(ctx, auto ? (float)x : (float)(x + half), y + 16, auto ? (float)half : (float)(w - half), 18.0f, 9.0f, this.ACCENT_SOFT);
+        this.pill(ctx, auto ? (float)x : (float)(x + half), y + 16, auto ? (float)half : (float)(w - half), 18.0f, 9.0f, this.ACCENT_SOFT);
         this.segment(ctx, x, y + 16, half, "Automatic", auto, () -> {
             this.cfg.spotifyMode = "auto";
             Spotify.track = null;
@@ -1940,9 +2055,9 @@ extends Screen {
     }
 
     private void chipRow(DrawContext ctx, int x, int y, int w, String label, String value, IntConsumer step) {
-        this.text(ctx, label, x, y + this.chipTextY(), this.TEXT);
         int cw = this.chipW(value);
         int cx = x + w - cw;
+        this.text(ctx, this.ellipsize(label, cx - x - 6), x, y + this.chipTextY(), this.TEXT);
         this.lens(ctx, cx, y, cw, CHIP_H, 8.0f, this.over(cx, y, cw, CHIP_H) ? this.HOVER : this.PANEL_HI);
         this.text(ctx, value, cx + this.chipTextX(), y + this.chipTextY(), this.TEXT);
         this.clipHit(cx, y, cw, CHIP_H, (a, b, btn) -> {
@@ -2031,7 +2146,7 @@ extends Screen {
     private void drawLiveHandSlider(DrawContext ctx) {
         int w = Math.min(360, Math.max(180, this.width - 48));
         int x = (this.width - w) / 2;
-        int y = this.height - 52;
+        int y = HandPreview.scene() == HandPreview.Scene.FIRE ? 32 : this.height - 52;
         String shown = this.liveText;
         StyleScreen.round(ctx, x - 10, y - 20, w + 20, 44, 10, 0xC8000000);
         this.text(ctx, this.ellipsize(this.liveLabel, w - this.width(shown) - 4), x, y - 12, this.TEXT);
@@ -2068,6 +2183,7 @@ extends Screen {
         this.section(ctx, "Crystal", x, y);
         this.sliderRow(ctx, x, y + 18, w, "Spin speed", this.cfg.crystalSpin, 0, 1000, v -> {
             this.cfg.crystalSpin = v;
+            HandPreview.scene(HandPreview.Scene.CRYSTALS);
             this.beginLive("Crystal spin speed", v == 0 ? "Stopped" : v + "%", v, 0, 1000);
         }, v -> v == 0 ? "Stopped" : v + "%");
         int by = y + 18 + SLIDER_ROW;
@@ -2100,6 +2216,7 @@ extends Screen {
         this.section(ctx, "Fire & fog", x, y);
         this.sliderRow(ctx, x, y + 18, w, "Fire height", this.cfg.fireHeight, 10, 100, v -> {
             this.cfg.fireHeight = v;
+            HandPreview.scene(HandPreview.Scene.FIRE);
             this.beginLive("Fire height", v + "%", v, 10, 100);
         });
         this.toggleRow(ctx, x, y + 48, w, "No fog", this.cfg.noFog, () -> {
@@ -2236,15 +2353,14 @@ extends Screen {
     private void drawKillEffect(DrawContext ctx, int x, int y, int w) {
         ClientPlayerEntity player;
         this.section(ctx, "Kill effect", x, y);
-        int n = KillEffects.NAMES.length;
-        this.chipRow(ctx, x, y + 18, w, "Effect", KillEffects.NAMES[Math.floorMod(this.cfg.killEffect, n)], btn -> {
-            this.cfg.killEffect = Math.floorMod(this.cfg.killEffect + (btn == 1 ? -1 : 1), n);
-        });
-        this.toggleRow(ctx, x, y + 38, w, "Only my kills", this.cfg.killOnlyMine, () -> {
+        int ty = y + 18 + this.pickChips(ctx, x, y + 18, w, KillEffects.NAMES, Math.floorMod(this.cfg.killEffect, KillEffects.NAMES.length), i -> {
+            this.cfg.killEffect = i;
+        }) + EXTRA_GAP;
+        this.toggleRow(ctx, x, ty, w, "Only my kills", this.cfg.killOnlyMine, () -> {
             this.cfg.killOnlyMine = !this.cfg.killOnlyMine;
             Config.save();
         });
-        int by = y + 58;
+        int by = ty + 20;
         ClientPlayerEntity class_7462 = player = this.client == null ? null : this.client.player;
         if (by >= this.bodyY && by + 17 <= this.bodyB && player != null && this.cfg.killEffect > 0) {
             this.button(ctx, x, by, 0, "Try it", false, () -> this.showInWorld(() -> KillEffects.play(this.cfg.killEffect, Mc.pos(player).add(player.getRotationVector().multiply(5.0, 0.0, 5.0)), (PlayerEntity)player), 2500L));
@@ -2687,8 +2803,9 @@ extends Screen {
         }
         this.editor = ed;
         this.editTool = 0;
-        this.search.visible = false;
-        this.search.setFocused(false);
+        if (this.getFocused() == this.search) {
+            this.setFocused(null);
+        }
         String folder = p.style().id.startsWith("pack:") ? p.style().id.substring(5) : "";
         this.editName.setText((String)(!folder.isEmpty() && Files.isDirectory(Config.UPLOADS.resolve(folder), new LinkOption[0]) ? folder : "My " + p.group().name()));
     }
@@ -3221,8 +3338,16 @@ extends Screen {
 
     private void pick(Categories.Group g, Styles.Style s) {
         if (s.vanilla) {
-            this.cfg.loadout.remove(g.id());
+            String old = this.cfg.loadout.remove(g.id());
+            if (g.id().equals("mixes") && old != null) {
+                this.cfg.loadout.values().removeIf(old::equals); // what the mix set goes back to vanilla too
+                this.status("Mix off: back to vanilla");
+            }
         } else {
+            String oldMix = g.id().equals("mixes") ? this.cfg.loadout.get("mixes") : null;
+            if (oldMix != null && !oldMix.equals(s.id)) {
+                this.cfg.loadout.values().removeIf(oldMix::equals); // another mix: the old one's picks go first
+            }
             this.cfg.loadout.put(g.id(), s.id);
             if (Brand.KNIVES && g.id().equals(Knives.FINISH_GROUP) && Knives.active() == null) {
                 this.cfg.loadout.put(Knives.MODEL_GROUP, "knife:" + Knives.MODELS.getFirst().id());
@@ -3503,7 +3628,7 @@ extends Screen {
             this.sideScroll = StyleScreen.clamp(this.sideScroll + d, 0.0, this.sideMax);
         } else if (this.extras && mx < (double)this.extraSplitX) {
             this.tileScroll = StyleScreen.clamp(this.tileScroll + d, 0.0, this.tileMax);
-        } else if (this.extras || this.crosshairView) {
+        } else if (this.extras || this.crosshairView || this.marketView) {
             this.extrasScroll = StyleScreen.clamp(this.extrasScroll + d, 0.0, this.extrasMax);
         } else {
             this.gridScroll = StyleScreen.clamp(this.gridScroll + d, 0.0, this.gridMax);
@@ -3538,7 +3663,7 @@ extends Screen {
             }
         }
         if (!typing && this.editor == null) {
-            if (key == 47 && !this.extras && !this.home) {
+            if (key == 47 && !this.home) {
                 this.setFocused(this.search);
                 this.skipChar = true;
                 return true;
@@ -3564,6 +3689,15 @@ extends Screen {
             return true;
         }
         return false;
+    }
+
+    /** Menu GUI scale: yours, lowered until the menu has at least 640x360 to lay out in, so it fits at every UI scale. */
+    public static int fitScale(net.minecraft.client.util.Window w, int base) {
+        int f = Math.max(1, base);
+        while (f > 1 && (w.getFramebufferWidth() / f < 640 || w.getFramebufferHeight() / f < 360)) {
+            --f;
+        }
+        return f;
     }
 
     static int scale() {
@@ -3736,7 +3870,11 @@ extends Screen {
     }
 
     private void lens(DrawContext ctx, float x, float y, float w, float h, float r, int fill) {
-        r = Math.min(r, 4.0f);
+        this.pill(ctx, x, y, w, h, Math.min(r, 4.0f), fill);
+    }
+
+    /** lens() without the corner cap: a switch's lit half keeps its pill track's corner, or its corners poke out. */
+    private void pill(DrawContext ctx, float x, float y, float w, float h, float r, int fill) {
         StyleScreen.round(ctx, x, y, w, h, r, fill);
         StyleScreen.rim(ctx, x, y, w, h, r, 0x78FFFFFF);
     }
@@ -3821,9 +3959,18 @@ extends Screen {
         m.popMatrix();
     }
 
-    // GUI items are rastered at 16px x GUI scale, so they are only sharp unscaled.
-    private static void item(DrawContext ctx, Categories.Category c, int x, int y) {
-        ctx.drawItem(ICONS.computeIfAbsent(c.id(), k -> new ItemStack((ItemConvertible)c.icon())), x, y);
+    private static void item(DrawContext ctx, Categories.Category c, float cx, float cy) {
+        StyleScreen.smallItem(ctx, ICONS.computeIfAbsent(c.id(), k -> new ItemStack((ItemConvertible)c.icon())), cx, cy);
+    }
+
+    // ponytail: GUI items are rastered at 16px x GUI scale, so 14px skips a texel row here and there; draw from the texture if it shows
+    private static void smallItem(DrawContext ctx, ItemStack stack, float cx, float cy) {
+        Matrix3x2fStack m = ctx.getMatrices();
+        m.pushMatrix();
+        m.translate(cx, cy);
+        m.scale(0.875f, 0.875f);
+        ctx.drawItem(stack, -8, -8);
+        m.popMatrix();
     }
 
     private static int lerp(int a, int b, float t) {

@@ -5,8 +5,7 @@ import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
 
 /**
- * Product flavor. {@code main} defaults to {@code -Pproduct=7auction}.
- * PinguuTxw is {@code -Pproduct=pinguutxw}. Knives stay off for 7auction.
+ * Name and author from fabric.mod.json. Knives stay off for 7auction.
  */
 public final class Brand {
     public static final String ID = "hugoservice";

@@ -217,7 +217,7 @@ public final class Styles {
                     });
                 }
             }
-            Pack pack = new Pack(p, zip, (name = p.getFileName().toString().replaceAll("(?i)\\.zip$", "").replaceAll("\u00a7.", "").replace('_', ' ').trim()).isEmpty() ? "Pack" : name, stamp, Files.getLastModifiedTime(p, new LinkOption[0]).toMillis(), Map.copyOf(entries));
+            Pack pack = new Pack(p, zip, Marketplace.nameFor(p.getFileName().toString(), (name = p.getFileName().toString().replaceAll("(?i)\\.zip$", "").replaceAll("\u00a7.", "").replace('_', ' ').trim()).isEmpty() ? "Pack" : name), stamp, Files.getLastModifiedTime(p, new LinkOption[0]).toMillis(), Map.copyOf(entries));
             PACK_CACHE.put(p, pack);
             return pack;
         }
@@ -225,6 +225,20 @@ public final class Styles {
             HugoService.LOG.warn("Skipping unreadable pack {}", p, e);
             return null;
         }
+    }
+
+    /** The file behind a "pack:<file>" style id, or null. */
+    public static Path packPath(String styleId) {
+        if (styleId == null || !styleId.startsWith("pack:")) {
+            return null;
+        }
+        String file = styleId.substring("pack:".length());
+        for (Pack p : packs) {
+            if (p.zip && p.path.getFileName().toString().equals(file)) {
+                return p.path;
+            }
+        }
+        return null;
     }
 
     public static List<Style> forGroup(Categories.Group c) {
